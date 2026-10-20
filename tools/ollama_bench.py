@@ -4,8 +4,10 @@
 Two modes:
   extract  long Thai prompt -> measures prompt tokens/s and generation tokens/s of the
            OCL model (default gemma4:26b) and projects the time per curriculum book.
-  hris     short prompt against gemma4:12b -> p50/p95 latency as seen by HRIS. NEVER
-           sends keep_alive for that model (docs/server-constraints.md rule 2).
+  hris     short prompt against gemma4:12b -> p50/p95 latency as seen by HRIS. ALWAYS
+           sends keep_alive=-1 and NEVER sends num_ctx for that model: an omitted
+           keep_alive makes Ollama apply its 5-minute default (overriding HRIS's -1) and
+           a different num_ctx forces a reload (docs/server-constraints.md rule 2).
 
 Examples (run inside the project venv, outside 02:30-04:00):
   uv run python tools/ollama_bench.py --mode extract --runs 3 --out docs/bench/26b.jsonl
@@ -94,7 +96,7 @@ def chat(
     base: str,
     model: str,
     prompt: str,
-    num_ctx: int,
+    num_ctx: int | None,
     keep_alive: str | None,
     think: bool | None,
     max_tokens: int,
@@ -103,8 +105,10 @@ def chat(
         "model": model,
         "messages": [{"role": "user", "content": prompt}],
         "stream": False,
-        "options": {"num_ctx": num_ctx, "num_predict": max_tokens, "temperature": 0},
+        "options": {"num_predict": max_tokens, "temperature": 0},
     }
+    if num_ctx is not None:
+        body["options"]["num_ctx"] = num_ctx
     if think is not None:
         body["think"] = think
     if keep_alive is not None:
@@ -153,13 +157,16 @@ def main() -> int:
 
     model = args.model or (HRIS_PINNED_MODEL if args.mode == "hris" else "gemma4:26b")
     keep_alive = args.keep_alive
+    num_ctx: int | None = args.num_ctx
     if model == HRIS_PINNED_MODEL:
-        if keep_alive is not None:
+        if keep_alive not in (None, "-1"):
             print(
-                f"!! refusing: keep_alive must never be sent for {HRIS_PINNED_MODEL}",
+                f"!! refusing: keep_alive for {HRIS_PINNED_MODEL} must be -1 (HRIS pin)",
                 file=sys.stderr,
             )
             return 2
+        keep_alive = "-1"  # re-pin on every request; omitting it would apply the 5m default
+        num_ctx = None  # never change the loaded context of the shared model (forces reload)
     elif keep_alive is None:
         keep_alive = "10m"
     think = {"false": False, "true": True, "omit": None}[args.think]
@@ -171,7 +178,7 @@ def main() -> int:
 
     prompt = build_prompt(args.mode, args.prompt_chars)
     print(
-        f"mode={args.mode} model={model} runs={args.runs} num_ctx={args.num_ctx} "
+        f"mode={args.mode} model={model} runs={args.runs} num_ctx={num_ctx} "
         f"keep_alive={keep_alive} think={think} prompt_chars={len(prompt)}"
     )
     print("ps BEFORE:", fmt_ps(loaded_models(args.base)))
@@ -179,9 +186,7 @@ def main() -> int:
     rows: list[dict] = []
     for i in range(args.runs):
         try:
-            resp, wall = chat(
-                args.base, model, prompt, args.num_ctx, keep_alive, think, args.max_tokens
-            )
+            resp, wall = chat(args.base, model, prompt, num_ctx, keep_alive, think, args.max_tokens)
         except urllib.error.HTTPError as e:
             print(f"run {i + 1}: HTTP {e.code}: {e.read().decode('utf-8', 'replace')[:300]}")
             return 1
@@ -203,7 +208,7 @@ def main() -> int:
             "done_reason": resp.get("done_reason"),
             "content_chars": len(content),
             "content_head": content[:120].replace("\n", " "),
-            "num_ctx": args.num_ctx,
+            "num_ctx": num_ctx,
             "keep_alive": keep_alive,
             "think": think,
             "prompt_chars": len(prompt),

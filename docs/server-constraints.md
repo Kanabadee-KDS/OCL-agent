@@ -21,12 +21,12 @@
 - เรียกจาก container บนเครื่องนี้: `extra_hosts: ["host.docker.internal:host-gateway"]` → `http://host.docker.internal:11434`
 - เรียกจากเครื่องอื่นใน Tailscale: `http://100.104.172.122:11434`
 - gemma4 ต้องปิด thinking (`think: false` ใน `/api/chat` หรือ `reasoning_effort: "none"` ใน `/v1`) ไม่งั้นคำตอบว่าง
-- ส่ง `num_ctx` เองทุกคำขอ (ค่าเริ่มต้น 262144 กินหน่วยความจำมาก)
+- โมเดลของ OCL: ส่ง `num_ctx` เองทุกคำขอ (ค่าเริ่มต้น 262144 กินหน่วยความจำมาก) · โมเดลของ HRIS: ห้ามส่ง
 
 ## ข้อห้าม
 
 1. ห้าม pull / delete / create / copy / push โมเดลผ่าน API หรือ CLI โดยไม่ถามเจ้าของโปรเจก โดยเฉพาะ tag `gemma4:12b`
-2. ถ้าใช้ `gemma4:12b` ร่วม **ห้ามส่ง `keep_alive`** (คำขอจะเขียนทับค่า -1 ของ HRIS แล้วโมเดลถูกปล่อย) · โมเดลอื่นส่ง `keep_alive` สั้น เช่น `10m`
+2. ถ้าใช้ `gemma4:12b` ร่วม ทุกคำขอ**ต้องส่ง `keep_alive: -1`** และ**ห้ามส่ง `num_ctx`** (ยืนยันจริง 20 ต.ค. 2569: คำขอที่ไม่ส่ง keep_alive ทำให้ Ollama ใช้ค่าเริ่มต้น 5 นาทีทับค่า -1 ของ HRIS และ num_ctx ที่ต่างจาก 262144 ทำให้โมเดลถูกโหลดใหม่) · โมเดลอื่นส่ง `keep_alive` สั้น เช่น `10m` และส่ง `num_ctx` เองเสมอ
 3. ห้ามแก้ systemd ของ Ollama · ห้าม restart · ห้ามอัปเกรด (มี warning "unit changed on disk" อยู่ ห้ามไป daemon-reload เอง)
 4. ห้ามรันงานหนักบน GPU ช่วง **02:30–04:00** (backup HRIS 02:30 · รอบทดสอบโมเดล 03:00 ราว 25 นาที)
 5. ห้ามแตะโปรเจกอื่น: HRIS (compose `hrisapp` · `~/hris_obsidian` · พอร์ต 8090 · volume `hrisapp_*`) และ hr_recruit (compose `onprem` · พอร์ต 8080) · network `hrisjev_default` ก็ห้ามแตะ
