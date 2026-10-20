@@ -41,6 +41,13 @@ curl -s http://127.0.0.1:8000/health
 uv run ocl ingest "samples/curriculum/<เล่ม>.docx"
 ```
 
+สกัดข้อมูลโครงสร้าง (ชั้น B) จากผล ingest: โครงสร้างหลักสูตร · PLO · รายวิชา → `extract/*.json` + `extract/checks.json` + `extract/md/*.md`
+ต้องมี `.env` ชี้ Ollama (ดู `.env.example`) หรือใส่ `--no-llm` เพื่อใช้ parser อย่างเดียว
+
+```bash
+uv run ocl extract "data/ingest/<เล่ม>"
+```
+
 เปิด UI mock ของลูกค้า: `python3 -m http.server 8765 --directory samples` แล้วเปิด `http://127.0.0.1:8765/ui-mock.html`
 
 ## Benchmark Ollama บน server (ก่อนตัดสินใจโมเดล)

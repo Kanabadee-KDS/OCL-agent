@@ -49,3 +49,16 @@ script เวอร์ชันแรกไม่ส่ง `keep_alive` ให�
 ## ตัดสินใจ (D2)
 
 ใช้ **gemma4:26b** เป็น Local AI ของ OCL · `num_ctx=32768` · `keep_alive=10m` · `think=false` · worker concurrency 1 · เวลาต่อเล่ม 4–12 นาทีอยู่ในเกณฑ์ที่ยอมรับสำหรับงาน batch ที่มี progress bar
+
+## 2569-10-21 สกัดจริง (D4) — เล่ม วท.บ. วิทยาการการเปลี่ยนแปลงสภาพภูมิอากาศ (docx 78 หน้า)
+
+`ocl extract` ผ่าน Tailscale จาก Mac → gemma4:26b · `num_ctx=32768` · `keep_alive=10m` · `think=false` · `format=json schema`
+
+| ส่วน | วิธี | ผล | เวลา |
+|---|---|---|---|
+| โครงสร้างหลักสูตร | parser (ตารางหมวดวิชา) | 5 โหนด · 127 หน่วยกิต | < 0.1 s |
+| PLO | parser (regex) | 5 ข้อ | < 0.1 s |
+| รายวิชา | parser 57 วิชา + LLM 2 คำขอ (prompt 9,924 tok · output 4,681 tok) | LLM พบ 57 วิชาตรงกับ parser ทั้งหมด ไม่มีข้อขัดแย้ง → ความมั่นใจสูง 57/57 | 47.6 s |
+| ตรวจความสอดคล้อง | validator | ผ่าน 5 · info 1 · ไม่มี fail | – |
+
+บทเรียน: รอบแรกล้มเพราะขอให้ LLM ส่งคำอธิบายรายวิชาทั้งหมดกลับมา (JSON ยาวเกิน 8,192 token → `done_reason=length`) การขอเฉพาะรหัส/ชื่อ/หน่วยกิต ลด output เหลือ 4,681 token และจบใน 48 วินาที · gemma4:12b ของ HRIS ยังปักอยู่ (expires 2319) ตลอดการรัน

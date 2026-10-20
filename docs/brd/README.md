@@ -7,10 +7,10 @@
 |---|---|---|
 | [00-overview.md](00-overview.md) | ภาพรวมระบบ ผู้ใช้ 9 บทบาท สิทธิ์ ระบบภายนอก workflow อนุมัติ ขอบเขต release | ร่าง v0.1 |
 | [01-m1-curriculum.md](01-m1-curriculum.md) | M1 บริหารข้อมูลหลักสูตร: คู่มือหลักสูตร · ตรวจสอบโดยคณะ · สมอ.08 · **นำเข้าด้วย AI** · บริหารรายวิชา · บุคคลภายนอก · แดชบอร์ด | ร่าง v0.1 |
-| [02-m2-learning-plan.md](02-m2-learning-plan.md) | M2 แผนการจัดการเรียนรู้รายวิชา/ชุดวิชา | โครงเมนู (ลงรายละเอียด D3) |
-| [03-m3-skill-transcript.md](03-m3-skill-transcript.md) | M3 Skill Transcript | โครงเมนู (ลงรายละเอียด D3) |
-| [04-m4-qa.md](04-m4-qa.md) | M4 ประเมินผลหลักสูตรตามเกณฑ์มาตรฐาน | โครงเมนู (ลงรายละเอียด D4) |
-| [05-m5-reports.md](05-m5-reports.md) | M5 รายงาน (R01–R12) | โครงเมนู (ลงรายละเอียด D4) |
+| [02-m2-learning-plan.md](02-m2-learning-plan.md) | M2 แผนการจัดการเรียนรู้รายวิชา/ชุดวิชา | ร่าง v0.1 |
+| [03-m3-skill-transcript.md](03-m3-skill-transcript.md) | M3 Skill Transcript | ร่าง v0.1 |
+| [04-m4-qa.md](04-m4-qa.md) | M4 ประเมินผลหลักสูตรตามเกณฑ์มาตรฐาน | ร่าง v0.1 |
+| [05-m5-reports.md](05-m5-reports.md) | M5 รายงาน (R01–R14) | ร่าง v0.1 |
 | [90-ai-import-data-dictionary.md](90-ai-import-data-dictionary.md) | Data dictionary 10 ส่วนที่ AI สกัด (ฐานของ JSON schema ใน D4) | ร่าง v0.1 |
 | [99-open-questions.md](99-open-questions.md) | ข้อสมมติและคำถามถึงลูกค้า | เปิด |
 
