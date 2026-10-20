@@ -35,6 +35,12 @@ uv run uvicorn ocl_api.main:app --reload --port 8000
 curl -s http://127.0.0.1:8000/health
 ```
 
+แปลงเล่มหลักสูตรเป็น Markdown ทั้งเล่ม + รูป + JSON (ชั้น A ไม่ใช้ LLM) ผลอยู่ที่ `data/ingest/<ชื่อไฟล์>/`
+
+```bash
+uv run ocl ingest "samples/curriculum/<เล่ม>.docx"
+```
+
 เปิด UI mock ของลูกค้า: `python3 -m http.server 8765 --directory samples` แล้วเปิด `http://127.0.0.1:8765/ui-mock.html`
 
 ## Benchmark Ollama บน server (ก่อนตัดสินใจโมเดล)

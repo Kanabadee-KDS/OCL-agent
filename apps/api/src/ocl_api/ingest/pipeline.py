@@ -1,0 +1,63 @@
+"""ingest(file, out_dir): reader -> Document -> book.md + sections/ + assets/ + document.json"""
+
+from __future__ import annotations
+
+import json
+import re
+import time
+from pathlib import Path
+from typing import Any
+
+from ocl_api.ingest.docx_reader import DocxReader
+from ocl_api.ingest.markdown import render_book, render_section
+from ocl_api.ingest.model import Document
+
+
+def read_document(path: Path, assets_dir: Path) -> Document:
+    suffix = path.suffix.lower()
+    if suffix == ".docx":
+        return DocxReader(path, assets_dir).read()
+    if suffix == ".pdf":
+        raise NotImplementedError("PDF ingestion arrives in D3 (Docling / PyMuPDF)")
+    raise ValueError(f"unsupported file type: {path.suffix}")
+
+
+def _safe_slug(s: str) -> str:
+    return re.sub(r"[^0-9A-Za-zก-๙]+", "-", s).strip("-")[:60] or "section"
+
+
+def ingest(file: str | Path, out_dir: str | Path) -> dict[str, Any]:
+    path = Path(file)
+    out = Path(out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    t0 = time.perf_counter()
+    doc = read_document(path, out / "assets")
+
+    (out / "book.md").write_text(render_book(doc), encoding="utf-8")
+    sec_dir = out / "sections"
+    sec_dir.mkdir(exist_ok=True)
+    for old in sec_dir.glob("*.md"):
+        old.unlink()
+    section_files = []
+    for i, s in enumerate(doc.sections()):
+        name = f"{i:02d}-{_safe_slug(s.slug)}.md"
+        (sec_dir / name).write_text(render_section(s), encoding="utf-8")
+        section_files.append(
+            {"file": f"sections/{name}", "title": s.title, "blocks": len(s.blocks)}
+        )
+
+    (out / "document.json").write_text(
+        json.dumps(doc.to_dict(), ensure_ascii=False, indent=1), encoding="utf-8"
+    )
+    report = {
+        "source": path.name,
+        "out_dir": str(out),
+        "seconds": round(time.perf_counter() - t0, 2),
+        **doc.stats(),
+        "sections": section_files,
+        "notes": doc.notes,
+    }
+    (out / "report.json").write_text(
+        json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8"
+    )
+    return report

@@ -1,5 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
+
 from ocl_api.config import Settings
 from ocl_api.main import create_app
 
