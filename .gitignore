@@ -1,0 +1,30 @@
+# --- เอกสารของลูกค้าและไฟล์ขนาดใหญ่ (แชร์นอก git) ---
+samples/
+data/
+*.pdf
+*.docx
+
+# --- ความลับ ---
+.env
+.env.*
+!.env.example
+
+# --- Python / uv ---
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+
+# --- Node (apps/web ภายหลัง) ---
+node_modules/
+.next/
+
+# --- เครื่องมือเฉพาะเครื่อง ---
+.claude/
+.idea/
+.vscode/
+.DS_Store

@@ -1,0 +1,5 @@
+# ของที่แตะ server หรือกติกาทีม ต้องผ่านเจ้าของโปรเจกเสมอ
+/deploy/                      @Kanabadee-KDS
+/.github/                     @Kanabadee-KDS
+/docs/server-constraints.md   @Kanabadee-KDS
+/tools/ollama_bench.py        @Kanabadee-KDS
