@@ -18,7 +18,9 @@ def read_document(path: Path, assets_dir: Path) -> Document:
     if suffix == ".docx":
         return DocxReader(path, assets_dir).read()
     if suffix == ".pdf":
-        raise NotImplementedError("PDF ingestion arrives in D3 (Docling / PyMuPDF)")
+        from ocl_api.ingest.pdf_reader import PdfReader
+
+        return PdfReader(path, assets_dir).read()
     raise ValueError(f"unsupported file type: {path.suffix}")
 
 

@@ -196,8 +196,11 @@ def test_symbol_mapping_and_unknown() -> None:
     assert map_symbol("Wingdings", 0xF09F, unknown) == "●"
     assert map_symbol("Wingdings", 0x6C, unknown) == "●"
     assert map_symbol("Wingdings", 0xFE, unknown) == "☑"
+    assert map_symbol("Wingdings 2", 0xF0A3, unknown) == "□"
+    assert map_symbol("Wingdings2", 0xA3, unknown) == "□"
+    assert map_symbol("BCDMEE+Wingdings-Regular", 0xF09F, unknown) == "●"
     assert map_symbol("Webdings", 0xF041, unknown).startswith("⟨sym")
-    assert unknown == {"Webdings:41": 1}
+    assert unknown == {"webdings:41": 1}
 
 
 def test_merge_only_adjacent_same_header() -> None:

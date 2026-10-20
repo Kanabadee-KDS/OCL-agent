@@ -29,10 +29,33 @@ WINGDINGS: dict[int, str] = {
 WINGDINGS2: dict[int, str] = {
     0x50: "☑",
     0x52: "☒",
-    0xA3: "□",  # seen in ศศ.บ. ภูมิสังคม book; unverified
+    0xA3: "□",  # empty check box (verified on the food-science PDF, page 156)
 }
 
-SYMBOL_FONTS = {"wingdings": WINGDINGS, "wingdings 2": WINGDINGS2}
+# keys are normalized font names: lowercase, letters and digits only
+SYMBOL_FONTS = {"wingdings": WINGDINGS, "wingdings2": WINGDINGS2}
+
+
+def normalize_font(name: str | None) -> str:
+    """'Wingdings 2', 'Wingdings2', 'BCDMEE+Wingdings-Regular' -> 'wingdings2' / 'wingdings'."""
+    n = (name or "").lower()
+    if "+" in n:
+        n = n.split("+", 1)[1]  # drop PDF subset prefix
+    n = "".join(ch for ch in n if ch.isalnum())
+    for suffix in ("regular", "bold", "italic"):
+        if n.endswith(suffix):
+            n = n[: -len(suffix)]
+    return n
+
+
+def symbol_table(font: str | None) -> dict[int, str] | None:
+    n = normalize_font(font)
+    if n in SYMBOL_FONTS:
+        return SYMBOL_FONTS[n]
+    for key in sorted(SYMBOL_FONTS, key=len, reverse=True):
+        if n.startswith(key):
+            return SYMBOL_FONTS[key]
+    return None
 
 
 def map_symbol(font: str | None, code: int, unknown: dict[str, int] | None = None) -> str:
@@ -42,10 +65,10 @@ def map_symbol(font: str | None, code: int, unknown: dict[str, int] | None = Non
     or without it. Unknown glyphs come back as a visible placeholder.
     """
     base = code & 0xFF if code >= 0xF000 else code
-    table = SYMBOL_FONTS.get((font or "").strip().lower())
+    table = symbol_table(font)
     if table and base in table:
         return table[base]
-    key = f"{font or '?'}:{base:02X}"
+    key = f"{normalize_font(font) or '?'}:{base:02X}"
     if unknown is not None:
         unknown[key] = unknown.get(key, 0) + 1
     return f"⟨sym {key}⟩"
@@ -53,7 +76,7 @@ def map_symbol(font: str | None, code: int, unknown: dict[str, int] | None = Non
 
 def map_pua_text(font: str | None, text: str, unknown: dict[str, int] | None = None) -> str:
     """Map private-use characters (U+F000..U+F0FF) in a run whose font is a symbol font."""
-    if not text or (font or "").strip().lower() not in SYMBOL_FONTS:
+    if not text or symbol_table(font) is None:
         return text
     return "".join(
         map_symbol(font, ord(ch), unknown) if 0xF000 <= ord(ch) <= 0xF0FF else ch for ch in text
