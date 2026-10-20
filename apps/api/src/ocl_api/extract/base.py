@@ -94,13 +94,23 @@ def chapter(doc: Document, number: str) -> Section | None:
 _H2 = re.compile(r"^\s*(\d+)\.\s")
 
 
+def _is_h2(b: Block, loose: bool) -> bool:
+    if not isinstance(b, Paragraph):
+        return False
+    if b.level == 2:
+        return True
+    # Some books do not bold their item headings; accept short "N. ..." lines then.
+    return loose and b.level == 0 and len(b.text) < 90 and _H2.match(b.text) is not None
+
+
 def subsection(blocks: list[Block], number: str) -> list[Block]:
     """Blocks under the level-2 heading "N. ..." until the next level-2 heading."""
+    loose = sum(1 for b in blocks if isinstance(b, Paragraph) and b.level == 2) < 2
     out: list[Block] = []
     inside = False
     for b in blocks:
-        if isinstance(b, Paragraph) and b.level == 2:
-            m = _H2.match(b.text)
+        if _is_h2(b, loose):
+            m = _H2.match(b.text)  # type: ignore[union-attr]
             if inside and m and m.group(1) != number:
                 break
             inside = bool(m and m.group(1) == number)
@@ -108,6 +118,16 @@ def subsection(blocks: list[Block], number: str) -> list[Block]:
         if inside:
             out.append(b)
     return out
+
+
+def paragraphs_text(blocks: list[Block], *, max_chars: int | None = None) -> str:
+    """Flatten paragraphs only (tables excluded) for an LLM prompt."""
+    text = "\n".join(
+        ("#" * b.level + " " if b.level else "") + b.text
+        for b in blocks
+        if isinstance(b, Paragraph)
+    )
+    return text[:max_chars] if max_chars else text
 
 
 def paragraphs(blocks: list[Block]) -> Iterator[Paragraph]:

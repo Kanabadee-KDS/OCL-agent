@@ -140,7 +140,8 @@ class LLMGateway:
         if s.ollama_num_ctx is not None:
             body["options"]["num_ctx"] = s.ollama_num_ctx
         if s.ollama_keep_alive is not None:
-            body["keep_alive"] = s.ollama_keep_alive
+            ka = s.ollama_keep_alive.strip()
+            body["keep_alive"] = -1 if ka == "-1" else ka  # -1 must be numeric for Ollama
         t0 = time.perf_counter()
         try:
             r = self._client.post(f"{s.ollama_base_url.rstrip('/')}/api/chat", json=body)

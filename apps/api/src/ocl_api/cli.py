@@ -42,6 +42,19 @@ def cmd_extract(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_golden(args: argparse.Namespace) -> int:
+    from ocl_api.extract.golden import render_golden
+
+    ingest_dir = Path(args.ingest_dir)
+    extract_dir = Path(args.extract) if args.extract else ingest_dir / "extract"
+    book = ingest_dir.name
+    out = Path(args.out) if args.out else Path("data/golden") / f"{book}.md"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(render_golden(extract_dir, book=book, reviewer=args.reviewer), encoding="utf-8")
+    print(out)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="ocl", description="OCL Agent tools")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -60,6 +73,15 @@ def main(argv: list[str] | None = None) -> int:
     e.add_argument("--reingest", action="store_true", help="re-run ingest even if output exists")
     e.add_argument("--out", help="output dir (default: <ingest dir>/extract)")
     e.set_defaults(func=cmd_extract)
+
+    g = sub.add_parser(
+        "golden", help="review checklist (Markdown) for the Admin from extract output"
+    )
+    g.add_argument("ingest_dir")
+    g.add_argument("--extract", help="extract dir (default: <ingest dir>/extract)")
+    g.add_argument("--reviewer", default="")
+    g.add_argument("--out", help="output file (default: data/golden/<book>.md)")
+    g.set_defaults(func=cmd_golden)
 
     args = ap.parse_args(argv)
     return args.func(args)

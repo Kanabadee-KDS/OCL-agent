@@ -112,7 +112,8 @@ def chat(
     if think is not None:
         body["think"] = think
     if keep_alive is not None:
-        body["keep_alive"] = keep_alive
+        # Ollama wants -1 as a number (a "-1" string fails: missing unit in duration)
+        body["keep_alive"] = -1 if str(keep_alive).strip() == "-1" else keep_alive
     t0 = time.perf_counter()
     resp = http_json(f"{base}/api/chat", body)
     return resp, time.perf_counter() - t0

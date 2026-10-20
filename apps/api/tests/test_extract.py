@@ -251,3 +251,188 @@ def test_truncated_chunks_are_split_and_retried(monkeypatch) -> None:
     assert any("truncated; split" in n for n in r.notes)
     assert r.llm_usage["calls"] == len(gw.sizes)
     assert r.data["count"] == 2
+
+
+def test_graduate_plan_table_and_unnumbered_rows() -> None:
+    blocks = [
+        H("หมวดที่ 4 โครงสร้างหลักสูตร รายวิชา และหน่วยกิต", 1, 24),
+        H("1. จำนวนหน่วยกิตตลอดหลักสูตรและโครงสร้างหลักสูตร", 2, 24),
+        P("1.1 จำนวนหน่วยกิตตลอดหลักสูตร รวมไม่น้อยกว่า 48 หน่วยกิต", 24),
+        Table(
+            rows=[
+                ["หมวดวิชา", "แผน 1.1 เน้นการทำวิจัย", "แผน 2.1 เน้นการทำวิจัยและเรียน"],
+                ["หมวดวิชา", "หน่วยกิต", "หน่วยกิต"],
+                ["หมวดวิชาบังคับ", "-", "8 หน่วยกิต"],
+                ["หมวดวิชาเลือก ไม่น้อยกว่า", "-", "4 หน่วยกิต"],
+                ["หมวดวิชาปริญญานิพนธ์", "48 หน่วยกิต", "36 หน่วยกิต"],
+                ["รวมไม่น้อยกว่า", "48 หน่วยกิต", "48 หน่วยกิต"],
+            ],
+            page=24,
+        ),
+    ]
+    doc = Document(source_name="phd.docx", source_type="docx", blocks=blocks)
+    st = extract_structure(doc).data
+    assert st["total_credits"] == 48
+    plans = st["tree"]
+    assert [
+        n["name"].startswith(x) for n, x in zip(plans, ["แผน 1.1", "แผน 2.1"], strict=True)
+    ] == [True, True]
+    assert [n["credits"] for n in plans] == [48, 48]
+    assert [c["name"] for c in plans[0]["children"]] == ["หมวดวิชาปริญญานิพนธ์"]
+    assert [c["credits"] for c in plans[1]["children"]] == [8, 4, 36]
+    checks = {c.key: c for c in run_checks({"structure": st, "plo": {}, "courses": {}})}
+    assert checks["credits_total"].status == "pass"
+
+
+def test_course_table_rows_with_th_en_cells() -> None:
+    blocks = [
+        H("หมวดที่ 4 โครงสร้างหลักสูตร รายวิชา และหน่วยกิต", 1, 24),
+        H("2. รายละเอียดของหมวดวิชาและหน่วยกิต", 2, 24),
+        P("2.2.1 ชุดวิชาทฤษฎีเศรษฐศาสตร์ธุรกิจและการจัดการ", 24),
+        Table(
+            rows=[
+                ["ศฐ510*\nEC510*", "เศรษฐศาสตร์พื้นฐาน\nFundamental Economics", "2(2-0-4)"],
+                ["ศฐ511\nEC511", "การวิเคราะห์เชิงปริมาณ\nQuantitative Analysis", "3(3-0-6)"],
+            ],
+            page=24,
+        ),
+        H("3. คำอธิบายชุดวิชา/รายวิชา", 2, 30),
+        P("ศฐ511 การวิเคราะห์เชิงปริมาณ 3(3-0-6)", 30),
+        P("EC511 Quantitative Analysis", 30),
+        P("ศึกษาเครื่องมือเชิงปริมาณ", 30),
+    ]
+    doc = Document(source_name="ma.docx", source_type="docx", blocks=blocks)
+    cs = extract_courses(doc).data["courses"]
+    by = {c["code_th"]: c for c in cs}
+    assert set(by) == {"ศฐ510", "ศฐ511"}
+    assert by["ศฐ510"]["code_en"] == "EC510" and by["ศฐ510"]["name_en"] == "Fundamental Economics"
+    assert by["ศฐ510"]["credit_text"] == "2(2-0-4)" and by["ศฐ510"]["name_th"] == "เศรษฐศาสตร์พื้นฐาน"
+    assert by["ศฐ511"]["module"] == "ชุดวิชาทฤษฎีเศรษฐศาสตร์ธุรกิจและการจัดการ"
+    assert by["ศฐ511"]["description_th"] == "ศึกษาเครื่องมือเชิงปริมาณ"
+
+
+def test_pdf_split_header_layout() -> None:
+    blocks = [
+        H("หมวดที่ 4 โครงสร้างหลักสูตร รายวิชา และหน่วยกิต", 1, 30),
+        H("3. คำอธิบายชุดวิชา/รายวิชา", 2, 30),
+        P("3.1.1 วิชาบังคับ กำหนดให้เรียน จำนวน 24 หน่วยกิต ดังนี้", 30),
+        P("ศท111 ศิลปะการใช้ชีวิต", 30),
+        P("3(3-0-6) GEN111 The Art of Living", 30),
+        P("พัฒนาผู้เรียนให้มีทักษะการเรียนรู้ตลอดชีวิต", 30),
+        P("ศท112 พลังการสื่อสาร", 31),
+        P("3(3-0-6) GEN112 Power of Communication", 31),
+        P("พัฒนาทักษะด้านการสื่อสาร", 31),
+        P("ศท999 บรรทัดที่อ้างถึงรายวิชาอื่นเฉย ๆ", 31),
+        P("ไม่ใช่หัวข้อรายวิชาเพราะบรรทัดถัดไปไม่มีหน่วยกิต", 31),
+    ]
+    doc = Document(source_name="food.pdf", source_type="pdf", blocks=blocks)
+    cs = {c["code_th"]: c for c in extract_courses(doc).data["courses"]}
+    assert set(cs) == {"ศท111", "ศท112"}, (
+        "a code line without a following credit line is not a course"
+    )
+    c = cs["ศท111"]
+    assert c["credit_text"] == "3(3-0-6)" and c["code_en"] == "GEN111"
+    assert c["name_en"] == "The Art of Living" and c["name_th"] == "ศิลปะการใช้ชีวิต"
+    assert c["description_th"] == "พัฒนาผู้เรียนให้มีทักษะการเรียนรู้ตลอดชีวิต"
+    assert cs["ศท112"]["description_th"].startswith("พัฒนาทักษะด้านการสื่อสาร ศท999")
+
+
+def test_phd_multirow_table_and_word_credits() -> None:
+    blocks = [
+        H("หมวดที่ 4 โครงสร้างหลักสูตร รายวิชา และหน่วยกิต", 1, 30),
+        H("3. คำอธิบายชุดวิชา/รายวิชา", 2, 30),
+        P("3.2.1.1 ชุดวิชาเศรษฐศาสตร์เชิงปริมาณ", 30),
+        Table(
+            rows=[
+                ["ศฐน721", "เศรษฐมิติประยุกต์ขั้นสูง", "3 (2-2-5)"],
+                ["ECI721", "Advanced Applied Econometrics", ""],
+                ["ศึกษาวิธีเชิงปริมาณขั้นสูง", "", ""],
+                ["Study of advanced quantitative methods", "", ""],
+                ["", "", ""],
+                ["ศฐน711", "เศรษฐศาสตร์จุลภาคขั้นสูง", "ไม่นับหน่วยกิต"],
+                ["ECI711", "Advanced Microeconomics", ""],
+                ["ประยุกต์เชิงนโยบาย", "", ""],
+            ],
+            page=31,
+        ),
+        P("ปพอ892 ปริญญานิพนธ์ระดับปริญญาเอก 36 หน่วยกิต", 40),
+        P("GRD892 Doctoral Dissertation", 40),
+        P("วิจัยเชิงลึกในหัวข้อที่ได้รับอนุมัติ", 40),
+    ]
+    doc = Document(source_name="phd.docx", source_type="docx", blocks=blocks)
+    cs = {c["code_th"]: c for c in extract_courses(doc).data["courses"]}
+    assert set(cs) == {"ศฐน721", "ศฐน711", "ปพอ892"}
+    a = cs["ศฐน721"]
+    assert a["credit_text"] == "3(2-2-5)" and a["credits"] == 3
+    assert a["code_en"] == "ECI721" and a["name_en"] == "Advanced Applied Econometrics"
+    assert a["description_th"] == "ศึกษาวิธีเชิงปริมาณขั้นสูง"
+    assert a["description_en"] == "Study of advanced quantitative methods"
+    assert a["module"] == "ชุดวิชาเศรษฐศาสตร์เชิงปริมาณ"
+    b = cs["ศฐน711"]
+    assert b["credit_text"] == "ไม่นับหน่วยกิต" and b["credits"] == 0
+    assert b["description_th"] == "ประยุกต์เชิงนโยบาย"
+    d = cs["ปพอ892"]
+    assert d["credit_text"] == "36 หน่วยกิต" and d["credits"] == 36 and d["hours"] is None
+    assert d["code_en"] == "GRD892" and d["description_th"] == "วิจัยเชิงลึกในหัวข้อที่ได้รับอนุมัติ"
+
+
+def test_golden_sheet(tmp_path: Path) -> None:
+    from ocl_api.cli import main
+
+    doc = sample_doc()
+    (tmp_path / "document.json").write_text(
+        json.dumps(doc.to_dict(), ensure_ascii=False), encoding="utf-8"
+    )
+    extract(tmp_path, gateway=None)
+    out = tmp_path / "golden.md"
+    assert main(["golden", str(tmp_path), "--out", str(out), "--reviewer", "ทดสอบ"]) == 0
+    md = out.read_text(encoding="utf-8")
+    assert "ผู้ตรวจ: ทดสอบ" in md and "| 1 | ศท111 |" in md and "| PLO1 |" in md
+    assert "| 1 | หมวดวิชาศึกษาทั่วไป | 24 | 25 | สูง |" in md
+    assert "| รายวิชา (แถว × 4 ช่อง) | 8 |" in md
+
+
+def test_in_book_conflict_is_flagged_low() -> None:
+    blocks = [
+        H("หมวดที่ 4 โครงสร้างหลักสูตร รายวิชา และหน่วยกิต", 1, 24),
+        H("2. รายละเอียดของหมวดวิชาและหน่วยกิต", 2, 24),
+        P("ศฐน722 การวิจัยทางเศรษฐศาสตร์ 3(2-2-5)", 24),
+        H("3. คำอธิบายชุดวิชา/รายวิชา", 2, 33),
+        P("ศฐน722 สัมมนาทางเศรษฐศาสตร์ 2(1-2-3)", 33),
+        P("ECI722 Seminar in Economics", 33),
+        P("พัฒนาทักษะการนำเสนอ", 33),
+    ]
+    doc = Document(source_name="phd.docx", source_type="docx", blocks=blocks)
+    c = extract_courses(doc).data["courses"][0]
+    assert c["meta"]["confidence"] == "low"
+    assert "ชื่อต่างกันในเล่ม" in c["meta"]["note"] and "หน่วยกิตต่างกันในเล่ม" in c["meta"]["note"]
+
+
+def test_llm_items_must_be_literal_in_text() -> None:
+    from ocl_api.extract.courses import _verify_against_text
+
+    chunk = "ศท111 ศิลปะการใช้ชีวิต 3(3-0-6)\nGEN111 The Art of Living\nรายละเอียด"
+    ok = _verify_against_text(
+        {"code_th": "ศท 111", "name_th": "ศิลปะการใช้ชีวิต", "credit_text": "3 (3-0-6)"}, chunk
+    )
+    assert ok == {"code_th": "ศท111", "name_th": "ศิลปะการใช้ชีวิต", "credit_text": "3 (3-0-6)"}
+    renamed = _verify_against_text({"code_th": "ศท111", "name_th": "ศิลปะแห่งการใช้ชีวิต"}, chunk)
+    assert renamed["name_th"] is None, "a paraphrased name is evidence of nothing"
+    assert _verify_against_text({"code_th": "ศท999", "name_th": "x"}, chunk) is None
+    assert _verify_against_text({"code_th": "GCM413", "name_th": "x"}, chunk) is None
+
+
+def test_subsection_without_bold_headings() -> None:
+    blocks = [
+        H("หมวดที่ 4 โครงสร้างหลักสูตร รายวิชา และหน่วยกิต", 1, 24),
+        P("1. จำนวนหน่วยกิตตลอดหลักสูตรและโครงสร้างหลักสูตร", 24),
+        P("เนื้อหาข้อ 1", 24),
+        P("2. รายละเอียดของหมวดวิชาและหน่วยกิต", 25),
+        P("เนื้อหาข้อ 2", 25),
+        P("3. คำอธิบายชุดวิชา/รายวิชา", 30),
+        P("เนื้อหาข้อ 3", 30),
+    ]
+    doc = Document(source_name="x.docx", source_type="docx", blocks=blocks)
+    ch4 = chapter(doc, "4")
+    assert [b.text for b in subsection(ch4.blocks, "3")] == ["เนื้อหาข้อ 3"]
+    assert [b.text for b in subsection(ch4.blocks, "1")] == ["เนื้อหาข้อ 1"]

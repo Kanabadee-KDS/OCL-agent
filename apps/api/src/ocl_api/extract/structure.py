@@ -15,7 +15,7 @@ from ocl_api.extract.base import (
     tables,
     to_int,
 )
-from ocl_api.ingest.model import Document
+from ocl_api.ingest.model import Document, Table
 
 RE_TOTAL = re.compile(r"(?:ไม่น้อยกว่า|รวม(?:ไม่น้อยกว่า)?|จำนวน)\s*([\d,๐-๙]+)\s*หน่วยกิต")
 RE_NODE = re.compile(r"^\s*(\d+(?:\.\d+)*)\.?\s*(.+?)\s*$")
@@ -65,6 +65,75 @@ def build_tree(flat: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return roots
 
 
+RE_PLAN = re.compile(r"^\s*แผน\s*[\d.ก-ฮ]+")
+
+
+def _plan_columns(header: list[str]) -> list[tuple[int, str]]:
+    """Graduate books lay plans out as columns: 'หมวดวิชา | แผน 1.1 … | แผน 2.1 …'."""
+    return [(i, c.strip()) for i, c in enumerate(header) if i > 0 and RE_PLAN.match(c)]
+
+
+def _is_header_or_blank(row: list[str]) -> bool:
+    first = row[0].strip() if row else ""
+    return not first or first == "หมวดวิชา" or all(c.strip() in ("", "หน่วยกิต") for c in row)
+
+
+def _parse_simple_table(t: Table, res: PartResult) -> list[dict[str, Any]]:
+    """'หมวดวิชา | หน่วยกิต' rows; numbered rows give levels, unnumbered rows are level 1."""
+    flat: list[dict[str, Any]] = []
+    seq = 0
+    for row in t.rows[1:]:
+        if _is_header_or_blank(row):
+            continue
+        credit_cell = next((c for c in row[1:] if to_int(c) is not None), "")
+        credits = to_int(credit_cell) if credit_cell else None
+        first = row[0].strip()
+        if "รวม" in first:
+            if credits and res.data["total_credits"] is None:
+                res.data["total_credits"] = credits
+                res.data["meta"]["total_credits"] = meta("high", t.page, " | ".join(row))
+            continue
+        m = RE_NODE.match(first)
+        if m and re.match(r"^\d", first):
+            flat.append(_node(m.group(1), m.group(2), credits, t.page, " | ".join(row), "high"))
+        else:
+            seq += 1
+            name = RE_CREDIT_TAIL.sub("", first).strip(" :")
+            flat.append(_node(str(seq), name, credits, t.page, " | ".join(row), "high"))
+    return flat
+
+
+def _parse_plan_table(
+    t: Table, plans: list[tuple[int, str]], res: PartResult
+) -> list[dict[str, Any]]:
+    """One root per plan (แผน 1.1, แผน 2.1 …) with the หมวดวิชา rows as children."""
+    flat: list[dict[str, Any]] = []
+    for pi, (col, plan_name) in enumerate(plans, start=1):
+        root = _node(f"P{pi}", plan_name, None, t.page, " | ".join(t.rows[0]), "high")
+        root["plan"] = True
+        children: list[dict[str, Any]] = []
+        for row in t.rows[1:]:
+            if _is_header_or_blank(row) or col >= len(row):
+                continue
+            first = row[0].strip()
+            credits = to_int(row[col])
+            if "รวม" in first:
+                root["credits"] = credits
+                if credits and res.data["total_credits"] is None:
+                    res.data["total_credits"] = credits
+                    res.data["meta"]["total_credits"] = meta("high", t.page, " | ".join(row))
+                continue
+            if credits is None or row[col].strip() in ("-", "–"):
+                continue  # this หมวด does not apply to this plan
+            name = RE_CREDIT_TAIL.sub("", first).strip(" :")
+            children.append(
+                _node(f"P{pi}.{len(children) + 1}", name, credits, t.page, " | ".join(row), "high")
+            )
+        flat.append(root)
+        flat.extend(children)
+    return flat
+
+
 def extract_structure(doc: Document, gateway=None) -> PartResult:
     res = PartResult(key="structure", data={"total_credits": None, "tree": [], "meta": {}})
     ch4 = chapter(doc, "4")
@@ -88,19 +157,11 @@ def extract_structure(doc: Document, gateway=None) -> PartResult:
             head = " ".join(t.rows[0]).replace(" ", "")
             if "หมวดวิชา" not in head and "หน่วยกิต" not in head:
                 continue
-            for row in t.rows[1:]:
-                if not row or not row[0].strip():
-                    continue
-                m = RE_NODE.match(row[0])
-                credit_cell = next((c for c in row[1:] if to_int(c) is not None), "")
-                credits = to_int(credit_cell) if credit_cell else None
-                if m and re.match(r"^\d", row[0].strip()):
-                    flat.append(
-                        _node(m.group(1), m.group(2), credits, t.page, " | ".join(row), "high")
-                    )
-                elif "รวม" in row[0] and credits and res.data["total_credits"] is None:
-                    res.data["total_credits"] = credits
-                    res.data["meta"]["total_credits"] = meta("high", t.page, " | ".join(row))
+            plans = _plan_columns(t.rows[0])
+            if plans:
+                flat.extend(_parse_plan_table(t, plans, res))
+            else:
+                flat.extend(_parse_simple_table(t, res))
             if flat:
                 break
         if not flat:  # text form: "1. หมวดวิชาศึกษาทั่วไป ไม่น้อยกว่า 30 หน่วยกิต"

@@ -25,6 +25,10 @@ extend-exclude = ["samples", "data", "apps/web"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
 
+[tool.ruff.lint.per-file-ignores]
+# Thai review-sheet strings read better unwrapped
+"apps/api/src/ocl_api/extract/golden.py" = ["E501"]
+
 [tool.ruff.lint.isort]
 known-first-party = ["ocl_api"]
 

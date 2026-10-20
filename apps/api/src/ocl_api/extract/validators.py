@@ -21,7 +21,8 @@ def run_checks(parts: dict[str, dict[str, Any]]) -> list[Check]:
     tree = st.get("tree") or []
     total = st.get("total_credits")
     if tree:
-        top = _sum_children(tree)
+        plans = [n for n in tree if n.get("plan")]
+        top = min(int(n.get("credits") or 0) for n in plans) if plans else _sum_children(tree)
         if total is None:
             checks.append(Check("credits_total", "warn", "ไม่พบหน่วยกิตตลอดหลักสูตร", "structure"))
         elif top == total:
@@ -44,7 +45,8 @@ def run_checks(parts: dict[str, dict[str, Any]]) -> list[Check]:
             )
         bad = []
         for n in _walk(tree):
-            if n["children"] and n.get("credits") is not None:
+            kids_with_credits = [c for c in n["children"] if c.get("credits") is not None]
+            if kids_with_credits and n.get("credits") is not None and not n.get("plan"):
                 s = _sum_children(n["children"])
                 if s != n["credits"]:
                     bad.append(f"{n['number']} {n['name']}: ลูกรวม {s} ≠ {n['credits']}")

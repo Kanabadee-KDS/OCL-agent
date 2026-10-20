@@ -1,4 +1,4 @@
-# OCL Agent — แผนงาน v3 (20 ต.ค. 2569)
+# OCL Agent — แผนงาน v3 (20 ต.ค. 2569 · อัปเดตสถานะ 21 ต.ค.)
 
 > v3 แทน v2 หลังตัดสินใจ: ขอบเขตทีม = ทั้งระบบ 5 โมดูล · สัปดาห์หน้าส่ง **B = BRD + POC โมดูล AI** · BRD เป็น Markdown ใน repo · DB dev บน Neon, prod บน server · ผลลัพธ์ AI = Markdown ทั้งเล่ม + ข้อมูลโครงสร้าง 10 ส่วน
 > spec ต้นฉบับ: `docs/developer-prompt.md` · UI mock ของลูกค้า: `samples/ui-mock.html` (gitignored) · ข้อจำกัด server: `docs/server-constraints.md`
@@ -34,6 +34,8 @@ OCL Agent = ส่วน "นำเข้าข้อมูลเล่มหล
 หลักการ: LLM สกัด โค้ดตรวจ (validator) · parse ตรงจาก docx ก่อน ใช้ LLM เฉพาะที่ parse ไม่ได้ · เก็บทุกการแก้ของผู้ใช้เป็น few-shot รอบถัดไป · สกัดใหม่ได้ทีละส่วน · audit trail
 
 ## 2. Sprint 1 (7 วัน) — ส่งมอบ B: BRD v1 + POC โมดูล AI
+
+สถานะ 21 ต.ค.: D1 ✓ (benchmark: gemma4:26b) · D2 ✓ (ingest docx) · D3 ✓ (ingest pdf, BRD M2/M3) · D4 ✓ (gateway + extract 3 ส่วน, BRD M4/M5) · D5 กำลังทำ (รัน 5 เล่ม, golden sheet, HRIS A/B วัดแล้ว) · ทุก commit CI เขียว
 
 เป้าหมายวันส่ง (ลูกค้าเห็น):
 1. **BRD v1** `docs/brd/` Markdown: ภาพรวมระบบ · user story ทุกหน้า (49 routes) · permission matrix 9 บทบาท · state machine คู่มือหลักสูตร/นำเข้า/สมอ.08 · data dictionary 10 ส่วน + ฟิลด์ CUR27 ที่ถอดจาก mock · ข้อสมมติ/คำถามถึงลูกค้า · แผน release

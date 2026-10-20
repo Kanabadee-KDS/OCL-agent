@@ -105,3 +105,16 @@ def test_truncated_reply_raises_without_retry() -> None:
     with pytest.raises(LLMTruncated) as ei:
         _gateway(handler).chat_json("s", "u", max_tokens=9)
     assert calls["n"] == 1 and ei.value.usage is not None and ei.value.usage.completion_tokens == 9
+
+
+def test_hris_pin_is_sent_as_numeric_minus_one() -> None:
+    seen: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["body"] = json.loads(request.content)
+        return httpx.Response(200, json={"message": {"content": "{}"}})
+
+    _gateway(
+        handler, OLLAMA_MODEL="gemma4:12b", OLLAMA_KEEP_ALIVE="-1", OLLAMA_NUM_CTX=""
+    ).chat_json("s", "u")
+    assert seen["body"]["keep_alive"] == -1 and "num_ctx" not in seen["body"]["options"]
