@@ -30,7 +30,7 @@ samples/       เล่มตัวอย่างและ UI mock (ไม่�
 
 ```bash
 uv sync --all-groups        # สร้าง .venv และติดตั้งทุกอย่าง
-cp .env.example .env        # แก้ค่า OLLAMA_BASE_URL ฯลฯ
+cp .env.example .env        # แก้ค่า OLLAMA_BASE_URL ฯลฯ · DATABASE_URL ว่าง = เก็บงานเป็นไฟล์ใน data/ · ใส่ URL ของ Neon = เก็บใน Postgres (ตารางสร้างให้เองตอน start, ดูด้วย `uv run ocl db status`)
 uv run pytest -q            # ต้องผ่านก่อนเปิด PR
 uv run uvicorn ocl_api.main:app --reload --port 8000
 curl -s http://127.0.0.1:8000/health

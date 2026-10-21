@@ -19,7 +19,7 @@ from fastapi.responses import FileResponse, PlainTextResponse
 from pydantic import BaseModel
 
 from ocl_api.config import Settings, get_settings
-from ocl_api.jobs import ALL_PARTS, PARTS, JobStore
+from ocl_api.jobs import ALL_PARTS, PARTS, JobStore, make_store
 from ocl_api.worker import process_job
 
 router = APIRouter(prefix="/api/imports", tags=["imports"])
@@ -29,7 +29,7 @@ ALLOWED = {".docx", ".pdf"}
 
 
 def get_store(settings: Settings = Depends(get_settings)) -> JobStore:
-    return JobStore(settings.data_dir)
+    return make_store(settings)
 
 
 def _job_view(job: dict[str, Any]) -> dict[str, Any]:

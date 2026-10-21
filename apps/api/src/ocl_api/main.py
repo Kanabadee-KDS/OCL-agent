@@ -20,6 +20,10 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.include_router(imports_router)
+    if s.database_url:
+        from ocl_api.db import migrate
+
+        migrate(s.database_url, s.database_schema)
 
     @app.get("/health")
     def health() -> dict[str, object]:
@@ -31,6 +35,7 @@ def create_app() -> FastAPI:
             "ollama_model": s.ollama_model if s.llm_provider == "ollama" else None,
             "gemini_configured": bool(s.gemini_api_key),
             "inline_worker": s.inline_worker,
+            "database": "postgres" if s.database_url else "files",
         }
 
     return app

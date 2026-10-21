@@ -6,7 +6,11 @@ requires-python = ">=3.12"
 dependencies = ["ocl-api"]
 
 [dependency-groups]
-dev = ["pytest>=8", "ruff>=0.6"]
+dev = [
+    "pgserver>=0.1.4",
+    "pytest>=8",
+    "ruff>=0.6",
+]
 
 [tool.uv]
 package = false

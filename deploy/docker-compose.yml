@@ -18,6 +18,23 @@ services:
       - api
       - web
 
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ocl
+      POSTGRES_USER: ocl
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}
+    volumes:
+      - ocl_pg:/var/lib/postgresql/data
+    # no `ports:` on purpose: only Caddy publishes a port (rule 8); api/worker reach it
+    # over the compose network as db:5432
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ocl -d ocl"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   api:
     build:
       context: ..
@@ -28,12 +45,16 @@ services:
     environment:
       INLINE_WORKER: "false"
       DATA_DIR: /server_data
+      DATABASE_URL: postgresql://ocl:${POSTGRES_PASSWORD}@db:5432/ocl
       OLLAMA_BASE_URL: http://host.docker.internal:11434
       CORS_ORIGINS: ""
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
       - ocl_files:/server_data
+    depends_on:
+      db:
+        condition: service_healthy
 
   worker:
     image: ocl-api:poc
@@ -44,13 +65,17 @@ services:
     env_file: .env
     environment:
       DATA_DIR: /server_data
+      DATABASE_URL: postgresql://ocl:${POSTGRES_PASSWORD}@db:5432/ocl
       OLLAMA_BASE_URL: http://host.docker.internal:11434
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
       - ocl_files:/server_data
     depends_on:
-      - api
+      api:
+        condition: service_started
+      db:
+        condition: service_healthy
 
   web:
     build:
@@ -66,3 +91,4 @@ services:
 volumes:
   ocl_files:
   ocl_caddy:
+  ocl_pg:  # never `docker volume prune` on this host (rule 6)

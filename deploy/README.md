@@ -17,6 +17,8 @@
 cd /home/arsoft/ocl-agent && cp deploy/.env.example deploy/.env
 ```
 
+แก้ `deploy/.env` ตั้ง `POSTGRES_PASSWORD` เป็นรหัสยาว ๆ (service `db` ใช้ครั้งแรกตอนสร้าง volume `ocl_pg` ถ้าเปลี่ยนทีหลังต้องลบ volume หรือ ALTER USER ใน psql) · db ไม่เปิดพอร์ตออกนอก compose network (กติกาข้อ 8) · API สร้างตาราง (migration) ให้เองตอนเริ่ม
+
 ```bash
 cd /home/arsoft/ocl-agent && tmux new -s ocl-build
 ```
@@ -38,6 +40,22 @@ cd /home/arsoft/ocl-agent && docker compose -f deploy/docker-compose.yml ps && c
 ```
 
 เปิดจากเครื่องใน Tailscale: `http://100.104.172.122:8100/import`
+
+## ฐานข้อมูล
+
+สถานะ/migration (API ทำให้เองตอน start แต่สั่งเองได้)
+
+```bash
+cd /home/arsoft/ocl-agent && docker compose -f deploy/docker-compose.yml exec api ocl db status
+```
+
+สำรองข้อมูล (ไฟล์ .sql ไว้ที่ home ของ arsoft)
+
+```bash
+cd /home/arsoft/ocl-agent && docker compose -f deploy/docker-compose.yml exec -T db pg_dump -U ocl ocl > /home/arsoft/ocl-backup-$(date +%Y%m%d).sql
+```
+
+งานนำเข้าที่สร้างก่อนมี db (โฟลเดอร์ใน volume `ocl_files` ที่มี `job.json`) จะไม่ปรากฏในรายการอีก เพราะรายการอ่านจาก Postgres แล้ว ไฟล์ยังอยู่ครบ
 
 ## อัปเดตเวอร์ชัน
 

@@ -1,4 +1,8 @@
-"""Import jobs stored as one folder each under DATA_DIR/imports/<id>/ (no DB in the POC).
+"""Import jobs stored as one folder each under DATA_DIR/imports/<id>/ (file mode).
+
+With DATABASE_URL set, `ocl_api.jobs_pg.PgJobStore` keeps job state, parts, edits and
+checks in Postgres instead (see `make_store`); the folder layout below is still used for
+the uploaded book, ingest output and Markdown.
 
 Layout:
   job.json          status, step, progress, timings, confirmations, counts
@@ -54,8 +58,12 @@ class JobStore:
 
     # ---------- paths ----------
 
+    @staticmethod
+    def _valid_id(job_id: str) -> bool:
+        return re.fullmatch(r"[0-9a-f]{12}", job_id) is not None
+
     def dir(self, job_id: str) -> Path:
-        if not re.fullmatch(r"[0-9a-f]{12}", job_id):
+        if not self._valid_id(job_id):
             raise KeyError(job_id)
         d = self.root / job_id
         if not (d / "job.json").exists():
@@ -82,11 +90,19 @@ class JobStore:
         fname = safe_filename(filename)
         ext = Path(fname).suffix.lower() or ".bin"
         (d / f"source{ext}").write_bytes(data)
-        job = {
+        job = self._new_job(job_id, fname, f"source{ext}", len(data), provider, target)
+        self.write(job)
+        return job
+
+    @staticmethod
+    def _new_job(
+        job_id: str, fname: str, source: str, size: int, provider: str, target: str | None
+    ) -> dict[str, Any]:
+        return {
             "id": job_id,
             "filename": fname,
-            "source": f"source{ext}",
-            "size": len(data),
+            "source": source,
+            "size": size,
             "provider": provider,
             "target": target,  # existing curriculum id, or None = create new from the book
             "status": "queued",
@@ -102,8 +118,9 @@ class JobStore:
             "counts": {},
             "llm": None,
         }
-        self.write(job)
-        return job
+
+    def sync_parts_from_files(self, job_id: str, parts: list[str] | None = None) -> None:
+        """File mode reads extract/<part>.json directly; nothing to copy."""
 
     def list(self) -> list[dict[str, Any]]:
         out = []
@@ -216,12 +233,9 @@ class JobStore:
                 if part.get("edited"):
                     edited.append(key)
         checks = [c.to_dict() for c in run_checks(data)]
+        self._write_checks(job_id, checks)
         out = self.dir(job_id) / "edits"
-        out.mkdir(parents=True, exist_ok=True)
-        (out / "checks.json").write_text(
-            json.dumps(checks, ensure_ascii=False, indent=1), encoding="utf-8"
-        )
-        (out / "md").mkdir(exist_ok=True)
+        (out / "md").mkdir(parents=True, exist_ok=True)
         for key in edited:
             if key in RENDERERS:
                 name, render = RENDERERS[key]
@@ -231,6 +245,13 @@ class JobStore:
         job["edited_parts"] = edited
         self.write(job)
         return checks
+
+    def _write_checks(self, job_id: str, checks: list[dict[str, Any]]) -> None:
+        out = self.dir(job_id) / "edits"
+        out.mkdir(parents=True, exist_ok=True)
+        (out / "checks.json").write_text(
+            json.dumps(checks, ensure_ascii=False, indent=1), encoding="utf-8"
+        )
 
     def checks(self, job_id: str) -> list[dict[str, Any]]:
         """Effective checks: recomputed after edits when present, else the extraction's."""
@@ -276,3 +297,12 @@ def _changed_fields(before: Any, after: Any, path: str = "") -> list[str]:
 
 def elapsed_since(t0: float) -> float:
     return round(time.perf_counter() - t0, 2)
+
+
+def make_store(settings) -> JobStore:
+    """Postgres-backed store when DATABASE_URL is set, else the file store."""
+    if getattr(settings, "database_url", None):
+        from ocl_api.jobs_pg import PgJobStore
+
+        return PgJobStore(settings.data_dir, settings.database_url, settings.database_schema)
+    return JobStore(settings.data_dir)

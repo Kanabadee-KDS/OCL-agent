@@ -17,7 +17,7 @@ from typing import Any
 from ocl_api.config import Settings, get_settings
 from ocl_api.extract.pipeline import extract
 from ocl_api.ingest.pipeline import ingest
-from ocl_api.jobs import JobStore, now_iso
+from ocl_api.jobs import JobStore, make_store, now_iso
 
 _LOCK = threading.Lock()
 
@@ -81,6 +81,7 @@ def process_job(store: JobStore, job_id: str, settings: Settings | None = None) 
             # final combined checks/report over all parts
             report = extract(d / "ingest", parts=parts, gateway=None, out_dir=d / "extract-parser")
             _merge_checks(d, parts)
+            store.sync_parts_from_files(job_id, parts)
             job = store.read(job_id)
             job["counts"]["parts"] = {k: v.get("count") for k, v in report["parts"].items()}
             job["llm"] = _sum_llm(d, parts)
@@ -130,9 +131,10 @@ def run_loop(
     settings: Settings | None = None, *, poll_seconds: float = 2.0, once: bool = False
 ) -> int:
     settings = settings or get_settings()
-    store = JobStore(settings.data_dir)
+    store = make_store(settings)
     print(
-        f"worker: watching {store.root} · provider={settings.llm_provider} "
+        f"worker: watching {store.root} ({'postgres' if settings.database_url else 'files'}) "
+        f"· provider={settings.llm_provider} "
         f"· model={settings.ollama_model}"
     )
     handled = 0

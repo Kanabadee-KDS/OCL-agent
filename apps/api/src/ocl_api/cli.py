@@ -61,6 +61,23 @@ def cmd_worker(args: argparse.Namespace) -> int:
     return 0 if run_loop(once=args.once) is not None else 1
 
 
+def cmd_db(args: argparse.Namespace) -> int:
+    import json
+
+    from ocl_api.config import get_settings
+    from ocl_api.db import migrate, status
+
+    s = get_settings()
+    if not s.database_url:
+        print("DATABASE_URL is not set: the store runs in file mode (DATA_DIR/imports)")
+        return 1
+    if args.action == "migrate":
+        applied = migrate(s.database_url, s.database_schema)
+        print("applied:", ", ".join(applied) or "nothing (already up to date)")
+    print(json.dumps(status(s.database_url, s.database_schema), ensure_ascii=False, indent=1))
+    return 0
+
+
 def cmd_api(args: argparse.Namespace) -> int:
     import uvicorn
 
@@ -110,6 +127,10 @@ def main(argv: list[str] | None = None) -> int:
     w = sub.add_parser("worker", help="process queued import jobs one at a time (ingest + extract)")
     w.add_argument("--once", action="store_true", help="drain the queue then exit")
     w.set_defaults(func=cmd_worker)
+
+    db = sub.add_parser("db", help="database: migrate (apply schema) or status")
+    db.add_argument("action", choices=["migrate", "status"])
+    db.set_defaults(func=cmd_db)
 
     a = sub.add_parser("api", help="run the REST API (uvicorn)")
     a.add_argument("--host")
