@@ -17,8 +17,8 @@
 
 ```
 apps/api/      FastAPI + worker (Python 3.12, uv)      ← กำลังทำ
-apps/web/      Next.js ตาม UI design ของลูกค้า         ← R1
-deploy/        docker-compose (name: ocl) + Caddy        ← R1
+apps/web/      Next.js 3 หน้า import ตาม UI design ของลูกค้า (POC)
+deploy/        docker-compose (name: ocl) + Caddy สำหรับ server on-prem
 tools/         สคริปต์ปฏิบัติการ เช่น ollama_bench.py
 docs/          แผน spec BRD ข้อจำกัด
 samples/       เล่มตัวอย่างและ UI mock (ไม่เข้า git แชร์แยก)
@@ -54,6 +54,18 @@ Demo ทั้ง pipeline ด้วยคำสั่งเดียว (ingest
 ```bash
 tools/demo.sh
 ```
+
+รัน API + เว็บบน Mac (2 terminal) แล้วเปิด `http://localhost:3000/import`
+
+```bash
+uv run ocl api --reload
+```
+
+```bash
+npm --prefix apps/web install && npm --prefix apps/web run dev
+```
+
+Deploy บน server: ดู `deploy/README.md`
 
 เปิด UI mock ของลูกค้า: `python3 -m http.server 8765 --directory samples` แล้วเปิด `http://127.0.0.1:8765/ui-mock.html`
 

@@ -1,0 +1,173 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { api, fmtBytes, fmtTime, PART_LABELS, type Job } from "@/lib/api";
+import { Ic, Note, PageHead, Pill, Steps } from "@/components/ui";
+
+const POC_PARTS = new Set(["structure", "plo", "courses"]);
+const ORDER = ["info", "teachers", "plan", "plo", "ksec", "structure", "modules", "courses", "mapping", "appr"];
+
+const STATUS_TH: Record<Job["status"], [string, "ok" | "warn" | "red" | "info" | "grey"]> = {
+  queued: ["รอคิว", "grey"],
+  ingesting: ["กำลังแปลงไฟล์", "info"],
+  extracting: ["AI กำลังสกัด", "info"],
+  review: ["รอตรวจสอบ", "warn"],
+  done: ["บันทึกแล้ว", "ok"],
+  failed: ["ล้มเหลว", "red"],
+};
+
+export default function ImportPage() {
+  const router = useRouter();
+  const [provider, setProvider] = useState<"ollama" | "none" | "gemini">("ollama");
+  const [target, setTarget] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [history, setHistory] = useState<Job[]>([]);
+  const [health, setHealth] = useState<Record<string, unknown> | null>(null);
+  const [drag, setDrag] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    api.list().then(setHistory).catch(() => setHistory([]));
+    api.health().then(setHealth).catch(() => setHealth(null));
+  }, []);
+
+  async function start() {
+    if (!file) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      const job = await api.create(file, provider, target || undefined);
+      router.push(`/import/${job.id}`);
+    } catch (e) {
+      setErr((e as Error).message);
+      setBusy(false);
+    }
+  }
+
+  const geminiOn = Boolean(health?.gemini_configured);
+
+  return (
+    <>
+      <PageHead
+        crumb={["บริหารข้อมูลหลักสูตร", "นำเข้าข้อมูลเล่มหลักสูตรด้วย AI"]}
+        title="นำเข้าข้อมูลเล่มหลักสูตร"
+        sub="อัปโหลดไฟล์เล่มหลักสูตร (Word/PDF) AI อ่านและสกัดข้อมูลครบทุกหมวดของคู่มือหลักสูตร (10 ส่วน) ตรวจความสอดคล้องข้ามหมวด แล้วให้ยืนยันทีละส่วนก่อนบันทึก · POC นี้ทำ 3 ส่วนแรก"
+      />
+      <Steps current={0} />
+      <div className="split">
+        <section className="card pad stack">
+          <div className="form-grid">
+            <div className="field">
+              <label>บันทึกเข้าหลักสูตร</label>
+              <select className="inp" value={target} onChange={(e) => setTarget(e.target.value)}>
+                <option value="">สร้างหลักสูตรใหม่จากเล่ม</option>
+                <option value="pmt">วท.บ. เทคโนโลยีวัสดุพอลิเมอร์ (ปป.67)</option>
+              </select>
+            </div>
+            <div className="field">
+              <label>AI ที่ใช้อ่าน</label>
+              <div className="seg">
+                <button type="button" className={provider === "ollama" ? "on" : ""} onClick={() => setProvider("ollama")}>
+                  Local AI · Gemma (server มศว)
+                </button>
+                <button
+                  type="button"
+                  className={provider === "gemini" ? "on" : ""}
+                  disabled={!geminiOn}
+                  title={geminiOn ? "" : "ยังไม่ได้ตั้งค่า API key"}
+                  onClick={() => geminiOn && setProvider("gemini")}
+                >
+                  Cloud AI · Gemini {geminiOn ? "" : "(ปิด)"}
+                </button>
+                <button type="button" className={provider === "none" ? "on" : ""} onClick={() => setProvider("none")}>
+                  อ่านด้วยกฎเท่านั้น (ไม่ใช้ AI)
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="field">
+            <label>ส่วนที่ AI จะสกัด (เรียงตามลำดับการนำเข้า)</label>
+            <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0,1fr))", gap: 6 }}>
+              {ORDER.map((k, i) => (
+                <div key={k} className="row" style={{ flexWrap: "nowrap", opacity: POC_PARTS.has(k) ? 1 : 0.55 }}>
+                  <span className="av" style={POC_PARTS.has(k) ? { background: "var(--red)", color: "#fff" } : {}}>{i + 1}</span>
+                  <span>
+                    <b style={{ fontWeight: 600 }}>{PART_LABELS[k][0]}</b>
+                    <span className="small faint" style={{ display: "block" }}>
+                      {PART_LABELS[k][1]} {POC_PARTS.has(k) ? "" : "· R1"}
+                    </span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <label
+            className="drop"
+            style={{ cursor: "pointer", borderColor: drag ? "var(--red)" : undefined }}
+            onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
+            onDragLeave={() => setDrag(false)}
+            onDrop={(e) => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files?.[0]; if (f) setFile(f); }}
+          >
+            <Ic name="upload" size={30} />
+            <b>ลากไฟล์เล่มหลักสูตรมาวางที่นี่</b>
+            <span className="small muted">รองรับ .docx และ .pdf ขนาดไม่เกิน 50 MB</span>
+            <span className="btn sm">เลือกไฟล์</span>
+            <input ref={inputRef} type="file" hidden accept=".pdf,.docx" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+          </label>
+
+          {file && (
+            <div className="between card pad" style={{ background: "var(--surface-2)" }}>
+              <div className="row" style={{ flexWrap: "nowrap" }}>
+                <Ic name="file" size={22} />
+                <div>
+                  <b>{file.name}</b>
+                  <div className="small faint">{fmtBytes(file.size)}</div>
+                </div>
+              </div>
+              <button className="btn primary" onClick={start} disabled={busy}>
+                <Ic name="ai" size={17} /> {busy ? "กำลังส่ง…" : "เริ่มอ่านด้วย AI"}
+              </button>
+            </div>
+          )}
+          {err && <Note kind="warn">{err}</Note>}
+        </section>
+
+        <section className="card pad stack">
+          <h2 className="h2">ประวัติการนำเข้า</h2>
+          {history.length === 0 && <div className="small faint">ยังไม่มี</div>}
+          {history.slice(0, 8).map((h) => (
+            <Link
+              key={h.id}
+              href={`/import/${h.id}`}
+              className="between"
+              style={{ padding: "8px 0", borderBottom: "1px solid var(--line)", flexWrap: "nowrap", color: "inherit", textDecoration: "none" }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{h.filename}</div>
+                <div className="small faint">
+                  {fmtTime(h.created_at)} · {h.provider === "none" ? "กฎ" : h.provider} · ยืนยันแล้ว {h.confirmed_count}/{h.parts_total}
+                </div>
+              </div>
+              <Pill kind={STATUS_TH[h.status][1]}>{STATUS_TH[h.status][0]}</Pill>
+            </Link>
+          ))}
+          <Note kind="info">
+            <b>AI ช่วยอะไรบ้าง</b>
+            <br />สกัดข้อมูล — อ่านหมวด 3–4 ของเล่มแล้ววางลงฟิลด์ พร้อมความมั่นใจและเลขหน้าต้นฉบับทุกค่า
+            <br />ตรวจความสอดคล้อง — หน่วยกิตรวม รหัสวิชาซ้ำ หน่วยกิตกลุ่มย่อย ด้วยกฎ ไม่ใช่ความเห็นของ AI
+            <br />ชี้จุดที่เล่มขัดแย้งกันเอง — รายชื่อวิชากับคำอธิบายไม่ตรงกัน ระบบระบุหน้าทั้งสองจุด
+          </Note>
+          <div className="small faint">
+            API: {health ? `${String(health.llm_provider)} · ${String(health.ollama_model)}` : "ติดต่อไม่ได้"}
+          </div>
+        </section>
+      </div>
+    </>
+  );
+}

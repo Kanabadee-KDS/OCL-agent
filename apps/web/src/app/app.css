@@ -1,0 +1,35 @@
+/* POC overrides on top of the customer's design.css (copied from their mock, unchanged). */
+:root { --f-display: var(--f-display-next), 'Anuphan', system-ui, sans-serif; --f-body: var(--f-body-next), 'IBM Plex Sans Thai', system-ui, sans-serif; }
+.app { display: flex; min-height: 100vh; }
+.content { margin: 0 auto; }
+.nav-body { flex: 1; overflow: auto; padding: 10px; display: flex; flex-direction: column; gap: 2px; }
+.nav-item:disabled { opacity: .55; cursor: not-allowed; }
+.link-btn { border: 0; background: none; padding: 0; cursor: pointer; font: inherit; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.tbl-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 12px; }
+.btn { height: 42px; padding: 0 16px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--surface); color: var(--fg); font: inherit; font-size: 14px; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; white-space: nowrap; }
+.kbd { font-size: 11px; padding: 1px 6px; border: 1px solid var(--line-2); border-radius: 6px; color: var(--faint); }
+.paper { background: #fff; color: #211F22; border: 1px solid var(--line); border-radius: 8px; padding: 22px 26px; font-size: 13.5px; line-height: 1.8; }
+.paper h1 { font-size: 18px; margin: 0 0 10px; }
+.paper h2 { font-size: 16px; margin: 18px 0 8px; }
+.paper h3 { font-size: 14.5px; margin: 14px 0 6px; }
+.paper table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 12.5px; }
+.paper th, .paper td { border: 1px solid var(--line-2); padding: 4px 8px; vertical-align: top; }
+.paper th { background: var(--surface-2); }
+.paper p { margin: 6px 0; }
+.src-block { padding: 6px 8px; border-radius: 8px; }
+.src-block.hit { background: var(--gold-soft); }
+.src-block.h { font-weight: 700; }
+.src-tbl { font-size: 12px; border-collapse: collapse; margin: 6px 0; }
+.src-tbl td { border: 1px solid var(--line-2); padding: 2px 6px; }
+.low td { background: var(--red-soft); }
+.modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: flex; align-items: center; justify-content: center; z-index: 90; }
+.modal-card { width: min(520px, 92vw); }
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner { animation: spin 1s linear infinite !important; }
+@media (max-width: 900px) {
+  .nav { display: none; }
+  .doc { grid-template-columns: 1fr; }
+  .split { grid-template-columns: 1fr; }
+  .g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

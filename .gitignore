@@ -19,12 +19,15 @@ __pycache__/
 dist/
 build/
 
-# --- Node (apps/web ภายหลัง) ---
+# --- Node (apps/web) ---
 node_modules/
 .next/
+.env.local
+next-env.d.ts
 
 # --- เครื่องมือเฉพาะเครื่อง ---
 .claude/
 .idea/
 .vscode/
 .DS_Store
+tsconfig.tsbuildinfo
