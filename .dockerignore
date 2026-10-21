@@ -1,0 +1,16 @@
+.git
+.venv
+.claude
+data
+samples
+node_modules
+apps/web/node_modules
+apps/web/.next
+apps/web/.env.local
+docs
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+.env
+.env.*
+!.env.example

@@ -1,0 +1,66 @@
+# OCL Agent on the shared on-prem server. Rules: docs/server-constraints.md
+#   - every command:  docker compose -f deploy/docker-compose.yml ...
+#   - only Caddy publishes a port, bound to the Tailscale IP, never 0.0.0.0
+#   - Ollama is NOT here: it is the host's systemd service (host.docker.internal)
+#   - never `docker ... prune`
+name: ocl
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "${OCL_BIND_IP:-100.104.172.122}:${OCL_PORT:-8100}:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ocl_caddy:/data
+    depends_on:
+      - api
+      - web
+
+  api:
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    image: ocl-api:poc
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      INLINE_WORKER: "false"
+      DATA_DIR: /server_data
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      CORS_ORIGINS: ""
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ocl_files:/server_data
+
+  worker:
+    image: ocl-api:poc
+    restart: unless-stopped
+    command: ["ocl", "worker"]
+    env_file: .env
+    environment:
+      DATA_DIR: /server_data
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ocl_files:/server_data
+    depends_on:
+      - api
+
+  web:
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE: ""
+    image: ocl-web:poc
+    restart: unless-stopped
+    depends_on:
+      - api
+
+volumes:
+  ocl_files:
+  ocl_caddy:

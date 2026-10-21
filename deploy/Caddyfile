@@ -1,0 +1,16 @@
+# Single origin for the POC: /api/* and /health -> FastAPI, everything else -> Next.js
+:80 {
+	encode gzip
+	request_body {
+		max_size 60MB
+	}
+	handle /api/* {
+		reverse_proxy api:8000
+	}
+	handle /health {
+		reverse_proxy api:8000
+	}
+	handle {
+		reverse_proxy web:3000
+	}
+}
