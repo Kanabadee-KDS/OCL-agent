@@ -88,6 +88,25 @@ def render_golden(extract_dir: str | Path, *, book: str, reviewer: str = "") -> 
             )
         L += ["", "ฟิลด์ที่เล่มมีแต่ระบบไม่พบ (เขียนเพิ่ม): ______________________"]
 
+    ap_path = d / "appr.json"
+    ap = json.loads(ap_path.read_text(encoding="utf-8"))["data"] if ap_path.exists() else {}
+    if ap.get("approvals"):
+        L += [
+            "",
+            f"## 1b. สถานภาพและมติอนุมัติ (หมวดที่ 1 ข้อ 13) · สถานภาพ: หลักสูตร{ap.get('status') or '–'} · เริ่มใช้ {ap.get('start_semester') or '–'}/{ap.get('start_year') or '–'}",
+            "",
+            "| ระดับ | ครั้งที่ | วันที่ประชุม | มติ | หน้า | ✓/✗ | หมายเหตุ |",
+            "| --- | --- | --- | --- | --- | --- | --- |",
+        ]
+        for a in ap["approvals"]:
+            dt = (a.get("date") or {}).get("text") or ("_[เล่มเว้นว่าง]_" if a.get("pending") else "–")
+            L.append(
+                f"| {a['level']} | {a.get('meeting_no') or '–'} | {dt} | {a.get('resolution') or ''} | {_page(a.get('meta'))} |  |  |"
+            )
+        if ap.get("missing_levels"):
+            L.append("")
+            L.append("ยังไม่มีมติ: " + " · ".join(ap["missing_levels"]))
+
     L += [
         "",
         "## 2. โครงสร้างหลักสูตร (หมวดที่ 4 ข้อ 1)",
@@ -208,6 +227,7 @@ def render_golden(extract_dir: str | Path, *, book: str, reviewer: str = "") -> 
         "| --- | --- | --- | --- | --- |",
         "| หัวข้อหลักครบ (หมวด 1–8) | 8 |  |  | ต้อง 100% |",
         f"| ข้อมูลหลัก + หมวด 1 (ฟิลด์) | {info.get('count', 0)} |  |  | ≥ 95% |",
+        f"| มติอนุมัติ (แถว) | {len(ap.get('approvals') or [])} |  |  | ≥ 95% |",
         f"| โครงสร้างหลักสูตร (แถว) | {st.get('node_count', 0)} |  |  | ≥ 95% |",
         f"| PLO | {plo.get('count', 0)} |  |  | ≥ 95% |",
         f"| KSEC (รายการ) | {ks.get('count', 0)} |  |  | ≥ 95% |",

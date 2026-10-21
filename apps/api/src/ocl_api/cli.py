@@ -90,7 +90,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     e.add_argument("target", help="ingest dir from `ocl ingest`, or a .docx/.pdf (ingested first)")
     e.add_argument(
-        "--parts", help="comma list: info,structure,plo,ksec,courses,mapping (default: all)"
+        "--parts", help="comma list: info,structure,plo,ksec,courses,mapping,appr (default: all)"
     )
     e.add_argument("--no-llm", action="store_true", help="parser only, never call the LLM")
     e.add_argument("--reingest", action="store_true", help="re-run ingest even if output exists")

@@ -7,6 +7,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from ocl_api.extract.approval import extract_approval
 from ocl_api.extract.base import PartResult, load_document
 from ocl_api.extract.courses import extract_courses
 from ocl_api.extract.info import extract_info
@@ -24,8 +25,9 @@ PLUGINS = {
     "ksec": extract_ksec,
     "courses": extract_courses,
     "mapping": extract_mapping,
+    "appr": extract_approval,
 }
-DEFAULT_PARTS = ["info", "structure", "plo", "ksec", "courses", "mapping"]
+DEFAULT_PARTS = ["info", "structure", "plo", "ksec", "courses", "mapping", "appr"]
 
 
 def extract(

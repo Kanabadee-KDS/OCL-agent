@@ -28,6 +28,7 @@ PARTS = [
     "ksec",
     "courses",
     "mapping",
+    "appr",
 ]  # done so far; the rest come in R1
 ALL_PARTS = [
     "info",

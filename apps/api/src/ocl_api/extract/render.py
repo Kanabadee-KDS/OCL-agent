@@ -246,6 +246,42 @@ def render_mapping(data: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def render_approval(data: dict[str, Any]) -> str:
+    rows = data.get("approvals") or []
+    lines = ["# สถานภาพของหลักสูตรและมติอนุมัติ", ""]
+    if not rows and not data.get("status"):
+        return (
+            "# สถานภาพของหลักสูตรและมติอนุมัติ\n\n> AI สกัดไม่ได้ กรอกด้วยมือ\n\n"
+            "| ระดับ | ครั้งที่ | วันที่ประชุม | มติ |\n| --- | --- | --- | --- |\n"
+            "| คณะกรรมการการศึกษา | | | |\n| สภาวิชาการ | | | |\n| สภามหาวิทยาลัย | | | |\n"
+        )
+    st = data.get("status")
+    prev = data.get("previous_program")
+    lines.append(
+        f"- สถานภาพ: **หลักสูตร{st}**"
+        + (f" จาก{prev} (พ.ศ. {data.get('previous_year') or '–'})" if prev else "")
+        if st
+        else "- สถานภาพ: _[ไม่พบ]_"
+    )
+    if data.get("start_year"):
+        lines.append(
+            f"- เริ่มใช้: ภาคการศึกษา {data.get('start_semester') or '–'} ปีการศึกษา {data['start_year']}"
+        )
+    lines += ["", "| ระดับ | ครั้งที่ | วันที่ประชุม | มติ | หน้า |", "| --- | --- | --- | --- | --- |"]
+    for a in rows:
+        d = a.get("date") or {}
+        page = ((a.get("meta") or {}).get("source") or {}).get("page") or ""
+        res = "_[เล่มเว้นว่าง]_" if a.get("pending") else a.get("resolution") or ""
+        lines.append(
+            f"| {a['level']} | {a.get('meeting_no') or '–'} | {d.get('text') or '–'} "
+            f"| {res} | {page} |"
+        )
+    missing = data.get("missing_levels") or []
+    if missing:
+        lines += ["", "ยังไม่มีมติ/ยังไม่มีในเล่ม: " + " · ".join(missing)]
+    return "\n".join(lines) + "\n"
+
+
 RENDERERS = {
     "info": ("1-program_info.md", render_info),
     "structure": ("2-course_structure.md", render_structure),
@@ -253,4 +289,5 @@ RENDERERS = {
     "ksec": ("4b-ksec.md", render_ksec),
     "courses": ("3-courses_list.md", render_courses),
     "mapping": ("5-curriculum_mapping.md", render_mapping),
+    "appr": ("7-approval.md", render_approval),
 }

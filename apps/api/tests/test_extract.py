@@ -216,7 +216,7 @@ def test_pipeline_roundtrip(tmp_path: Path) -> None:
     report = extract(tmp_path, gateway=None)
     assert report["parts"]["courses"]["count"] == 2
     fails = [c["key"] for c in report["checks"]["items"] if c["status"] == "fail"]
-    assert fails == ["ksec_present"], "sample_doc has no KSEC table; nothing else may fail"
+    assert set(fails) == {"ksec_present", "approval_present"}, "sample_doc has no KSEC/item 13"
     assert (tmp_path / "extract" / "courses.json").exists()
     assert (tmp_path / "extract" / "md" / "3-courses_list.md").exists()
     assert (tmp_path / "extract" / "checks.json").exists()
@@ -804,3 +804,66 @@ def test_mapping_42_pdf_phantom_column_is_deduped() -> None:
     r = extract_mapping(doc)
     row = r.data["ksec_rows"][0]
     assert row["by_column"] == {"K2": ["K2-1"], "E2": ["E1-7"]}, "phantom column 5 duplicates K2"
+
+
+def test_approval_rows_blank_and_wrapped() -> None:
+    from ocl_api.extract.approval import extract_approval, parse_date
+    from ocl_api.extract.render import render_approval
+
+    assert parse_date("เมื่อวันที่ 28 เดือน เมษายน พ.ศ. 2569")["iso"] == "2026-04-28"
+    assert parse_date("เมื่อวันที่ 2 ธ.ค. 2568") == {
+        "day": 2,
+        "month": 12,
+        "year_be": 2568,
+        "text": "2 ธ.ค. 2568",
+        "iso": "2025-12-02",
+    }
+    assert parse_date("เมื่อวันที่ ......... เดือน ....... พ.ศ. ....") is None
+
+    blocks = [
+        H("หมวดที่ 1 ข้อมูลทั่วไป", 1, 5),
+        H("13. สถานภาพของหลักสูตรและการพิจารณาอนุมัติ/เห็นชอบหลักสูตร", 2, 10),
+        P(
+            "เป็นหลักสูตรปรับปรุง จากหลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาทดสอบ (หลักสูตรปรับปรุง พ.ศ. 2565) "
+            "โดยจะเริ่มใช้หลักสูตรนี้ในภาคการศึกษา 1 ของปีการศึกษา 2570",
+            10,
+        ),
+        P("ได้รับอนุมัติ/เห็นชอบหลักสูตรจากคณะกรรมการการศึกษาระดับปริญญาตรี ในการประชุมครั้งที่ 6 เมื่อวันที่", 10),
+        P("11 เดือน สิงหาคม พ.ศ. 2569", 10),
+        P(
+            "ได้รับอนุมัติ/เห็นชอบหลักสูตรจากสภาวิชาการ ในการประชุมครั้งที่ ........ "
+            "เมื่อวันที่ ......... เดือน ...... พ.ศ. ....",
+            10,
+        ),
+        P(
+            "ได้รับอนุมัติ/เห็นชอบหลักสูตรจากสภามหาวิทยาลัย ในการประชุมครั้งที่ 7/2569 "
+            "เมื่อวันที่ 7 เดือน กรกฎาคม พ.ศ. 2569",
+            10,
+        ),
+        P("ได้รับอนุมัติ/เห็นชอบหลักสูตรจากสภาวิชาชีพ (ถ้ามี) เมื่อวันที่ ......... เดือน ...... พ.ศ. ......", 10),
+    ]
+    doc = Document(source_name="a.docx", source_type="docx", blocks=blocks)
+    r = extract_approval(doc)
+    d = r.data
+    assert d["status"] == "ปรับปรุง" and d["previous_year"] == 2565 and d["start_year"] == 2570
+    rows = {a["level_key"]: a for a in d["approvals"]}
+    assert rows["committee_ug"]["meeting_no"] == "6"
+    assert rows["committee_ug"]["date"]["iso"] == "2026-08-11", "wrapped date line is joined"
+    assert rows["academic_council"]["pending"] is True and rows["academic_council"]["date"] is None
+    assert rows["university_council"]["resolution"] == "อนุมัติ"
+    assert rows["university_council"]["meeting_no"] == "7/2569"
+    assert rows["professional_council"]["pending"] is True
+    assert d["missing_levels"] == ["สภาวิชาการ", "อว. รับทราบความเห็นชอบหลักสูตร"]
+    assert d["count"] == 2
+
+    checks = {c.key: c for c in run_checks({"appr": d, "info": {"values": {"start_year": 2569}}})}
+    assert checks["approval_present"].status == "pass"
+    assert checks["approval_complete"].status == "warn"
+    assert "สภาวิชาการ" in checks["approval_complete"].message
+    assert checks["approval_order"].status == "warn", (
+        "university council (Jul) before committee (Aug)"
+    )
+    assert checks["approval_vs_start"].status == "pass"
+    assert checks["approval_vs_info"].status == "warn"
+    md = render_approval(d)
+    assert "| สภามหาวิทยาลัย | 7/2569 | 7 กรกฎาคม 2569 | อนุมัติ | 10 |" in md and "ยังไม่มีมติ" in md

@@ -229,6 +229,81 @@ def _mapping42_checks(mp: dict[str, Any], ks: dict[str, Any]) -> list[Check]:
     return out
 
 
+def _approval_checks(ap: dict[str, Any], info: dict[str, Any]) -> list[Check]:
+    out: list[Check] = []
+    rows = ap.get("approvals") or []
+    done = [a for a in rows if not a.get("pending")]
+    if not rows:
+        out.append(Check("approval_present", "fail", "ไม่พบบรรทัด 'ได้รับอนุมัติ/เห็นชอบ' ในข้อ 13", "appr"))
+        return out
+    out.append(
+        Check(
+            "approval_present",
+            "pass",
+            f"พบมติอนุมัติ {len(done)} ระดับ (ฟอร์มมี {len(rows)} บรรทัด)",
+            "appr",
+        )
+    )
+    missing = ap.get("missing_levels") or []
+    blank = [a["level"] for a in rows if a.get("pending")]
+    no_date = [a["level"] for a in done if not a.get("date")]
+    if missing or no_date:
+        out.append(
+            Check(
+                "approval_complete",
+                "warn",
+                (f"ยังไม่มีมติ: {', '.join(missing)}" if missing else "")
+                + (" · " if missing and no_date else "")
+                + (f"มีครั้งที่แต่อ่านวันที่ไม่ได้: {', '.join(no_date)}" if no_date else "")
+                + (f" (เล่มเว้นว่าง: {', '.join(blank)})" if blank else ""),
+                "appr",
+            )
+        )
+    else:
+        out.append(Check("approval_complete", "pass", "มติครบทุกระดับที่ฟอร์มกำหนด", "appr"))
+    order = ["committee", "academic_council", "university_council"]
+    dated = [(a["level_key"], a["date"]["iso"]) for a in done if a.get("date")]
+    seq = [iso for key in order for k, iso in dated if k == key or k.startswith(key + "_")]
+    if len(seq) >= 2:
+        ok = all(a <= b for a, b in zip(seq, seq[1:], strict=False))
+        out.append(
+            Check(
+                "approval_order",
+                "pass" if ok else "warn",
+                "วันที่ประชุมเรียงตามลำดับ คณะกรรมการ → สภาวิชาการ → สภามหาวิทยาลัย"
+                if ok
+                else "วันที่ประชุมไม่เรียงตามลำดับระดับ: " + " → ".join(seq),
+                "appr",
+            )
+        )
+    uni = next((a for a in done if a["level_key"] == "university_council" and a.get("date")), None)
+    if uni and ap.get("start_year"):
+        sem = ap.get("start_semester") or 1
+        start_iso = f"{int(ap['start_year']) - 543:04d}-{'08' if sem == 1 else '01'}-01"
+        late = uni["date"]["iso"] > start_iso
+        out.append(
+            Check(
+                "approval_vs_start",
+                "warn" if late else "pass",
+                f"สภามหาวิทยาลัยอนุมัติ {uni['date']['text']} "
+                + ("หลัง" if late else "ก่อน")
+                + f"เริ่มใช้ภาค {sem}/{ap['start_year']}",
+                "appr",
+            )
+        )
+    iv = info.get("values") or {}
+    if iv.get("start_year") and ap.get("start_year") and iv["start_year"] != ap["start_year"]:
+        out.append(
+            Check(
+                "approval_vs_info",
+                "warn",
+                f"ปีที่เริ่มใช้ในข้อ 13 ({ap['start_year']}) ≠ ข้อมูลหลัก ({iv['start_year']})",
+                "appr",
+            )
+        )
+    return out
+
+
 def run_checks(parts: dict[str, dict[str, Any]]) -> list[Check]:
     checks: list[Check] = []
     st = parts.get("structure") or {}
@@ -237,6 +312,9 @@ def run_checks(parts: dict[str, dict[str, Any]]) -> list[Check]:
     info = parts.get("info") or {}
     if info:
         checks += _info_checks(info, st)
+    ap = parts.get("appr") or {}
+    if ap:
+        checks += _approval_checks(ap, info)
 
     tree = st.get("tree") or []
     total = st.get("total_credits")
