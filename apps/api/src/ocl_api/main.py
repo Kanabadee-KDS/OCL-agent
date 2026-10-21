@@ -3,13 +3,23 @@
 from __future__ import annotations
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from ocl_api import __version__
+from ocl_api.api.imports import router as imports_router
 from ocl_api.config import get_settings
 
 
 def create_app() -> FastAPI:
+    s = get_settings()
     app = FastAPI(title="OCL Agent API", version=__version__)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[o.strip() for o in s.cors_origins.split(",") if o.strip()],
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    app.include_router(imports_router)
 
     @app.get("/health")
     def health() -> dict[str, object]:
@@ -19,6 +29,8 @@ def create_app() -> FastAPI:
             "version": __version__,
             "llm_provider": s.llm_provider,
             "ollama_model": s.ollama_model if s.llm_provider == "ollama" else None,
+            "gemini_configured": bool(s.gemini_api_key),
+            "inline_worker": s.inline_worker,
         }
 
     return app

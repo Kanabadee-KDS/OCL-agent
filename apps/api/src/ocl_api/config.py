@@ -33,6 +33,9 @@ class Settings(BaseSettings):
 
     api_host: str = "127.0.0.1"
     api_port: int = 8000
+    # dev: the API runs jobs itself in a background thread; compose: a separate `ocl worker`
+    inline_worker: bool = True
+    cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
 
     @field_validator("ollama_keep_alive", "ollama_num_ctx", mode="before")
     @classmethod

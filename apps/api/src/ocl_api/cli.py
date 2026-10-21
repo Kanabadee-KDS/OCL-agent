@@ -55,6 +55,27 @@ def cmd_golden(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_worker(args: argparse.Namespace) -> int:
+    from ocl_api.worker import run_loop
+
+    return 0 if run_loop(once=args.once) is not None else 1
+
+
+def cmd_api(args: argparse.Namespace) -> int:
+    import uvicorn
+
+    from ocl_api.config import get_settings
+
+    s = get_settings()
+    uvicorn.run(
+        "ocl_api.main:app",
+        host=args.host or s.api_host,
+        port=args.port or s.api_port,
+        reload=args.reload,
+    )
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="ocl", description="OCL Agent tools")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -82,6 +103,16 @@ def main(argv: list[str] | None = None) -> int:
     g.add_argument("--reviewer", default="")
     g.add_argument("--out", help="output file (default: data/golden/<book>.md)")
     g.set_defaults(func=cmd_golden)
+
+    w = sub.add_parser("worker", help="process queued import jobs one at a time (ingest + extract)")
+    w.add_argument("--once", action="store_true", help="drain the queue then exit")
+    w.set_defaults(func=cmd_worker)
+
+    a = sub.add_parser("api", help="run the REST API (uvicorn)")
+    a.add_argument("--host")
+    a.add_argument("--port", type=int)
+    a.add_argument("--reload", action="store_true")
+    a.set_defaults(func=cmd_api)
 
     args = ap.parse_args(argv)
     return args.func(args)

@@ -25,6 +25,10 @@ extend-exclude = ["samples", "data", "apps/web"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
 
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's dependency idiom (Depends/File/Form/Query in defaults) is intentional
+extend-immutable-calls = ["fastapi.Depends", "fastapi.File", "fastapi.Form", "fastapi.Query"]
+
 [tool.ruff.lint.per-file-ignores]
 # Thai review-sheet strings read better unwrapped
 "apps/api/src/ocl_api/extract/golden.py" = ["E501"]
