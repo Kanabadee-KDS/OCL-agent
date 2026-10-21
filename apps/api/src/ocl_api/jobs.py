@@ -196,7 +196,49 @@ class JobStore:
         else:
             job["confirmed"].pop(key, None)
         self.write(job)
+        self.recompute(job_id)
         return self.read_part(job_id, key) or {}
+
+    def recompute(self, job_id: str) -> list[dict[str, Any]]:
+        """Re-run the validators over every part *with the user's edits applied* and
+        re-render the Markdown of the edited parts, so the checks tab and the preview
+        follow what the reviewer sees instead of the original extraction."""
+        from ocl_api.extract.render import RENDERERS
+        from ocl_api.extract.validators import run_checks
+
+        job = self.read(job_id)
+        data: dict[str, Any] = {}
+        edited: list[str] = []
+        for key in job.get("parts", []):
+            part = self.read_part(job_id, key)
+            if part and part.get("data") is not None:
+                data[key] = part["data"]
+                if part.get("edited"):
+                    edited.append(key)
+        checks = [c.to_dict() for c in run_checks(data)]
+        out = self.dir(job_id) / "edits"
+        out.mkdir(parents=True, exist_ok=True)
+        (out / "checks.json").write_text(
+            json.dumps(checks, ensure_ascii=False, indent=1), encoding="utf-8"
+        )
+        (out / "md").mkdir(exist_ok=True)
+        for key in edited:
+            if key in RENDERERS:
+                name, render = RENDERERS[key]
+                (out / "md" / name).write_text(render(data[key]), encoding="utf-8")
+        job = self.read(job_id)
+        job["checks_recomputed_at"] = now_iso()
+        job["edited_parts"] = edited
+        self.write(job)
+        return checks
+
+    def checks(self, job_id: str) -> list[dict[str, Any]]:
+        """Effective checks: recomputed after edits when present, else the extraction's."""
+        d = self.dir(job_id)
+        for p in (d / "edits" / "checks.json", d / "extract" / "checks.json"):
+            if p.exists():
+                return json.loads(p.read_text(encoding="utf-8"))
+        return []
 
     def finalize(self, job_id: str) -> dict[str, Any]:
         job = self.read(job_id)

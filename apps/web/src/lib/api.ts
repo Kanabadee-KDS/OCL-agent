@@ -21,6 +21,8 @@ export type Job = {
   all_parts: string[];
   counts: { ingest?: { pages: number; tables: number; images: number; chapters: string[]; appendices: string[] }; parts?: Record<string, number> };
   llm: { calls: number; prompt_tokens: number; completion_tokens: number; seconds: number; model?: string } | null;
+  checks_recomputed_at?: string | null;
+  edited_parts?: string[];
 };
 
 export type Meta = { confidence: "high" | "medium" | "low"; source: { page: number | null; snippet: string }; by: string; inferred?: boolean; note?: string };

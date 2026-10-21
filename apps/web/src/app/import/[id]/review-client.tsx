@@ -3,7 +3,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { api, PART_LABELS, type Check, type Job, type Meta, type Part } from "@/lib/api";
+import { api, fmtTime, PART_LABELS, type Check, type Job, type Meta, type Part } from "@/lib/api";
 import { ConfPill, Ic, Markdown, Note, PageHead, Pill, Steps } from "@/components/ui";
 
 const ORDER = ["info", "teachers", "plan", "plo", "ksec", "structure", "modules", "courses", "mapping", "appr"];
@@ -116,8 +116,10 @@ export default function ReviewClient() {
       const p = await api.savePart(id, tab, data, confirm);
       setPart(p);
       setDirty(false);
-      const j = await api.get(id);
+      const [j, cs] = await Promise.all([api.get(id), api.checks(id).catch(() => null)]);
       setJob(j);
+      if (cs) setChecks(cs);
+      setPreview({}); // re-rendered Markdown of the edited part is fetched again on the preview tab
       if (confirm) {
         const avail = j.parts;
         const i = avail.indexOf(tab);
@@ -221,7 +223,7 @@ export default function ReviewClient() {
         </nav>
 
         <div className="stack" style={{ minWidth: 0 }}>
-          {tab === "check" && <ChecksView checks={checks} go={setTab} />}
+          {tab === "check" && <ChecksView checks={checks} go={setTab} recomputedAt={job.checks_recomputed_at ?? null} editedParts={job.edited_parts ?? []} />}
           {tab === "preview" && (
             <section className="stack">
               {["1-program_info.md", "8-teachers.md", "9-admission_plan.md", "2-course_structure.md", "4-plos.md", "4b-ksec.md", "3b-modules.md", "3-courses_list.md", "5-curriculum_mapping.md", "7-approval.md"].map((n) => (
@@ -880,7 +882,7 @@ function MappingEditor({ data, onChange, pick }: { data: MapData; onChange: (d: 
   );
 }
 
-function ChecksView({ checks, go }: { checks: Check[]; go: (t: string) => void }) {
+function ChecksView({ checks, go, recomputedAt, editedParts }: { checks: Check[]; go: (t: string) => void; recomputedAt: string | null; editedParts: string[] }) {
   const kind: Record<Check["status"], "ok" | "warn" | "red" | "info"> = { pass: "ok", warn: "warn", fail: "red", info: "info" };
   const label: Record<Check["status"], string> = { pass: "ผ่าน", warn: "ควรตรวจ", fail: "พบปัญหา", info: "ข้อมูล" };
   const n = (s: Check["status"]) => checks.filter((c) => c.status === s).length;
@@ -893,6 +895,11 @@ function ChecksView({ checks, go }: { checks: Check[]; go: (t: string) => void }
         </span>
       </div>
       <div className="small faint">ตรวจด้วยกฎในโค้ด (หน่วยกิตรวม หน่วยกิตกลุ่มย่อย รหัสซ้ำ ฟิลด์ครบ) ไม่ใช่ความเห็นของ AI</div>
+      {recomputedAt ? (
+        <Note kind="info">คำนวณใหม่จากข้อมูลที่แก้ไขแล้ว เมื่อ {fmtTime(recomputedAt)} · ส่วนที่แก้: {editedParts.map((k) => PART_LABELS[k]?.[0] ?? k).join(", ") || "–"}</Note>
+      ) : (
+        <div className="small faint">ผลจากการสกัดครั้งแรก · เมื่อแก้ไขและบันทึกส่วนใด ระบบจะตรวจใหม่ทันที</div>
+      )}
       <div className="tbl-wrap">
         <table className="tbl">
           <thead><tr><th>ผลการตรวจ</th><th>รายละเอียด</th><th>ส่วน</th><th></th></tr></thead>

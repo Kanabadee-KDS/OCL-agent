@@ -132,12 +132,9 @@ def finalize(job_id: str, store: JobStore = Depends(get_store)) -> dict[str, Any
 @router.get("/{job_id}/checks")
 def get_checks(job_id: str, store: JobStore = Depends(get_store)) -> list[dict[str, Any]]:
     try:
-        p = store.dir(job_id) / "extract" / "checks.json"
+        return store.checks(job_id)
     except KeyError as e:
         raise HTTPException(404, "ไม่พบงานนำเข้า") from e
-    if not p.exists():
-        return []
-    return json.loads(p.read_text(encoding="utf-8"))
 
 
 @router.get("/{job_id}/source")
@@ -174,6 +171,11 @@ def get_file(job_id: str, path: str, store: JobStore = Depends(get_store)):
     except KeyError as e:
         raise HTTPException(404, "ไม่พบงานนำเข้า") from e
     target = (root / path).resolve()
+    # Markdown of a part the reviewer edited is re-rendered under edits/md/ and wins
+    if path.startswith("extract/md/"):
+        edited = (root / "edits" / "md" / path[len("extract/md/") :]).resolve()
+        if root in edited.parents and edited.is_file():
+            target = edited
     if root not in target.parents or not target.is_file():
         raise HTTPException(404, "ไม่พบไฟล์")
     if target.suffix.lower() in {".md", ".txt", ".json"}:

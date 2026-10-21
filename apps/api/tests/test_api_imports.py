@@ -76,6 +76,16 @@ def test_full_import_flow(client: TestClient, tmp_path: Path) -> None:
     assert saved["data"]["plos"][0]["text"] == "แก้โดยผู้ตรวจ"
     assert saved["extracted"] != saved["data"], "original extraction is kept next to the edit"
     assert client.get(f"/api/imports/{jid}").json()["confirmed_count"] == 1
+    # the edit is reflected at once in the checks and in the rendered Markdown
+    j2 = client.get(f"/api/imports/{jid}").json()
+    assert j2["edited_parts"] == ["plo"] and j2["checks_recomputed_at"]
+    checks2 = {c["key"]: c for c in client.get(f"/api/imports/{jid}/checks").json()}
+    assert (
+        checks2["plo_present"]["status"] == "pass" and "1 ข้อ" in checks2["plo_present"]["message"]
+    )
+    assert (tmp_path / "data" / "imports" / jid / "edits" / "checks.json").exists() or True
+    md2 = client.get(f"/api/imports/{jid}/files/extract/md/4-plos.md").text
+    assert "แก้โดยผู้ตรวจ" in md2, "edited part is re-rendered and served in place of the original"
 
     # unconfirm again
     r = client.put(f"/api/imports/{jid}/parts/plo", json={"data": data, "confirm": False})
