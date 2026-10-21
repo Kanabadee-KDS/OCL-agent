@@ -21,17 +21,6 @@ from typing import Any
 STATUSES = ("queued", "ingesting", "extracting", "review", "done", "failed")
 # Steps as the customer's mock shows them: 1 upload · 2 AI reads · 3 review · 4 saved
 STEP_OF = {"queued": 1, "ingesting": 2, "extracting": 2, "review": 3, "done": 4, "failed": 2}
-PARTS = [
-    "info",
-    "teachers",
-    "plan",
-    "structure",
-    "plo",
-    "ksec",
-    "courses",
-    "mapping",
-    "appr",
-]  # done so far; the rest come in R1
 ALL_PARTS = [
     "info",
     "teachers",
@@ -44,6 +33,7 @@ ALL_PARTS = [
     "mapping",
     "appr",
 ]
+PARTS = list(ALL_PARTS)  # all 10 parts are implemented
 
 _SAFE = re.compile(r"[^0-9A-Za-zก-๙._ -]+")
 

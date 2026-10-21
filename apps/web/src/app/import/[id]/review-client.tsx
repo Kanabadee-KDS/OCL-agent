@@ -23,6 +23,8 @@ type Plo = { code: string; text: string; sub_plos: { code: string; text: string;
 type MapRow = { course_code: string; course_name: string | null; group: string | null; plos: string[]; meta?: Meta };
 type KsecRow = { course_code: string; course_name: string | null; group: string | null; by_column: Record<string, string[]>; ksec_codes: string[]; plos: string[]; meta?: Meta };
 type MapData = { plo_codes: string[]; rows: MapRow[]; ksec_columns?: string[]; ksec_rows?: KsecRow[] };
+type Module = { number: string; name_th: string; name_en: string | null; credits: number | null; counted: boolean; group: string | null; major?: string | null; description_th: string | null; description_en: string | null; course_codes: string[]; meta?: Meta };
+type ModulesData = { modules: Module[]; groups: { name: string; declared_modules: number | null; declared_credits: number | null }[] };
 type PlanTable = { name: string | null; years: string[]; rows: { label: string; values: number[] }[]; total: number[] | null; graduates: number[] | null; meta?: Meta };
 type PlanData = { plans: PlanTable[]; teaching_modes: string[]; teaching_methods: { outcome: string; methods: string; meta?: Meta }[]; meta: Record<string, Meta | undefined>; intake_per_year?: number };
 type Degree = { degree: string; field: string | null; year: number | null; level: string | null; institution: string | null };
@@ -94,7 +96,7 @@ export default function ReviewClient() {
       if (ORDER.includes(tab)) await loadPart(tab);
       if (tab === "preview") {
         const xs = await Promise.all(
-          ["1-program_info.md", "8-teachers.md", "9-admission_plan.md", "2-course_structure.md", "4-plos.md", "4b-ksec.md", "3-courses_list.md", "5-curriculum_mapping.md", "7-approval.md"].map((n) => api.fileText(id, `extract/md/${n}`).then((t) => [n, t] as const)),
+          ["1-program_info.md", "8-teachers.md", "9-admission_plan.md", "2-course_structure.md", "4-plos.md", "4b-ksec.md", "3b-modules.md", "3-courses_list.md", "5-curriculum_mapping.md", "7-approval.md"].map((n) => api.fileText(id, `extract/md/${n}`).then((t) => [n, t] as const)),
         );
         if (alive) setPreview(Object.fromEntries(xs));
       }
@@ -222,7 +224,7 @@ export default function ReviewClient() {
           {tab === "check" && <ChecksView checks={checks} go={setTab} />}
           {tab === "preview" && (
             <section className="stack">
-              {["1-program_info.md", "8-teachers.md", "9-admission_plan.md", "2-course_structure.md", "4-plos.md", "4b-ksec.md", "3-courses_list.md", "5-curriculum_mapping.md", "7-approval.md"].map((n) => (
+              {["1-program_info.md", "8-teachers.md", "9-admission_plan.md", "2-course_structure.md", "4-plos.md", "4b-ksec.md", "3b-modules.md", "3-courses_list.md", "5-curriculum_mapping.md", "7-approval.md"].map((n) => (
                 <div key={n} className="card pad stack">
                   <div className="between"><b>{n}</b><a className="btn sm" href={api.fileUrl(id, `extract/md/${n}`)} target="_blank">เปิดไฟล์</a></div>
                   {preview[n] ? <Markdown text={preview[n]} /> : <div className="small faint">กำลังโหลด…</div>}
@@ -252,6 +254,7 @@ export default function ReviewClient() {
                 <section className="card pad stack" style={{ minWidth: 0 }}>
                   {tab === "info" && data && <InfoEditor data={data as unknown as InfoData} onChange={(d) => { setData(d); setDirty(true); }} pick={(m) => pick(m)} />}
                   {tab === "structure" && data && <StructureEditor data={data as { total_credits: number | null; tree: Node[] }} onChange={(d) => { setData(d); setDirty(true); }} pick={(m) => pick(m)} />}
+                  {tab === "modules" && data && <ModulesEditor data={data as unknown as ModulesData} onChange={(d) => { setData(d); setDirty(true); }} pick={(m) => pick(m)} />}
                   {tab === "plan" && data && <PlanEditor data={data as unknown as PlanData} onChange={(d) => { setData(d); setDirty(true); }} pick={(m) => pick(m)} />}
                   {tab === "teachers" && data && <TeachersEditor data={data as { teachers: Teacher[]; responsible_count: number }} onChange={(d) => { setData(d); setDirty(true); }} pick={(m) => pick(m)} />}
                   {tab === "appr" && data && <ApprEditor data={data as unknown as ApprData} onChange={(d) => { setData(d); setDirty(true); }} pick={(m) => pick(m)} />}
@@ -288,6 +291,7 @@ function firstPage(key: string, data: Record<string, unknown> | null): number | 
     return metaPage(metas.name_th) ?? metaPage(metas.program_code) ?? metaPage(Object.values(metas).find((m) => m?.source?.page));
   }
   if (key === "structure") return metaPage(((data.tree as Node[]) ?? [])[0]?.meta) ?? metaPage((data.meta as { total_credits?: Meta })?.total_credits);
+  if (key === "modules") return metaPage(((data.modules as Module[]) ?? [])[0]?.meta);
   if (key === "plan") return metaPage(((data.plans as PlanTable[]) ?? [])[0]?.meta);
   if (key === "teachers") return metaPage(((data.teachers as Teacher[]) ?? [])[0]?.meta);
   if (key === "appr") return metaPage(((data.approvals as ApprRow[]) ?? [])[0]?.meta) ?? metaPage((data.meta as Record<string, Meta | undefined>)?.status);
@@ -554,6 +558,38 @@ const parseDegreeLine = (line: string): Degree | null => {
   const level = /ด\.$|^Ph\.?D|^D\.|^DEc/i.test(degree) ? "เอก" : /ม\.$|^M\.|^MBA|^MSc|^PDSC/i.test(degree) ? "โท" : /บ\.$|^B\./i.test(degree) ? "ตรี" : null;
   return { degree, field: f ? f[1].trim() : null, year: y ? Number(y[1]) : null, level, institution: inst?.trim() || null };
 };
+
+function ModulesEditor({ data, onChange, pick }: { data: ModulesData; onChange: (d: Record<string, unknown>) => void; pick: (m?: Meta | null) => void }) {
+  const mods = data.modules ?? [];
+  const set = (i: number, f: keyof Module, v: unknown) => { const c = structuredClone(data); (c.modules[i] as unknown as Record<string, unknown>)[f] = v; onChange(c as unknown as Record<string, unknown>); };
+  const add = () => { const c = structuredClone(data); c.modules.push({ number: String(c.modules.length + 1), name_th: "", name_en: null, credits: null, counted: true, group: null, description_th: null, description_en: null, course_codes: [] }); onChange(c as unknown as Record<string, unknown>); };
+  const del = (i: number) => { const c = structuredClone(data); c.modules.splice(i, 1); onChange(c as unknown as Record<string, unknown>); };
+  const noDesc = mods.filter((m) => !m.description_th).length;
+  return (
+    <div className="stack" style={{ gap: 12 }}>
+      <div className="between">
+        <div className="row small faint">ชุดวิชา {mods.length} · <Pill kind="warn">ไม่มีคำอธิบาย {noDesc}</Pill> {(data.groups ?? []).map((g) => `${g.name} ${g.declared_modules ?? "–"} ชุด`).join(" · ")} · คลิกหัวข้อเพื่อเปิดหน้าต้นฉบับ</div>
+        <button className="btn xs" onClick={add}>+ เพิ่มชุดวิชา</button>
+      </div>
+      {mods.length === 0 && <Note kind="warn">ไม่พบชุดวิชาในหมวดที่ 4 (เล่มอาจไม่ใช้ชุดวิชา)</Note>}
+      {mods.map((m, i) => (
+        <div key={i} className={`card pad stack ${m.meta?.note ? "low" : ""}`} style={{ gap: 8, background: "var(--surface-2)" }}>
+          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: 8 }}>
+            <span className="small faint" style={{ paddingBottom: 12, whiteSpace: "nowrap", cursor: "pointer" }} onClick={() => pick(m.meta)}>{m.number} · หน้า {m.meta?.source?.page ?? "–"}</span>
+            <div className="field" style={{ flex: "1 1 220px" }}><label>ชื่อชุดวิชา (ไทย)</label><input className="inp" value={m.name_th} onChange={(e) => set(i, "name_th", e.target.value)} /></div>
+            <div className="field" style={{ flex: "1 1 180px" }}><label>ชื่ออังกฤษ</label><input className="inp" value={m.name_en ?? ""} onChange={(e) => set(i, "name_en", e.target.value || null)} /></div>
+            <div className="field" style={{ flex: "0 0 90px" }}><label>หน่วยกิต</label><input className="inp" value={m.counted === false ? "ไม่นับ" : m.credits ?? ""} onChange={(e) => { const t = e.target.value.trim(); if (t === "ไม่นับ") { set(i, "counted", false); } else { const c = structuredClone(data); c.modules[i].counted = true; c.modules[i].credits = t ? Number(t.replace(/\D/g, "")) || null : null; onChange(c as unknown as Record<string, unknown>); } }} /></div>
+            <div className="field" style={{ flex: "0 1 160px" }}><label>กลุ่ม{m.major ? ` · ${m.major}` : ""}</label><input className="inp" value={m.group ?? ""} onChange={(e) => set(i, "group", e.target.value || null)} /></div>
+            <button className="btn xs ghost" style={{ marginBottom: 8 }} onClick={() => del(i)}>ลบ</button>
+          </div>
+          <div className="field"><label>คำอธิบายชุดวิชา (ไทย) {!m.description_th && <Pill kind="red">ไม่พบ</Pill>}</label><textarea className="inp" rows={3} style={{ height: "auto", padding: 8 }} value={m.description_th ?? ""} onChange={(e) => set(i, "description_th", e.target.value || null)} /></div>
+          {(m.description_en || false) && <div className="small muted">{m.description_en}</div>}
+          <div className="field"><label>รายวิชาในชุด (รหัส คั่นด้วยช่องว่าง)</label><input className="inp" value={(m.course_codes ?? []).join(" ")} onChange={(e) => set(i, "course_codes", e.target.value.split(/[\s,;]+/).filter(Boolean))} /></div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 const MODES = ["On-site", "Online", "Hybrid", "WIL"];
 

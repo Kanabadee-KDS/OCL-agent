@@ -216,9 +216,13 @@ def test_pipeline_roundtrip(tmp_path: Path) -> None:
     report = extract(tmp_path, gateway=None)
     assert report["parts"]["courses"]["count"] == 2
     fails = [c["key"] for c in report["checks"]["items"] if c["status"] == "fail"]
-    assert set(fails) == {"ksec_present", "approval_present", "teachers_present", "plan_present"}, (
-        "sample_doc has no KSEC table, item 13 or teacher table"
-    )
+    assert set(fails) == {
+        "ksec_present",
+        "approval_present",
+        "teachers_present",
+        "plan_present",
+        "modules_present",
+    }, "sample_doc has no KSEC table, item 13 or teacher table"
     assert (tmp_path / "extract" / "courses.json").exists()
     assert (tmp_path / "extract" / "md" / "3-courses_list.md").exists()
     assert (tmp_path / "extract" / "checks.json").exists()
@@ -1045,3 +1049,95 @@ def test_admission_plan_tables_and_checks() -> None:
     assert d2["plans"][0]["name"] is None and d2["plans"][0]["total"] == [70, 150]
     checks = {c.key: c for c in run_checks({"plan": d2, "info": {}})}
     assert checks["plan_totals"].status == "warn" and "2571" in checks["plan_totals"].message
+
+
+def test_modules_headings_descriptions_and_checks() -> None:
+    from ocl_api.extract.modules import extract_modules, parse_heading
+    from ocl_api.extract.render import render_modules
+
+    assert parse_heading("3.2.2.4 ชุดวิชาการประกอบอาหารเพื่อสุขภาพ (Health Food Preparation)") == {
+        "number": "3.2.2.4",
+        "name_th": "การประกอบอาหารเพื่อสุขภาพ",
+        "name_en": "Health Food Preparation",
+        "credits": None,
+        "counted": True,
+        "description_inline": None,
+    }
+    assert (
+        parse_heading("3.2.2.2 ชุดวิชาการเงินเพื่อความยั่งยืน (Sustainable Finance) จำนวน 4 หน่วยกิต")[
+            "credits"
+        ]
+        == 4
+    )
+    assert parse_heading("3.2.1.2 ชุดวิชาปรับพื้นฐาน (Foundation) ไม่นับหน่วยกิต")["counted"] is False
+    assert parse_heading("1) ชุดวิชาวิถีชีวิตและชุมชน มีรายวิชาต่อไปนี้") == {
+        "number": "1",
+        "name_th": "วิถีชีวิตและชุมชน",
+        "name_en": None,
+        "credits": None,
+        "counted": True,
+        "description_inline": None,
+    }
+    assert parse_heading("3.2.1 วิชาบังคับ กำหนดให้เรียน จำนวน 10 ชุดวิชา") is None
+
+    blocks = [
+        H("หมวดที่ 4 โครงสร้างหลักสูตร รายวิชา และหน่วยกิต", 1, 25),
+        H("2. รายละเอียดของหมวดวิชาและหน่วยกิต", 2, 26),
+        P("2.2.1 วิชาบังคับ กำหนดให้เรียน จำนวน 2 ชุดวิชา รวม 6 หน่วยกิต ดังนี้", 27),
+        P("2.2.1.1 ชุดวิชาพื้นฐานเคมี", 27),
+        P("คม100 เคมีทั่วไป 1 3(3-0-6)", 27),
+        P("2.2.1.2 ชุดวิชาฟิสิกส์", 27),
+        P("ฟส100 ฟิสิกส์ทั่วไป 3(3-0-6)", 27),
+        H("3. คำอธิบายชุดวิชา/รายวิชา", 2, 30),
+        P("3.2.1 วิชาบังคับ กำหนดให้เรียน จำนวน 2 ชุดวิชา รวม 6 หน่วยกิต ดังนี้", 34),
+        P("3.2.1.1 ชุดวิชาพื้นฐานเคมี", 34),
+        P("(Basic Chemistry)", 34),
+        P("ปริมาณสัมพันธ์ โครงสร้างอะตอม และสมดุลเคมี", 34),
+        P("Stoichiometry, atomic structure and chemical equilibrium.", 34),
+        P("คม100 เคมีทั่วไป 1 3(3-0-6)", 34),
+        P("CH100 General Chemistry I", 34),
+        P("ปริมาณสัมพันธ์ โครงสร้างอะตอม", 34),
+        P("3.2.1.2 ชุดวิชาฟิสิกส์ (Physics) จำนวน 3 หน่วยกิต", 35),
+        Table(rows=[["ฟส100", "ฟิสิกส์ทั่วไป", "3(3-0-6)"], ["PY100", "General Physics", ""]], page=35),
+        P("3.2.2 วิชาเลือก กำหนดให้เลือกเรียน จำนวน 1 ชุดวิชา รวมไม่น้อยกว่า 10 หน่วยกิต จากชุดวิชาต่อไปนี้", 36),
+    ]
+    doc = Document(source_name="m.docx", source_type="docx", blocks=blocks)
+    r = extract_modules(doc)
+    mods = r.data["modules"]
+    assert [m["name_th"] for m in mods] == ["พื้นฐานเคมี", "ฟิสิกส์"] and r.data["listed_in_item2"] == [
+        "พื้นฐานเคมี",
+        "ฟิสิกส์",
+    ]
+    assert mods[0]["name_en"] == "Basic Chemistry" and mods[0]["group"] == "วิชาบังคับ"
+    assert mods[0]["description_th"] == "ปริมาณสัมพันธ์ โครงสร้างอะตอม และสมดุลเคมี"
+    assert mods[0]["description_en"].startswith("Stoichiometry") and mods[0]["course_codes"] == [
+        "คม100"
+    ]
+    assert (
+        mods[1]["credits"] == 3
+        and mods[1]["course_codes"] == ["ฟส100"]
+        and mods[1]["description_th"] is None
+    )
+    assert mods[1]["meta"]["note"] == "ไม่พบคำอธิบายชุดวิชา"
+    assert r.data["groups"][0] == {
+        "name": "วิชาบังคับ",
+        "declared_modules": 2,
+        "declared_credits": 6,
+        "page": 34,
+    }
+    assert (
+        r.data["groups"][1]["declared_modules"] == 1
+        and r.data["groups"][1]["declared_credits"] == 10
+    )
+
+    courses = {"courses": [{"code_th": "คม100", "credits": 3}, {"code_th": "ฟส100", "credits": 4}]}
+    checks = {c.key: c for c in run_checks({"modules": r.data, "courses": courses})}
+    assert checks["modules_present"].status == "pass"
+    assert checks["modules_vs_declared"].status == "pass", "electives declare how many to choose"
+    assert checks["modules_fields"].status == "warn" and "ฟิสิกส์" in checks["modules_fields"].message
+    assert checks["modules_vs_courses"].status == "pass"
+    assert (
+        checks["modules_credits"].status == "warn" and "4 ≠ 3" in checks["modules_credits"].message
+    )
+    md = render_modules(r.data)
+    assert "### 3.2.1.1 ชุดวิชาพื้นฐานเคมี (Basic Chemistry)" in md and "รายวิชา: ฟส100" in md

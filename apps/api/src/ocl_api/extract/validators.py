@@ -459,6 +459,93 @@ def _plan_checks(pl: dict[str, Any], info: dict[str, Any]) -> list[Check]:
     return out
 
 
+def _module_checks(md: dict[str, Any], crs: dict[str, Any]) -> list[Check]:
+    out: list[Check] = []
+    mods = md.get("modules") or []
+    if not mods:
+        out.append(Check("modules_present", "fail", "ไม่พบชุดวิชาในหมวดที่ 4 ข้อ 2–3", "modules"))
+        return out
+    out.append(Check("modules_present", "pass", f"พบชุดวิชา {len(mods)} ชุด", "modules"))
+    bad = []
+    checked = 0
+    for g in md.get("groups") or []:
+        if not g.get("declared_modules") or "เลือก" in g["name"]:
+            continue  # an elective group declares how many to choose, not how many it lists
+        majors = sorted({m.get("major") for m in mods if m.get("group") == g["name"]}, key=str)
+        for mj in majors:
+            n = sum(1 for m in mods if m.get("group") == g["name"] and m.get("major") == mj)
+            checked += 1
+            if n != g["declared_modules"]:
+                label = g["name"] + (f" ({mj})" if mj else "")
+                bad.append(f"{label}: พบ {n} ≠ ระบุ {g['declared_modules']}")
+    if checked:
+        out.append(
+            Check(
+                "modules_vs_declared",
+                "warn" if bad else "pass",
+                "; ".join(bad) if bad else "จำนวนชุดวิชาบังคับตรงกับที่กลุ่มระบุ",
+                "modules",
+            )
+        )
+    no_desc = [m["name_th"] for m in mods if not m.get("description_th")]
+    no_codes = [m["name_th"] for m in mods if not m.get("course_codes")]
+    out.append(
+        Check(
+            "modules_fields",
+            "warn" if (no_desc or no_codes) else "pass",
+            (f"ไม่มีคำอธิบาย {len(no_desc)} ชุด: {', '.join(no_desc[:3])}" if no_desc else "")
+            + (" · " if no_desc and no_codes else "")
+            + (f"ไม่มีรายวิชา {len(no_codes)} ชุด: {', '.join(no_codes[:3])}" if no_codes else "")
+            or "ทุกชุดวิชามีคำอธิบายและรายวิชา",
+            "modules",
+        )
+    )
+    courses = crs.get("courses") or []
+    if courses:
+        known = {c.get("code_th") for c in courses}
+        in_mods = [c for m in mods for c in m.get("course_codes") or []]
+        unknown = sorted({c for c in in_mods if c not in known})
+        dup = sorted({c for c in in_mods if in_mods.count(c) > 1})
+        out.append(
+            Check(
+                "modules_vs_courses",
+                "warn" if (unknown or dup) else "pass",
+                (f"รหัสในชุดวิชาที่ไม่อยู่ในรายวิชา: {', '.join(unknown[:6])}" if unknown else "")
+                + (" · " if unknown and dup else "")
+                + (f"รหัสอยู่ในหลายชุดวิชา: {', '.join(dup[:6])}" if dup else "")
+                or f"รายวิชาในชุดวิชา {len(set(in_mods))} รหัส อยู่ในรายการรายวิชาทั้งหมด",
+                "modules",
+            )
+        )
+        credit_bad = []
+        by_code = {c.get("code_th"): c.get("credits") or 0 for c in courses}
+        for m in mods:
+            if m.get("credits") and m.get("course_codes"):
+                s = sum(by_code.get(c, 0) for c in m["course_codes"])
+                if s != m["credits"]:
+                    credit_bad.append(f"{m['name_th'][:30]}: รายวิชารวม {s} ≠ {m['credits']}")
+        if any(m.get("credits") for m in mods):
+            out.append(
+                Check(
+                    "modules_credits",
+                    "warn" if credit_bad else "pass",
+                    "; ".join(credit_bad[:4]) if credit_bad else "หน่วยกิตชุดวิชาตรงกับผลรวมรายวิชา",
+                    "modules",
+                )
+            )
+    listed = md.get("listed_in_item2") or []
+    if listed and len(listed) != len(mods):
+        out.append(
+            Check(
+                "modules_2_vs_3",
+                "info",
+                f"ชุดวิชาในข้อ 2 มี {len(listed)} ชุด แต่ข้อ 3 มี {len(mods)} ชุด",
+                "modules",
+            )
+        )
+    return out
+
+
 def run_checks(parts: dict[str, dict[str, Any]]) -> list[Check]:
     checks: list[Check] = []
     st = parts.get("structure") or {}
@@ -476,6 +563,9 @@ def run_checks(parts: dict[str, dict[str, Any]]) -> list[Check]:
     pl = parts.get("plan") or {}
     if pl:
         checks += _plan_checks(pl, info)
+    md = parts.get("modules") or {}
+    if md:
+        checks += _module_checks(md, parts.get("courses") or {})
 
     tree = st.get("tree") or []
     total = st.get("total_credits")

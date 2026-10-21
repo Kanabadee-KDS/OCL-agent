@@ -13,6 +13,7 @@ from ocl_api.extract.courses import extract_courses
 from ocl_api.extract.info import extract_info
 from ocl_api.extract.ksec import extract_ksec
 from ocl_api.extract.mapping import extract_mapping
+from ocl_api.extract.modules import extract_modules
 from ocl_api.extract.plan import extract_plan
 from ocl_api.extract.plo import extract_plo
 from ocl_api.extract.render import RENDERERS
@@ -27,6 +28,7 @@ PLUGINS = {
     "structure": extract_structure,
     "plo": extract_plo,
     "ksec": extract_ksec,
+    "modules": extract_modules,
     "courses": extract_courses,
     "mapping": extract_mapping,
     "appr": extract_approval,
@@ -38,6 +40,7 @@ DEFAULT_PARTS = [
     "structure",
     "plo",
     "ksec",
+    "modules",
     "courses",
     "mapping",
     "appr",

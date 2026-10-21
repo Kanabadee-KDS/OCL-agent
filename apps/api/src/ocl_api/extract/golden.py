@@ -233,6 +233,23 @@ def render_golden(extract_dir: str | Path, *, book: str, reviewer: str = "") -> 
             f"| {desc} | {_page(c.get('meta'))} | {_conf(c.get('meta'))} |  |  |"
         )
     L += ["", "รายวิชาที่เล่มมีแต่ระบบไม่พบ (เขียนเพิ่ม): ______________________"]
+    md_path = d / "modules.json"
+    mdd = json.loads(md_path.read_text(encoding="utf-8"))["data"] if md_path.exists() else {}
+    if mdd.get("modules"):
+        L += [
+            "",
+            f"## 4a. ชุดวิชา (หมวดที่ 4 ข้อ 3) · ระบบพบ {len(mdd['modules'])} ชุด",
+            "",
+            "ตรวจ 3 ช่อง: ชื่อ · คำอธิบาย · รายวิชาในชุด (ย่อ ช/ค/ร เช่น ✓✓✗)",
+            "",
+            "| # | ชุดวิชา | ชื่ออังกฤษ | กลุ่ม | หน่วยกิต | รายวิชา | คำอธิบาย | หน้า | ช/ค/ร | หมายเหตุ |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+        ]
+        for m in mdd["modules"]:
+            cr = "ไม่นับ" if m.get("counted") is False else (m.get("credits") or "")
+            L.append(
+                f"| {m['number']} | {m['name_th']} | {m.get('name_en') or ''} | {m.get('group') or ''} | {cr} | {', '.join(m.get('course_codes') or [])} | {'มี' if m.get('description_th') else '**ไม่มี**'} | {_page(m.get('meta'))} |  |  |"
+            )
     if mp.get("rows"):
         plos = mp.get("plo_codes") or []
         L += [
@@ -281,6 +298,7 @@ def render_golden(extract_dir: str | Path, *, book: str, reviewer: str = "") -> 
         f"| PLO | {plo.get('count', 0)} |  |  | ≥ 95% |",
         f"| KSEC (รายการ) | {ks.get('count', 0)} |  |  | ≥ 95% |",
         f"| รายวิชา (แถว × 4 ช่อง) | {len(courses) * 4} |  |  | ≥ 95% |",
+        f"| ชุดวิชา (ชุด × 3 ช่อง) | {len(mdd.get('modules') or []) * 3} |  |  | ≥ 95% |",
         f"| Curriculum Mapping 4.1 (แถว) | {len(mp.get('rows') or [])} |  |  | ≥ 95% |",
         f"| Curriculum Mapping 4.2 (แถว) | {len(mp.get('ksec_rows') or [])} |  |  | ≥ 95% |",
         "",

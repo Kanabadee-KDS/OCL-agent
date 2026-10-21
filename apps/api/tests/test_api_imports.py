@@ -44,7 +44,7 @@ def test_full_import_flow(client: TestClient, tmp_path: Path) -> None:
     )
     assert r.status_code == 201, r.text
     job = r.json()
-    assert job["status"] == "queued" and job["step"] == 1 and job["parts_total"] == 9
+    assert job["status"] == "queued" and job["step"] == 1 and job["parts_total"] == 10
     jid = job["id"]
 
     job = _wait(client, jid, "review")
@@ -59,8 +59,8 @@ def test_full_import_flow(client: TestClient, tmp_path: Path) -> None:
     p = client.get(f"/api/imports/{jid}/parts/structure").json()
     assert p["available"] and p["confirmed"] is False and p["edited"] is False
     assert p["data"]["tree"] == [] or isinstance(p["data"]["tree"], list)
-    r1 = client.get(f"/api/imports/{jid}/parts/modules").json()
-    assert r1["available"] is False and "R1" in r1["note"]
+    for key in job["all_parts"]:
+        assert client.get(f"/api/imports/{jid}/parts/{key}").json()["available"], key
     assert client.get(f"/api/imports/{jid}/parts/nope").status_code == 404
 
     # edit + confirm PLO

@@ -371,6 +371,39 @@ def render_plan(data: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def render_modules(data: dict[str, Any]) -> str:
+    mods = data.get("modules") or []
+    if not mods:
+        return (
+            "# ชุดวิชา\n\n> AI สกัดไม่ได้ กรอกด้วยมือ (เล่มอาจไม่ใช้ชุดวิชา)\n\n"
+            "| ชุดวิชา | ชื่ออังกฤษ | หน่วยกิต | รายวิชา |\n| --- | --- | --- | --- |\n| | | | |\n"
+        )
+    lines = ["# ชุดวิชาและคำอธิบายชุดวิชา", "", f"รวม {len(mods)} ชุดวิชา", ""]
+    for g in data.get("groups") or []:
+        lines.append(
+            f"- {g['name']}: {g.get('declared_modules') or '–'} ชุดวิชา"
+            + (f" รวม {g['declared_credits']} หน่วยกิต" if g.get("declared_credits") else "")
+        )
+    group = object()
+    for m in mods:
+        if m.get("group") != group:
+            group = m.get("group")
+            if group:
+                lines += ["", f"## {group}"]
+        if m.get("counted") is False:
+            cr = " · ไม่นับหน่วยกิต"
+        else:
+            cr = f" · {m['credits']} หน่วยกิต" if m.get("credits") else ""
+        en = f" ({m['name_en']})" if m.get("name_en") else ""
+        page = ((m.get("meta") or {}).get("source") or {}).get("page") or ""
+        lines += ["", f"### {m['number']} ชุดวิชา{m['name_th']}{en}{cr}  \n<sub>หน้า {page}</sub>", ""]
+        lines.append(m.get("description_th") or "_[ไม่พบคำอธิบายชุดวิชา]_")
+        if m.get("description_en"):
+            lines += ["", m["description_en"]]
+        lines += ["", "รายวิชา: " + (", ".join(m.get("course_codes") or []) or "_[ไม่พบ]_")]
+    return "\n".join(lines) + "\n"
+
+
 RENDERERS = {
     "info": ("1-program_info.md", render_info),
     "teachers": ("8-teachers.md", render_teachers),
@@ -378,6 +411,7 @@ RENDERERS = {
     "structure": ("2-course_structure.md", render_structure),
     "plo": ("4-plos.md", render_plo),
     "ksec": ("4b-ksec.md", render_ksec),
+    "modules": ("3b-modules.md", render_modules),
     "courses": ("3-courses_list.md", render_courses),
     "mapping": ("5-curriculum_mapping.md", render_mapping),
     "appr": ("7-approval.md", render_approval),
