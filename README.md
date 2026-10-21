@@ -6,6 +6,7 @@
 
 | เอกสาร | เนื้อหา |
 |---|---|
+| [docs/sprint1-summary.md](docs/sprint1-summary.md) | สรุปส่งมอบ sprint 1 (BRD + POC) ตัวเลขจากเล่มจริง 5 เล่ม |
 | [docs/plan.md](docs/plan.md) | แผนงานปัจจุบัน (sprint 1 = BRD + POC) และ release plan |
 | [docs/developer-prompt.md](docs/developer-prompt.md) | spec ต้นฉบับของโมดูล AI |
 | [docs/server-constraints.md](docs/server-constraints.md) | **ข้อห้ามบน server ที่ใช้ร่วมกับ HRIS อ่านก่อนแตะ Ollama/docker ทุกครั้ง** |
@@ -46,6 +47,12 @@ uv run ocl ingest "samples/curriculum/<เล่ม>.docx"
 
 ```bash
 uv run ocl extract "data/ingest/<เล่ม>"
+```
+
+Demo ทั้ง pipeline ด้วยคำสั่งเดียว (ingest → extract → golden sheet, ~1 นาที, ใช้ Ollama) ดู `docs/demo.md`
+
+```bash
+tools/demo.sh
 ```
 
 เปิด UI mock ของลูกค้า: `python3 -m http.server 8765 --directory samples` แล้วเปิด `http://127.0.0.1:8765/ui-mock.html`

@@ -1,5 +1,7 @@
 # Demo script — POC โมดูล AI (sprint 1)
 
+ทางลัด: `tools/demo.sh` รันขั้น 2–4 และ 6–11 ให้ในคำสั่งเดียว (~1 นาที) ซ้อมแล้ว 21 ต.ค. 01:11 ใช้ 56 s
+
 > ใช้เวลา ~15 นาที · เตรียม: terminal ที่ `/Users/kanabadeedii/PycharmProjects/OCL agent` · `.env` ชี้ Ollama · UI mock เปิดที่ `http://127.0.0.1:8765/ui-mock.html#/import` · เล่มใน `samples/curriculum/` · **ห้ามรันช่วง 02:30–04:00 และควรแจ้งทีม HRIS ก่อน (คำตอบ HRIS ช้าลง ~1.8 s ขณะสกัด)**
 
 | นาที | ทำอะไร | พูดอะไร | หลักฐานบนจอ |
