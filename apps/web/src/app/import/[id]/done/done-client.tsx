@@ -47,7 +47,7 @@ export default function DoneClient() {
                   <td className="small">{fmtTime(job.confirmed[k] ?? null)}</td>
                   <td className="row">
                     <a className="btn xs" href={api.fileUrl(id, `extract/${k}.json`)} target="_blank">JSON</a>
-                    <a className="btn xs" href={api.fileUrl(id, `extract/md/${{ info: "1-program_info.md", structure: "2-course_structure.md", plo: "4-plos.md", ksec: "4b-ksec.md", courses: "3-courses_list.md", mapping: "5-curriculum_mapping.md", appr: "7-approval.md" }[k] ?? ""}`)} target="_blank">Markdown</a>
+                    <a className="btn xs" href={api.fileUrl(id, `extract/md/${{ info: "1-program_info.md", teachers: "8-teachers.md", structure: "2-course_structure.md", plo: "4-plos.md", ksec: "4b-ksec.md", courses: "3-courses_list.md", mapping: "5-curriculum_mapping.md", appr: "7-approval.md" }[k] ?? ""}`)} target="_blank">Markdown</a>
                   </td>
                 </tr>
               ))}

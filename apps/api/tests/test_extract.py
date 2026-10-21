@@ -216,7 +216,9 @@ def test_pipeline_roundtrip(tmp_path: Path) -> None:
     report = extract(tmp_path, gateway=None)
     assert report["parts"]["courses"]["count"] == 2
     fails = [c["key"] for c in report["checks"]["items"] if c["status"] == "fail"]
-    assert set(fails) == {"ksec_present", "approval_present"}, "sample_doc has no KSEC/item 13"
+    assert set(fails) == {"ksec_present", "approval_present", "teachers_present"}, (
+        "sample_doc has no KSEC table, item 13 or teacher table"
+    )
     assert (tmp_path / "extract" / "courses.json").exists()
     assert (tmp_path / "extract" / "md" / "3-courses_list.md").exists()
     assert (tmp_path / "extract" / "checks.json").exists()
@@ -867,3 +869,95 @@ def test_approval_rows_blank_and_wrapped() -> None:
     assert checks["approval_vs_info"].status == "warn"
     md = render_approval(d)
     assert "| สภามหาวิทยาลัย | 7/2569 | 7 กรกฎาคม 2569 | อนุมัติ | 10 |" in md and "ยังไม่มีมติ" in md
+
+
+def test_teachers_degrees_institutions_and_checks() -> None:
+    from ocl_api.extract.render import render_teachers
+    from ocl_api.extract.teachers import (
+        extract_teachers,
+        split_degrees,
+        split_institutions,
+        split_name,
+    )
+
+    assert split_name("ผู้ช่วยศาสตราจารย์\nดร.ภัทรพงษ์ เกริกสกุล") == {
+        "rank": "ผศ.",
+        "doctor": True,
+        "name": "ภัทรพงษ์ เกริกสกุล",
+    }
+    assert split_name("อาจารย์ ดร.ศุภิกา วานิชชัง")["rank"] == "อาจารย์"
+    assert split_name("รศ.ดร.พรทิพย์ศิริสุนทราลักษณ์")["name"] == "พรทิพย์ศิริสุนทราลักษณ์"
+    degs = split_degrees(
+        "วท.บ. (จิตวิทยา), 2538\nPDSC, Economics, 2545\nM.A. (Economics of\nDevelopment), 2546\nศ.ด., 2558"
+    )
+    assert [(d["degree"], d["field"], d["year"], d["level"]) for d in degs] == [
+        ("วท.บ.", "จิตวิทยา", 2538, "ตรี"),
+        ("PDSC", "Economics", 2545, "โท"),
+        ("M.A.", "Economics of Development", 2546, "โท"),
+        ("ศ.ด.", None, 2558, "เอก"),
+    ]
+    # PDF: one line, Thai → Latin → country boundaries
+    assert split_institutions(
+        "มหาวิทยาลัยศรีนครินทรวิโรฒ Ecole Nationale (ENSIA), France University of Wisconsin-Madison, USA",
+        3,
+    ) == [
+        "มหาวิทยาลัยศรีนครินทรวิโรฒ",
+        "Ecole Nationale (ENSIA), France",
+        "University of Wisconsin-Madison, USA",
+    ]
+    # docx: a Latin name wrapped over three lines
+    assert split_institutions(
+        "ม.เกษตรศาสตร์\nม.เกษตรศาสตร์\nThe United Graduate School of\nAgricultural Sciences, Tottori\nUniversity, Japan",
+        3,
+    )[2] == ("The United Graduate School of Agricultural Sciences, Tottori University, Japan")
+    assert split_institutions("ก\nข\nค\nง", 2) is None, "Thai lines never merge"
+    assert split_institutions("จุฬาลงกรณ์มหาวิทยาลัยมหาวิทยาลัยธรรมศาสตร์", 2) == [
+        "จุฬาลงกรณ์มหาวิทยาลัย",
+        "มหาวิทยาลัยธรรมศาสตร์",
+    ]
+
+    hdr = ["ลำดับที่", "รายชื่อคณาจารย์", "คุณวุฒิการศึกษา ตรี-โท-เอก (สาขาวิชา) ปีที่จบ", "สถาบันที่สำเร็จการศึกษา"]
+    blocks = [
+        H("หมวดที่ 1 ข้อมูลทั่วไป", 1, 5),
+        H("11. อาจารย์ผู้รับผิดชอบหลักสูตรและคุณสมบัติ", 2, 8),
+        Table(
+            rows=[
+                hdr,
+                ["1", "รศ.ดร.สมชาย ใจดี", "วท.บ. (เคมี), 2540\nปร.ด. (เคมี), 2548", "ม.ก\nม.ข"],
+            ],
+            page=8,
+        ),
+        H("12. อาจารย์ประจำหลักสูตรและคุณสมบัติ", 2, 9),
+        Table(
+            rows=[
+                hdr,
+                ["วิชาเอกก", "", "", ""],
+                ["1*", "รศ.ดร.สมชาย ใจดี", "วท.บ. (เคมี), 2540\nปร.ด. (เคมี), 2548", "ม.ก\nม.ข"],
+                ["2", "อาจารย์สมหญิง ดีมาก", "ศศ.บ. (ไทย), 2550", "ม.ค"],
+            ],
+            page=9,
+        ),
+        P("* อาจารย์ผู้รับผิดชอบหลักสูตร", 9),
+    ]
+    doc = Document(source_name="t.docx", source_type="docx", blocks=blocks)
+    r = extract_teachers(doc)
+    ts = r.data["teachers"]
+    assert [t["name"] for t in ts] == ["สมชาย ใจดี", "สมหญิง ดีมาก"] and r.data[
+        "responsible_count"
+    ] == 1
+    assert ts[0]["responsible"] and ts[0]["group"] == "วิชาเอกก" and ts[0]["highest_level"] == "เอก"
+    assert ts[0]["degrees"][1]["institution"] == "ม.ข" and ts[0]["meta"]["source"]["page"] == 9
+    assert ts[1]["rank"] == "อาจารย์" and ts[1]["doctor"] is False and ts[1]["highest_level"] == "ตรี"
+    checks = {
+        c.key: c for c in run_checks({"teachers": r.data, "info": {"values": {"level": "ป.ตรี"}}})
+    }
+    assert checks["teachers_present"].status == "pass"
+    assert (
+        checks["teacher_count"].status == "warn" and "วิชาเอกก 1" in checks["teacher_count"].message
+    )
+    assert checks["teacher_qualification"].status == "pass"
+    md = render_teachers(r.data)
+    assert (
+        "| 1* | สมชาย ใจดี | รศ. ดร. | วิชาเอกก | วท.บ. (เคมี), 2540 – ม.ก · ปร.ด. (เคมี), 2548 – ม.ข | 9 |"
+        in md
+    )

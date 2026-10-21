@@ -282,8 +282,47 @@ def render_approval(data: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def degree_text(d: dict[str, Any]) -> str:
+    s = d.get("degree") or ""
+    if d.get("field"):
+        s += f" ({d['field']})"
+    if d.get("year"):
+        s += f", {d['year']}"
+    if d.get("institution"):
+        s += f" – {d['institution']}"
+    return s
+
+
+def render_teachers(data: dict[str, Any]) -> str:
+    rows = data.get("teachers") or []
+    if not rows:
+        return (
+            "# อาจารย์หลักสูตร\n\n> AI สกัดไม่ได้ กรอกด้วยมือ\n\n"
+            "| ลำดับ | ชื่อ | ตำแหน่ง | ผู้รับผิดชอบ | คุณวุฒิ ตรี-โท-เอก (สาขา) ปี – สถาบัน |\n"
+            "| --- | --- | --- | --- | --- |\n| 1 | | | | |\n"
+        )
+    lines = [
+        "# อาจารย์ผู้รับผิดชอบหลักสูตรและอาจารย์ประจำหลักสูตร",
+        "",
+        f"อาจารย์ประจำ {len(rows)} คน · ผู้รับผิดชอบ {data.get('responsible_count', 0)} คน (*)",
+        "",
+        "| ลำดับ | ชื่อ | ตำแหน่ง | วิชาเอก | คุณวุฒิ ตรี-โท-เอก (สาขา), ปี – สถาบัน | หน้า |",
+        "| --- | --- | --- | --- | --- | --- |",
+    ]
+    for t in rows:
+        rank = " ".join(x for x in (t.get("rank"), "ดร." if t.get("doctor") else None) if x)
+        page = ((t.get("meta") or {}).get("source") or {}).get("page") or ""
+        degs = " · ".join(degree_text(d) for d in t.get("degrees") or [])
+        lines.append(
+            f"| {t.get('order') or ''}{'*' if t.get('responsible') else ''} | {t['name']} | {rank} "
+            f"| {t.get('group') or ''} | {degs} | {page} |"
+        )
+    return "\n".join(lines) + "\n"
+
+
 RENDERERS = {
     "info": ("1-program_info.md", render_info),
+    "teachers": ("8-teachers.md", render_teachers),
     "structure": ("2-course_structure.md", render_structure),
     "plo": ("4-plos.md", render_plo),
     "ksec": ("4b-ksec.md", render_ksec),

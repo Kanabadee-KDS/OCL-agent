@@ -304,6 +304,90 @@ def _approval_checks(ap: dict[str, Any], info: dict[str, Any]) -> list[Check]:
     return out
 
 
+def _teacher_checks(tc: dict[str, Any], info: dict[str, Any]) -> list[Check]:
+    out: list[Check] = []
+    rows = tc.get("teachers") or []
+    if not rows:
+        out.append(Check("teachers_present", "fail", "ไม่พบตารางอาจารย์ในข้อ 11–12", "teachers"))
+        return out
+    resp = [t for t in rows if t.get("responsible")]
+    out.append(
+        Check(
+            "teachers_present",
+            "pass",
+            f"อาจารย์ประจำหลักสูตร {len(rows)} คน · ผู้รับผิดชอบ {len(resp)} คน",
+            "teachers",
+        )
+    )
+    level = (info.get("values") or {}).get("level")
+    grad = level in ("ป.โท", "ป.เอก", "ป.บัณฑิต", "ป.บัณฑิตชั้นสูง")
+    groups = tc.get("groups") or []
+    if groups:
+        need = 3
+        per = {g: sum(1 for t in resp if t.get("group") == g) for g in groups}
+        short = [f"{g} {n}" for g, n in per.items() if n < need]
+        msg = "ผู้รับผิดชอบต่อวิชาเอก: " + ", ".join(f"{g} {n}" for g, n in per.items())
+    else:
+        need = 3 if grad else 5
+        short = [] if len(resp) >= need else [f"มี {len(resp)}"]
+        msg = f"ผู้รับผิดชอบ {len(resp)} คน"
+    out.append(
+        Check(
+            "teacher_count",
+            "warn" if short else "pass",
+            msg
+            + f" (เกณฑ์ ≥ {need}{' ต่อวิชาเอก' if groups else ''} [สมมติ ตามเกณฑ์ อว. 2565])"
+            + (f" · ไม่ครบ: {', '.join(short)}" if short else ""),
+            "teachers",
+        )
+    )
+    if grad:
+        weak = [
+            t["name"]
+            for t in resp
+            if t.get("highest_level") != "เอก" and (t.get("rank") or "") not in ("รศ.", "ศ.")
+        ]
+    else:
+        weak = [t["name"] for t in resp if t.get("highest_level") == "ตรี"]
+    out.append(
+        Check(
+            "teacher_qualification",
+            "warn" if weak else "pass",
+            ("ผู้รับผิดชอบที่ไม่มีวุฒิเอกและไม่ใช่ รศ./ศ.: " if grad else "ผู้รับผิดชอบที่มีวุฒิสูงสุดระดับตรี: ")
+            + ", ".join(weak)
+            if weak
+            else ("ผู้รับผิดชอบทุกคนมีวุฒิเอกหรือเป็น รศ./ศ." if grad else "ผู้รับผิดชอบทุกคนมีวุฒิโทขึ้นไป")
+            + " [สมมติ]",
+            "teachers",
+        )
+    )
+    only11 = tc.get("responsible_only_in_11") or []
+    if only11:
+        out.append(
+            Check(
+                "teacher_11_vs_12",
+                "warn",
+                "ชื่อในข้อ 11 ที่ไม่พบในข้อ 12: " + ", ".join(only11),
+                "teachers",
+            )
+        )
+    names = [re.sub(r"\s+", "", t["name"]) for t in rows]
+    dup = sorted({n for n in names if names.count(n) > 1})
+    if dup:
+        out.append(Check("teacher_duplicate", "warn", "ชื่อซ้ำในตาราง: " + ", ".join(dup), "teachers"))
+    odd = [t["name"] for t in rows if (t.get("meta") or {}).get("note")]
+    if odd:
+        out.append(
+            Check(
+                "teacher_fields",
+                "info",
+                f"แยกวุฒิ/สถาบันได้ไม่ครบ {len(odd)} คน (ตรวจในชีท): " + ", ".join(odd[:5]),
+                "teachers",
+            )
+        )
+    return out
+
+
 def run_checks(parts: dict[str, dict[str, Any]]) -> list[Check]:
     checks: list[Check] = []
     st = parts.get("structure") or {}
@@ -315,6 +399,9 @@ def run_checks(parts: dict[str, dict[str, Any]]) -> list[Check]:
     ap = parts.get("appr") or {}
     if ap:
         checks += _approval_checks(ap, info)
+    tc = parts.get("teachers") or {}
+    if tc:
+        checks += _teacher_checks(tc, info)
 
     tree = st.get("tree") or []
     total = st.get("total_credits")

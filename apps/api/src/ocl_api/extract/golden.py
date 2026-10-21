@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from ocl_api.extract.render import CONF_TH
+from ocl_api.extract.render import CONF_TH, degree_text
 
 
 def _page(m: dict[str, Any] | None) -> str:
@@ -87,6 +87,26 @@ def render_golden(extract_dir: str | Path, *, book: str, reviewer: str = "") -> 
                 f"| อาชีพ{' (' + x['group'] + ')' if x.get('group') else ''} | {x['name']} | {_page(x.get('meta'))} | {_conf(x.get('meta'))} |  |  |"
             )
         L += ["", "ฟิลด์ที่เล่มมีแต่ระบบไม่พบ (เขียนเพิ่ม): ______________________"]
+
+    tc_path = d / "teachers.json"
+    tc = json.loads(tc_path.read_text(encoding="utf-8"))["data"] if tc_path.exists() else {}
+    if tc.get("teachers"):
+        L += [
+            "",
+            f"## 1a. อาจารย์หลักสูตร (หมวดที่ 1 ข้อ 11–12) · ระบบพบ {tc.get('count', 0)} คน ผู้รับผิดชอบ {tc.get('responsible_count', 0)} คน",
+            "",
+            "ตรวจ 4 ช่องต่อคน: ชื่อ · ตำแหน่ง/ผู้รับผิดชอบ · คุณวุฒิ+ปี · สถาบัน (ย่อ ช/ต/ว/ส เช่น ✓✓✓✗)",
+            "",
+            "| ลำดับ | ชื่อ | ตำแหน่ง | วิชาเอก | คุณวุฒิ (สาขา), ปี – สถาบัน | หน้า | ความมั่นใจ | ช/ต/ว/ส | หมายเหตุ |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+        ]
+        for t in tc["teachers"]:
+            rank = " ".join(x for x in (t.get("rank"), "ดร." if t.get("doctor") else None) if x)
+            degs = " · ".join(degree_text(x) for x in t.get("degrees") or [])
+            L.append(
+                f"| {t.get('order') or ''}{'*' if t.get('responsible') else ''} | {t['name']} | {rank} | {t.get('group') or ''} | {degs} | {_page(t.get('meta'))} | {_conf(t.get('meta'))} |  |  |"
+            )
+        L += ["", "อาจารย์ที่เล่มมีแต่ระบบไม่พบ (เขียนเพิ่ม): ______________________"]
 
     ap_path = d / "appr.json"
     ap = json.loads(ap_path.read_text(encoding="utf-8"))["data"] if ap_path.exists() else {}
@@ -228,6 +248,7 @@ def render_golden(extract_dir: str | Path, *, book: str, reviewer: str = "") -> 
         "| หัวข้อหลักครบ (หมวด 1–8) | 8 |  |  | ต้อง 100% |",
         f"| ข้อมูลหลัก + หมวด 1 (ฟิลด์) | {info.get('count', 0)} |  |  | ≥ 95% |",
         f"| มติอนุมัติ (แถว) | {len(ap.get('approvals') or [])} |  |  | ≥ 95% |",
+        f"| อาจารย์ (คน × 4 ช่อง) | {len(tc.get('teachers') or []) * 4} |  |  | ≥ 95% |",
         f"| โครงสร้างหลักสูตร (แถว) | {st.get('node_count', 0)} |  |  | ≥ 95% |",
         f"| PLO | {plo.get('count', 0)} |  |  | ≥ 95% |",
         f"| KSEC (รายการ) | {ks.get('count', 0)} |  |  | ≥ 95% |",

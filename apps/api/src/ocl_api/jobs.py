@@ -23,6 +23,7 @@ STATUSES = ("queued", "ingesting", "extracting", "review", "done", "failed")
 STEP_OF = {"queued": 1, "ingesting": 2, "extracting": 2, "review": 3, "done": 4, "failed": 2}
 PARTS = [
     "info",
+    "teachers",
     "structure",
     "plo",
     "ksec",

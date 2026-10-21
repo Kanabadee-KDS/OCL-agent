@@ -23,6 +23,8 @@ type Plo = { code: string; text: string; sub_plos: { code: string; text: string;
 type MapRow = { course_code: string; course_name: string | null; group: string | null; plos: string[]; meta?: Meta };
 type KsecRow = { course_code: string; course_name: string | null; group: string | null; by_column: Record<string, string[]>; ksec_codes: string[]; plos: string[]; meta?: Meta };
 type MapData = { plo_codes: string[]; rows: MapRow[]; ksec_columns?: string[]; ksec_rows?: KsecRow[] };
+type Degree = { degree: string; field: string | null; year: number | null; level: string | null; institution: string | null };
+type Teacher = { order: number | null; responsible: boolean; rank: string | null; doctor: boolean; name: string; group: string | null; degrees: Degree[]; institutions_text: string | null; highest_level: string | null; meta?: Meta };
 type ApprRow = { level_key: string; level: string; body_text?: string; meeting_no: string | null; date: { day?: number; month?: number; year_be?: number; text: string; iso?: string | null } | null; resolution: string; pending: boolean; meta?: Meta };
 type ApprData = { status: string | null; previous_program: string | null; previous_year: number | null; start_semester: number | null; start_year: number | null; approvals: ApprRow[]; missing_levels: string[]; meta: Record<string, Meta | undefined> };
 type KsecItem = { code: string; category: string; subtype: string | null; text: string; meta?: Meta };
@@ -90,7 +92,7 @@ export default function ReviewClient() {
       if (ORDER.includes(tab)) await loadPart(tab);
       if (tab === "preview") {
         const xs = await Promise.all(
-          ["1-program_info.md", "2-course_structure.md", "4-plos.md", "4b-ksec.md", "3-courses_list.md", "5-curriculum_mapping.md", "7-approval.md"].map((n) => api.fileText(id, `extract/md/${n}`).then((t) => [n, t] as const)),
+          ["1-program_info.md", "8-teachers.md", "2-course_structure.md", "4-plos.md", "4b-ksec.md", "3-courses_list.md", "5-curriculum_mapping.md", "7-approval.md"].map((n) => api.fileText(id, `extract/md/${n}`).then((t) => [n, t] as const)),
         );
         if (alive) setPreview(Object.fromEntries(xs));
       }
@@ -218,7 +220,7 @@ export default function ReviewClient() {
           {tab === "check" && <ChecksView checks={checks} go={setTab} />}
           {tab === "preview" && (
             <section className="stack">
-              {["1-program_info.md", "2-course_structure.md", "4-plos.md", "4b-ksec.md", "3-courses_list.md", "5-curriculum_mapping.md", "7-approval.md"].map((n) => (
+              {["1-program_info.md", "8-teachers.md", "2-course_structure.md", "4-plos.md", "4b-ksec.md", "3-courses_list.md", "5-curriculum_mapping.md", "7-approval.md"].map((n) => (
                 <div key={n} className="card pad stack">
                   <div className="between"><b>{n}</b><a className="btn sm" href={api.fileUrl(id, `extract/md/${n}`)} target="_blank">เปิดไฟล์</a></div>
                   {preview[n] ? <Markdown text={preview[n]} /> : <div className="small faint">กำลังโหลด…</div>}
@@ -248,6 +250,7 @@ export default function ReviewClient() {
                 <section className="card pad stack" style={{ minWidth: 0 }}>
                   {tab === "info" && data && <InfoEditor data={data as unknown as InfoData} onChange={(d) => { setData(d); setDirty(true); }} pick={(m) => pick(m)} />}
                   {tab === "structure" && data && <StructureEditor data={data as { total_credits: number | null; tree: Node[] }} onChange={(d) => { setData(d); setDirty(true); }} pick={(m) => pick(m)} />}
+                  {tab === "teachers" && data && <TeachersEditor data={data as { teachers: Teacher[]; responsible_count: number }} onChange={(d) => { setData(d); setDirty(true); }} pick={(m) => pick(m)} />}
                   {tab === "appr" && data && <ApprEditor data={data as unknown as ApprData} onChange={(d) => { setData(d); setDirty(true); }} pick={(m) => pick(m)} />}
                   {tab === "ksec" && data && <KsecEditor data={data as { plos: KsecPlo[] }} onChange={(d) => { setData(d); setDirty(true); }} pick={(m) => pick(m)} />}
                   {tab === "plo" && data && <PloEditor data={data as { plos: Plo[] }} onChange={(d) => { setData(d); setDirty(true); }} pick={(m) => pick(m)} />}
@@ -282,6 +285,7 @@ function firstPage(key: string, data: Record<string, unknown> | null): number | 
     return metaPage(metas.name_th) ?? metaPage(metas.program_code) ?? metaPage(Object.values(metas).find((m) => m?.source?.page));
   }
   if (key === "structure") return metaPage(((data.tree as Node[]) ?? [])[0]?.meta) ?? metaPage((data.meta as { total_credits?: Meta })?.total_credits);
+  if (key === "teachers") return metaPage(((data.teachers as Teacher[]) ?? [])[0]?.meta);
   if (key === "appr") return metaPage(((data.approvals as ApprRow[]) ?? [])[0]?.meta) ?? metaPage((data.meta as Record<string, Meta | undefined>)?.status);
   if (key === "ksec") return metaPage(((data.plos as KsecPlo[]) ?? [])[0]?.meta);
   if (key === "plo") return metaPage(((data.plos as Plo[]) ?? [])[0]?.meta);
@@ -531,6 +535,69 @@ function CoursesEditor({ data, onChange, pick, open, setOpen }: { data: { course
         </table>
       </div>
     </>
+  );
+}
+
+const degreeLine = (d: Degree) => `${d.degree}${d.field ? ` (${d.field})` : ""}${d.year ? `, ${d.year}` : ""}${d.institution ? ` – ${d.institution}` : ""}`;
+const parseDegreeLine = (line: string): Degree | null => {
+  const t = line.trim();
+  if (!t) return null;
+  const [left, inst] = t.split(/\s+[–-]\s+/, 2);
+  const y = /,\s*((?:25|19|20)\d\d)\s*$/.exec(left);
+  const head = y ? left.slice(0, y.index) : left;
+  const f = /\((.+)\)\s*$/.exec(head);
+  const degree = (f ? head.slice(0, f.index) : head).trim();
+  const level = /ด\.$|^Ph\.?D|^D\.|^DEc/i.test(degree) ? "เอก" : /ม\.$|^M\.|^MBA|^MSc|^PDSC/i.test(degree) ? "โท" : /บ\.$|^B\./i.test(degree) ? "ตรี" : null;
+  return { degree, field: f ? f[1].trim() : null, year: y ? Number(y[1]) : null, level, institution: inst?.trim() || null };
+};
+
+function TeachersEditor({ data, onChange, pick }: { data: { teachers: Teacher[]; responsible_count: number }; onChange: (d: Record<string, unknown>) => void; pick: (m?: Meta | null) => void }) {
+  const rows = data.teachers ?? [];
+  const commit = (c: { teachers: Teacher[]; responsible_count: number }) => { c.responsible_count = c.teachers.filter((t) => t.responsible).length; onChange(c as unknown as Record<string, unknown>); };
+  const set = (i: number, f: keyof Teacher, v: unknown) => { const c = structuredClone(data); (c.teachers[i] as unknown as Record<string, unknown>)[f] = v; commit(c); };
+  const setDegrees = (i: number, text: string) => {
+    const c = structuredClone(data);
+    const ds = text.split("\n").map(parseDegreeLine).filter((d): d is Degree => d !== null);
+    c.teachers[i].degrees = ds;
+    const order: Record<string, number> = { เอก: 3, โท: 2, ตรี: 1 };
+    c.teachers[i].highest_level = ds.reduce<string | null>((best, d) => ((order[d.level ?? ""] ?? 0) > (order[best ?? ""] ?? 0) ? d.level : best), null);
+    commit(c);
+  };
+  const add = () => { const c = structuredClone(data); c.teachers.push({ order: c.teachers.length + 1, responsible: false, rank: null, doctor: false, name: "", group: null, degrees: [], institutions_text: null, highest_level: null }); commit(c); };
+  const del = (i: number) => { const c = structuredClone(data); c.teachers.splice(i, 1); commit(c); };
+  const odd = rows.filter((t) => t.meta?.note).length;
+  return (
+    <div className="stack" style={{ gap: 10 }}>
+      <div className="between">
+        <div className="row small faint">อาจารย์ประจำ {rows.length} คน · ผู้รับผิดชอบ {rows.filter((t) => t.responsible).length} คน · <Pill kind="warn">ต้องตรวจวุฒิ/สถาบัน {odd}</Pill> คลิกชื่อเพื่อเปิดหน้าต้นฉบับ · คุณวุฒิบรรทัดละ 1 วุฒิ: วุฒิ (สาขา), ปี – สถาบัน</div>
+        <button className="btn xs" onClick={add}>+ เพิ่มอาจารย์</button>
+      </div>
+      <div className="tbl-wrap">
+        <table className="tbl">
+          <thead><tr><th>#</th><th>ผู้รับผิดชอบ</th><th>ตำแหน่ง</th><th>ดร.</th><th>ชื่อ-นามสกุล</th><th>วิชาเอก</th><th>คุณวุฒิ ตรี-โท-เอก</th><th>หน้า</th><th></th></tr></thead>
+          <tbody>
+            {rows.map((t, i) => (
+              <tr key={i} className={t.meta?.note ? "low" : ""} title={t.meta?.note ?? ""}>
+                <td>{t.order ?? ""}</td>
+                <td className="c"><input type="checkbox" checked={t.responsible} onChange={(e) => set(i, "responsible", e.target.checked)} /></td>
+                <td>
+                  <select className="cell" value={t.rank ?? ""} onChange={(e) => set(i, "rank", e.target.value || null)}>
+                    <option value="">–</option>{["อาจารย์", "ผศ.", "รศ.", "ศ."].map((r) => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </td>
+                <td className="c"><input type="checkbox" checked={t.doctor} onChange={(e) => set(i, "doctor", e.target.checked)} /></td>
+                <td onClick={() => pick(t.meta)} style={{ cursor: "pointer" }}><input className="cell" style={{ minWidth: 180 }} value={t.name} onChange={(e) => set(i, "name", e.target.value)} onClick={(e) => e.stopPropagation()} /></td>
+                <td><input className="cell" style={{ minWidth: 120 }} value={t.group ?? ""} onChange={(e) => set(i, "group", e.target.value || null)} /></td>
+                <td><textarea className="cell" rows={Math.max(2, t.degrees.length)} style={{ minWidth: 340, fontSize: 12 }} defaultValue={t.degrees.map(degreeLine).join("\n")} onBlur={(e) => setDegrees(i, e.target.value)} />{t.meta?.note && <div className="small faint">{t.meta.note}{t.institutions_text ? ` · สถาบันตามเล่ม: ${t.institutions_text}` : ""}</div>}</td>
+                <td>{t.meta?.source?.page ?? "–"}</td>
+                <td><button className="btn xs ghost" onClick={() => del(i)}>ลบ</button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {rows.length === 0 && <Note kind="warn">ไม่พบตารางอาจารย์ในข้อ 11–12</Note>}
+    </div>
   );
 }
 
