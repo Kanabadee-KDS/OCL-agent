@@ -10,6 +10,7 @@ from typing import Any
 from ocl_api.extract.base import PartResult, load_document
 from ocl_api.extract.courses import extract_courses
 from ocl_api.extract.info import extract_info
+from ocl_api.extract.ksec import extract_ksec
 from ocl_api.extract.mapping import extract_mapping
 from ocl_api.extract.plo import extract_plo
 from ocl_api.extract.render import RENDERERS
@@ -20,10 +21,11 @@ PLUGINS = {
     "info": extract_info,
     "structure": extract_structure,
     "plo": extract_plo,
+    "ksec": extract_ksec,
     "courses": extract_courses,
     "mapping": extract_mapping,
 }
-DEFAULT_PARTS = ["info", "structure", "plo", "courses", "mapping"]
+DEFAULT_PARTS = ["info", "structure", "plo", "ksec", "courses", "mapping"]
 
 
 def extract(

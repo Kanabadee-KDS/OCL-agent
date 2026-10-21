@@ -177,6 +177,33 @@ def render_courses(data: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def render_ksec(data: dict[str, Any]) -> str:
+    plos = data.get("plos") or []
+    if not plos:
+        return (
+            "# KSEC ตาม PLO\n\n> AI สกัดไม่ได้ กรอกด้วยมือ\n\n"
+            "| PLO | รหัส | ด้าน | รายละเอียด |\n| --- | --- | --- | --- |\n| PLO1 | K1-1 | K | |\n"
+        )
+    cat = {"K": "ความรู้ (K)", "S": "ทักษะ (S)", "E": "จริยธรรม (E)", "C": "คุณลักษณะ (C)"}
+    lines = ["# ผลลัพธ์การเรียนรู้ 4 ด้าน (KSEC) ตาม PLO", "", f"รวม {data.get('count', 0)} รายการ"]
+    plan = object()
+    for p in plos:
+        if p.get("plan") != plan:
+            plan = p.get("plan")
+            if plan:
+                lines += ["", f"## {plan}"]
+        head = f"### {p['code']}" + (f" ({p['group']})" if p.get("group") else "")
+        lines += ["", head, "", p.get("text") or "", ""]
+        lines += ["| รหัส | ด้าน | ประเภท | รายละเอียด | หน้า |", "| --- | --- | --- | --- | --- |"]
+        for it in p.get("items") or []:
+            page = ((it.get("meta") or {}).get("source") or {}).get("page") or ""
+            lines.append(
+                f"| {it['code']} | {cat.get(it['category'], it['category'])} "
+                f"| {it.get('subtype') or ''} | {it.get('text') or ''} | {page} |"
+            )
+    return "\n".join(lines) + "\n"
+
+
 def render_mapping(data: dict[str, Any]) -> str:
     plos = data.get("plo_codes") or []
     rows = data.get("rows") or []
@@ -201,6 +228,21 @@ def render_mapping(data: dict[str, Any]) -> str:
         marks = " | ".join("●" if p in r["plos"] else "" for p in plos)
         page = (r.get("meta") or {}).get("source", {}).get("page") or ""
         lines.append(f"| {r['course_code']} {r.get('course_name') or ''} | {marks} | {page} |")
+    krows = data.get("ksec_rows") or []
+    kcols = data.get("ksec_columns") or []
+    if krows and kcols:
+        lines += [
+            "",
+            "## 4.2 รายวิชา × KSEC",
+            "",
+            f"รายวิชา {len(krows)} · คอลัมน์ {len(kcols)} · ค่าในช่อง = รหัส KSEC ที่รายวิชารับผิดชอบ",
+            "",
+            "| รายวิชา | " + " | ".join(kcols) + " |",
+            "|" + " --- |" * (len(kcols) + 1),
+        ]
+        for r in krows:
+            cells = " | ".join(", ".join(r.get("by_column", {}).get(c, [])) for c in kcols)
+            lines.append(f"| {r['course_code']} {r.get('course_name') or ''} | {cells} |")
     return "\n".join(lines) + "\n"
 
 
@@ -208,6 +250,7 @@ RENDERERS = {
     "info": ("1-program_info.md", render_info),
     "structure": ("2-course_structure.md", render_structure),
     "plo": ("4-plos.md", render_plo),
+    "ksec": ("4b-ksec.md", render_ksec),
     "courses": ("3-courses_list.md", render_courses),
     "mapping": ("5-curriculum_mapping.md", render_mapping),
 }

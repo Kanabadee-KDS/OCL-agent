@@ -214,7 +214,9 @@ def test_pipeline_roundtrip(tmp_path: Path) -> None:
     loaded = load_document(tmp_path)
     assert [s.number for s in loaded.sections() if s.kind == "chapter"] == ["1", "3", "4"]
     report = extract(tmp_path, gateway=None)
-    assert report["parts"]["courses"]["count"] == 2 and report["checks"]["fail"] == 0
+    assert report["parts"]["courses"]["count"] == 2
+    fails = [c["key"] for c in report["checks"]["items"] if c["status"] == "fail"]
+    assert fails == ["ksec_present"], "sample_doc has no KSEC table; nothing else may fail"
     assert (tmp_path / "extract" / "courses.json").exists()
     assert (tmp_path / "extract" / "md" / "3-courses_list.md").exists()
     assert (tmp_path / "extract" / "checks.json").exists()
@@ -672,3 +674,133 @@ def test_info_checks_and_render(tmp_path: Path) -> None:
         "## 1. ข้อมูลหลัก + หมวดที่ 1" in sheet
         and "| ชื่อหลักสูตร (ไทย) | หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาทดสอบ | 5 |" in sheet
     )
+
+
+def test_ksec_table_codes_and_subtypes() -> None:
+    from ocl_api.extract.ksec import extract_ksec
+
+    blocks = [
+        H("หมวดที่ 3 รายละเอียดของผลลัพธ์การเรียนรู้", 1, 19),
+        P("1.1 เมื่อนิสิตจบการศึกษาแผน 1 แบบวิชาการ จะสามารถ", 19),
+        Table(
+            rows=[
+                ["ผลลัพธ์การเรียนรู้ของหลักสูตร", "รายละเอียดผลลัพธ์การเรียนรู้", "", "", ""],
+                ["", "ด้านความรู้ (K)", "ด้านทักษะ (S)", "ด้านจริยธรรม (E)", "ด้านคุณลักษณะ (C)"],
+                [
+                    "PLO1: พัฒนาตนเอง",
+                    "K1-1: อธิบายแนวคิด\nK1.2 : ออกแบบ วางแผน",
+                    "S1-1: ทักษะการเรียนรู้ S1-2: ทักษะการวางแผน",
+                    "E1-1: มีความรับผิดชอบ",
+                    "C1-1: รักการเรียนรู้\n(ใฝ่รู้ใฝ่เรียน)\nคุณลักษณะเฉพาะ\nC1-2: แสดงภาวะผู้นำ",
+                ],
+                ["", "ด้านความรู้ (K)", "ด้านทักษะ (S)", "ด้านจริยธรรม (E)", "ด้านคุณลักษณะ (C)"],
+                ["", "K1-3: ต่อจากหน้าก่อน", "", "", ""],
+                ["เอกการจัดการภูมิสังคม", "", "", "", ""],
+                ["PLO6.1: วิชาเอก", "K6.1.1: วิเคราะห์ชุมชน", "S1-7: ทักษะเดิม", "", "C6.1.1 ทักษะดิจิทัล"],
+            ],
+            page=19,
+        ),
+    ]
+    doc = Document(source_name="k.docx", source_type="docx", blocks=blocks)
+    r = extract_ksec(doc)
+    plos = {p["code"]: p for p in r.data["plos"]}
+    assert set(plos) == {"PLO1", "PLO6.1"} and plos["PLO1"]["plan"] == "แผน 1 แบบวิชาการ"
+    items = {it["code"]: it for it in plos["PLO1"]["items"]}
+    assert set(items) == {"K1-1", "K1-2", "K1-3", "S1-1", "S1-2", "E1-1", "C1-1", "C1-2"}
+    assert items["K1-2"]["text"] == "ออกแบบ วางแผน" and items["S1-2"]["text"] == "ทักษะการวางแผน"
+    assert items["C1-1"]["text"] == "รักการเรียนรู้ (ใฝ่รู้ใฝ่เรียน)" and items["C1-1"]["subtype"] is None
+    assert items["C1-2"]["subtype"] == "ลักษณะเฉพาะ"
+    assert plos["PLO6.1"]["group"] == "เอกการจัดการภูมิสังคม"
+    codes6 = [it["code"] for it in plos["PLO6.1"]["items"]]
+    assert codes6 == ["K6-1-1", "S1-7", "C6-1-1"]
+    assert r.data["count"] == 11 and "K6-1-1" in r.data["codes"]
+
+
+def test_mapping_42_codes_and_checks() -> None:
+    from ocl_api.extract.mapping import cell_codes, extract_mapping
+
+    assert cell_codes("1,2", "K", "1") == ["K1-1", "K1-2"]
+    assert cell_codes("1-7", "S", "2") == ["S1-7"]
+    assert cell_codes("6.1.2", "K", "6") == ["K6-1-2"]
+    assert cell_codes("2-3 2-4", "K", "2") == ["K2-3", "K2-4"]
+    assert cell_codes("", "K", "1") == []
+
+    blocks = [
+        H("หมวดที่ 4 โครงสร้างหลักสูตร รายวิชา และหน่วยกิต", 1, 40),
+        H("4. แผนที่กระจายความรับผิดชอบ", 2, 48),
+        Table(
+            rows=[
+                ["ชุดวิชา/รายวิชา", "ผลลัพธ์การเรียนรู้ของหลักสูตร", ""],
+                ["ชุดวิชา/รายวิชา", "PLO1", "PLO2"],
+                ["ศท111 ศิลปะการใช้ชีวิต", "●", ""],
+                ["ศท112 พลังการสื่อสาร", "●", "●"],
+            ],
+            page=48,
+        ),
+        Table(
+            rows=[
+                ["ชุดวิชา/รายวิชา", "ผลลัพธ์การเรียนรู้ของหลักสูตร", "", "", "", "", "", "", ""],
+                ["ชุดวิชา/รายวิชา", "PLO1", "", "", "", "PLO2", "", "", ""],
+                ["ชุดวิชา/รายวิชา", "K1", "S1", "E1", "C1", "K2", "S2", "E2", "C2"],
+                ["1. หมวดวิชาศึกษาทั่วไป", "", "", "", "", "", "", "", ""],
+                ["ศท111 ศิลปะการใช้ชีวิต", "1,2", "1,2", "", "1", "", "", "", ""],
+                ["ศท112 พลังการสื่อสาร", "3", "", "1", "", "", "1-7", "", "9"],
+                ["", "", "", "", "", "2", "", "", ""],
+            ],
+            page=51,
+        ),
+    ]
+    doc = Document(source_name="m.docx", source_type="docx", blocks=blocks)
+    r = extract_mapping(doc)
+    assert r.data["ksec_columns"] == ["K1", "S1", "E1", "C1", "K2", "S2", "E2", "C2"]
+    rows = {x["course_code"]: x for x in r.data["ksec_rows"]}
+    assert rows["ศท111"]["ksec_codes"] == ["K1-1", "K1-2", "S1-1", "S1-2", "C1-1"]
+    assert rows["ศท111"]["group"] == "1. หมวดวิชาศึกษาทั่วไป" and rows["ศท111"]["plos"] == ["PLO1"]
+    assert rows["ศท112"]["ksec_codes"] == ["K1-3", "E1-1", "K2-2", "S1-7", "C2-9"], (
+        "empty course row continues"
+    )
+    assert rows["ศท112"]["plos"] == ["PLO1", "PLO2"]
+
+    ksec = {
+        "codes": ["K1-1", "K1-2", "K1-3", "S1-1", "C1-1", "E1-1", "S1-7", "K2-2"],
+        "count": 8,
+        "plos": [],
+    }
+    checks = {
+        c.key: c for c in run_checks({"mapping": r.data, "ksec": ksec, "plo": {}, "courses": {}})
+    }
+    assert (
+        checks["mapping_ksec_unknown"].status == "warn"
+        and "C2-9" in checks["mapping_ksec_unknown"].message
+    )
+    assert checks["ksec_unmapped"].status == "pass"
+    assert checks["mapping_42_vs_41"].status == "pass"
+    from ocl_api.extract.render import render_mapping
+
+    md = render_mapping(r.data)
+    assert (
+        "## 4.2 รายวิชา × KSEC" in md
+        and "| ศท111 ศิลปะการใช้ชีวิต | K1-1, K1-2 | S1-1, S1-2 |  | C1-1 |" in md
+    )
+
+
+def test_mapping_42_pdf_phantom_column_is_deduped() -> None:
+    from ocl_api.extract.mapping import extract_mapping
+
+    blocks = [
+        H("หมวดที่ 4 โครงสร้างหลักสูตร รายวิชา และหน่วยกิต", 1, 40),
+        H("4. แผนที่กระจายความรับผิดชอบ", 2, 60),
+        Table(
+            rows=[
+                ["ชุดวิชา/รายวิชา", "ผลลัพธ์การเรียนรู้ของหลักสูตร", "", "", "", "", "", "", "", ""],
+                ["", "PLO1", "", "", "", "", "PLO2", "", "", ""],
+                ["", "K1", "S1", "E1", "C1", "", "K2", "S2", "E2", "C2"],
+                ["วอภ112 ปฏิบัติการเคมี", "", "", "", "", "2-1", "2-1", "", "1-7", ""],
+            ],
+            page=63,
+        ),
+    ]
+    doc = Document(source_name="m.pdf", source_type="pdf", blocks=blocks)
+    r = extract_mapping(doc)
+    row = r.data["ksec_rows"][0]
+    assert row["by_column"] == {"K2": ["K2-1"], "E2": ["E1-7"]}, "phantom column 5 duplicates K2"

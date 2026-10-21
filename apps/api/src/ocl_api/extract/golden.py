@@ -126,6 +126,26 @@ def render_golden(extract_dir: str | Path, *, book: str, reviewer: str = "") -> 
     L.append("")
     L.append("PLO ที่เล่มมีแต่ระบบไม่พบ (เขียนเพิ่ม): ______________________")
 
+    ks_path = d / "ksec.json"
+    ks = json.loads(ks_path.read_text(encoding="utf-8"))["data"] if ks_path.exists() else {}
+    if ks.get("plos"):
+        L += [
+            "",
+            f"## 3b. KSEC ตาม PLO (หมวดที่ 3 ตาราง 4 ด้าน) · ระบบพบ {ks.get('count', 0)} รายการ",
+            "",
+            "ตรวจว่ารหัสอยู่ใต้ PLO และด้าน (K/S/E/C) ที่ถูกต้อง และข้อความตรงเล่ม",
+            "",
+            "| PLO | รหัส | ด้าน | รายละเอียด | หน้า | ✓/✗ | หมายเหตุ |",
+            "| --- | --- | --- | --- | --- | --- | --- |",
+        ]
+        for p in ks["plos"]:
+            label = p["code"] + (f" ({p['plan']})" if p.get("plan") else "")
+            for it in p.get("items") or []:
+                L.append(
+                    f"| {label} | {it['code']} | {it['category']} | {it.get('text') or ''} | {_page(it.get('meta'))} |  |  |"
+                )
+        L += ["", "KSEC ที่เล่มมีแต่ระบบไม่พบ (เขียนเพิ่ม): ______________________"]
+
     mp_path = d / "mapping.json"
     mp = json.loads(mp_path.read_text(encoding="utf-8"))["data"] if mp_path.exists() else {}
     courses = crs.get("courses") or []
@@ -163,6 +183,23 @@ def render_golden(extract_dir: str | Path, *, book: str, reviewer: str = "") -> 
             L.append(
                 f"| {i} | {r['course_code']} {r.get('course_name') or ''} | {marks} | {_page(r.get('meta'))} |  |  |"
             )
+    if mp.get("ksec_rows"):
+        kcols = mp.get("ksec_columns") or []
+        L += [
+            "",
+            f"## 4c. Mapping 4.2 รายวิชา × KSEC (หมวดที่ 4 ข้อ 4.2) · ระบบพบ {len(mp['ksec_rows'])} แถว",
+            "",
+            "ตรวจทีละแถวว่ารหัสในทุกช่องตรงกับเล่ม ติ๊ก ✓ เมื่อทั้งแถวถูก",
+            "",
+            "| # | รายวิชา | " + " | ".join(kcols) + " | หน้า | ✓/✗ | หมายเหตุ |",
+            "|" + " --- |" * (len(kcols) + 5),
+        ]
+        for i, r in enumerate(mp["ksec_rows"], start=1):
+            cells = " | ".join(", ".join(r.get("by_column", {}).get(c, [])) for c in kcols)
+            L.append(
+                f"| {i} | {r['course_code']} {r.get('course_name') or ''} | {cells} | {_page(r.get('meta'))} |  |  |"
+            )
+
     L += [
         "",
         "## 5. สรุปผลตรวจ",
@@ -173,8 +210,10 @@ def render_golden(extract_dir: str | Path, *, book: str, reviewer: str = "") -> 
         f"| ข้อมูลหลัก + หมวด 1 (ฟิลด์) | {info.get('count', 0)} |  |  | ≥ 95% |",
         f"| โครงสร้างหลักสูตร (แถว) | {st.get('node_count', 0)} |  |  | ≥ 95% |",
         f"| PLO | {plo.get('count', 0)} |  |  | ≥ 95% |",
+        f"| KSEC (รายการ) | {ks.get('count', 0)} |  |  | ≥ 95% |",
         f"| รายวิชา (แถว × 4 ช่อง) | {len(courses) * 4} |  |  | ≥ 95% |",
-        f"| Curriculum Mapping (แถว) | {len(mp.get('rows') or [])} |  |  | ≥ 95% |",
+        f"| Curriculum Mapping 4.1 (แถว) | {len(mp.get('rows') or [])} |  |  | ≥ 95% |",
+        f"| Curriculum Mapping 4.2 (แถว) | {len(mp.get('ksec_rows') or [])} |  |  | ≥ 95% |",
         "",
     ]
     return "\n".join(L)

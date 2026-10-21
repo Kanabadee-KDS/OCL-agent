@@ -105,6 +105,130 @@ def _info_checks(info: dict[str, Any], st: dict[str, Any]) -> list[Check]:
     return out
 
 
+def _ksec_checks(ks: dict[str, Any], plos: list[dict[str, Any]]) -> list[Check]:
+    out: list[Check] = []
+    kplos = ks.get("plos") or []
+    n = ks.get("count") or 0
+    out.append(
+        Check(
+            "ksec_present",
+            "pass" if n else "fail",
+            f"พบ KSEC {n} รายการใน {len(kplos)} PLO"
+            + (f" ({len(ks.get('plans') or [])} แผน)" if ks.get("plans") else "")
+            if n
+            else "ไม่พบตาราง PLO × ด้าน K/S/E/C ในหมวดที่ 3",
+            "ksec",
+        )
+    )
+    if n and plos:
+        have = {p["code"] for p in kplos}
+        missing = [
+            p["code"]
+            for p in plos
+            if not any(h == p["code"] or h.startswith(p["code"] + ".") for h in have)
+        ]
+        out.append(
+            Check(
+                "ksec_vs_plo",
+                "warn" if missing else "pass",
+                f"PLO ที่ไม่มีแถวในตาราง KSEC: {', '.join(missing)}"
+                if missing
+                else "ทุก PLO ของหมวดที่ 3 มีรายการ KSEC",
+                "ksec",
+            )
+        )
+    cross = [
+        f"{it['code']}@{p['code']}"
+        for p in kplos
+        for it in p.get("items") or []
+        if re.match(r"[KSEC](\d+)", it["code"])
+        and re.match(r"[KSEC](\d+)", it["code"]).group(1)
+        != re.sub(r"\D", "", p["code"].split(".")[0])
+    ]
+    if cross:
+        out.append(
+            Check(
+                "ksec_cross_plo",
+                "info",
+                f"รหัสที่อ้างข้าม PLO {len(cross)} รายการ (เล่มใช้ซ้ำได้) เช่น {', '.join(cross[:6])}",
+                "ksec",
+            )
+        )
+    odd = [
+        it["code"]
+        for p in kplos
+        for it in p.get("items") or []
+        if (it.get("meta") or {}).get("note")
+    ]
+    if odd:
+        out.append(
+            Check(
+                "ksec_column_mismatch",
+                "warn",
+                f"รหัสอยู่ผิดคอลัมน์ด้าน {len(odd)} รายการ: {', '.join(odd[:8])}",
+                "ksec",
+            )
+        )
+    return out
+
+
+def _mapping42_checks(mp: dict[str, Any], ks: dict[str, Any]) -> list[Check]:
+    out: list[Check] = []
+    krows = mp.get("ksec_rows") or []
+    rows41 = {r["course_code"]: set(r.get("plos") or []) for r in mp.get("rows") or []}
+    known = set(ks.get("codes") or [])
+    if known:
+        used = {c for r in krows for c in r.get("ksec_codes") or []}
+        unknown = sorted(used - known)
+        out.append(
+            Check(
+                "mapping_ksec_unknown",
+                "warn" if unknown else "pass",
+                f"รหัสใน Mapping 4.2 ที่ไม่มีในตาราง KSEC หมวดที่ 3 ({len(unknown)}): "
+                + ", ".join(unknown[:10])
+                if unknown
+                else f"รหัส KSEC ใน Mapping 4.2 ทั้ง {len(used)} รหัสมีในหมวดที่ 3",
+                "mapping",
+            )
+        )
+    if rows41:
+        c42 = {r["course_code"] for r in krows}
+        only41 = sorted(set(rows41) - c42)
+        only42 = sorted(c42 - set(rows41))
+        out.append(
+            Check(
+                "ksec_unmapped",
+                "warn" if (only41 or only42) else "pass",
+                (f"อยู่ใน 4.1 แต่ไม่อยู่ใน 4.2 {len(only41)}: {', '.join(only41[:6])}" if only41 else "")
+                + (" · " if only41 and only42 else "")
+                + (
+                    f"อยู่ใน 4.2 แต่ไม่อยู่ใน 4.1 {len(only42)}: {', '.join(only42[:6])}"
+                    if only42
+                    else ""
+                )
+                or "รายวิชาใน Mapping 4.1 และ 4.2 ตรงกัน",
+                "mapping",
+            )
+        )
+        diff = [
+            r["course_code"]
+            for r in krows
+            if r["course_code"] in rows41 and set(r.get("plos") or []) != rows41[r["course_code"]]
+        ]
+        out.append(
+            Check(
+                "mapping_42_vs_41",
+                "warn" if diff else "pass",
+                f"PLO ที่รายวิชารับผิดชอบใน 4.2 ไม่ตรงกับจุด ● ใน 4.1 {len(diff)} วิชา: "
+                + ", ".join(diff[:8])
+                if diff
+                else "PLO ของทุกรายวิชาใน 4.2 ตรงกับจุด ● ใน 4.1",
+                "mapping",
+            )
+        )
+    return out
+
+
 def run_checks(parts: dict[str, dict[str, Any]]) -> list[Check]:
     checks: list[Check] = []
     st = parts.get("structure") or {}
@@ -158,6 +282,9 @@ def run_checks(parts: dict[str, dict[str, Any]]) -> list[Check]:
         checks.append(Check("credits_total", "fail", "ไม่พบโครงสร้างหลักสูตร", "structure"))
 
     plos = plo.get("plos") or []
+    ks = parts.get("ksec") or {}
+    if ks:
+        checks += _ksec_checks(ks, plos)
     checks.append(
         Check(
             "plo_present",
@@ -197,6 +324,8 @@ def run_checks(parts: dict[str, dict[str, Any]]) -> list[Check]:
                     "mapping",
                 )
             )
+        if mp.get("ksec_rows"):
+            checks += _mapping42_checks(mp, ks)
         unmapped = mp.get("unmapped_courses") or []
         checks.append(
             Check(

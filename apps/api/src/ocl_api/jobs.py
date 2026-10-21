@@ -21,7 +21,14 @@ from typing import Any
 STATUSES = ("queued", "ingesting", "extracting", "review", "done", "failed")
 # Steps as the customer's mock shows them: 1 upload · 2 AI reads · 3 review · 4 saved
 STEP_OF = {"queued": 1, "ingesting": 2, "extracting": 2, "review": 3, "done": 4, "failed": 2}
-PARTS = ["info", "structure", "plo", "courses", "mapping"]  # done so far; the rest come in R1
+PARTS = [
+    "info",
+    "structure",
+    "plo",
+    "ksec",
+    "courses",
+    "mapping",
+]  # done so far; the rest come in R1
 ALL_PARTS = [
     "info",
     "teachers",

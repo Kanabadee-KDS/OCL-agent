@@ -44,7 +44,7 @@ def test_full_import_flow(client: TestClient, tmp_path: Path) -> None:
     )
     assert r.status_code == 201, r.text
     job = r.json()
-    assert job["status"] == "queued" and job["step"] == 1 and job["parts_total"] == 5
+    assert job["status"] == "queued" and job["step"] == 1 and job["parts_total"] == 6
     jid = job["id"]
 
     job = _wait(client, jid, "review")
@@ -59,7 +59,7 @@ def test_full_import_flow(client: TestClient, tmp_path: Path) -> None:
     p = client.get(f"/api/imports/{jid}/parts/structure").json()
     assert p["available"] and p["confirmed"] is False and p["edited"] is False
     assert p["data"]["tree"] == [] or isinstance(p["data"]["tree"], list)
-    r1 = client.get(f"/api/imports/{jid}/parts/ksec").json()
+    r1 = client.get(f"/api/imports/{jid}/parts/teachers").json()
     assert r1["available"] is False and "R1" in r1["note"]
     assert client.get(f"/api/imports/{jid}/parts/nope").status_code == 404
 

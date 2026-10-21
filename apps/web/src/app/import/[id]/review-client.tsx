@@ -21,6 +21,10 @@ type InfoData = {
 type Node = { number: string; level: number; name: string; credits: number | null; children: Node[]; meta?: Meta; plan?: boolean };
 type Plo = { code: string; text: string; sub_plos: { code: string; text: string; meta?: Meta }[]; meta?: Meta };
 type MapRow = { course_code: string; course_name: string | null; group: string | null; plos: string[]; meta?: Meta };
+type KsecRow = { course_code: string; course_name: string | null; group: string | null; by_column: Record<string, string[]>; ksec_codes: string[]; plos: string[]; meta?: Meta };
+type MapData = { plo_codes: string[]; rows: MapRow[]; ksec_columns?: string[]; ksec_rows?: KsecRow[] };
+type KsecItem = { code: string; category: string; subtype: string | null; text: string; meta?: Meta };
+type KsecPlo = { code: string; plan: string | null; group: string | null; text: string; items: KsecItem[]; item_count?: number; meta?: Meta };
 type Course = {
   code_th: string; code_en: string | null; name_th: string | null; name_en: string | null; credit_text: string | null;
   credits: number | null; description_th: string | null; description_en: string | null; prerequisite: string | null;
@@ -84,7 +88,7 @@ export default function ReviewClient() {
       if (ORDER.includes(tab)) await loadPart(tab);
       if (tab === "preview") {
         const xs = await Promise.all(
-          ["1-program_info.md", "2-course_structure.md", "4-plos.md", "3-courses_list.md", "5-curriculum_mapping.md"].map((n) => api.fileText(id, `extract/md/${n}`).then((t) => [n, t] as const)),
+          ["1-program_info.md", "2-course_structure.md", "4-plos.md", "4b-ksec.md", "3-courses_list.md", "5-curriculum_mapping.md"].map((n) => api.fileText(id, `extract/md/${n}`).then((t) => [n, t] as const)),
         );
         if (alive) setPreview(Object.fromEntries(xs));
       }
@@ -212,7 +216,7 @@ export default function ReviewClient() {
           {tab === "check" && <ChecksView checks={checks} go={setTab} />}
           {tab === "preview" && (
             <section className="stack">
-              {["1-program_info.md", "2-course_structure.md", "4-plos.md", "3-courses_list.md", "5-curriculum_mapping.md"].map((n) => (
+              {["1-program_info.md", "2-course_structure.md", "4-plos.md", "4b-ksec.md", "3-courses_list.md", "5-curriculum_mapping.md"].map((n) => (
                 <div key={n} className="card pad stack">
                   <div className="between"><b>{n}</b><a className="btn sm" href={api.fileUrl(id, `extract/md/${n}`)} target="_blank">เปิดไฟล์</a></div>
                   {preview[n] ? <Markdown text={preview[n]} /> : <div className="small faint">กำลังโหลด…</div>}
@@ -242,12 +246,13 @@ export default function ReviewClient() {
                 <section className="card pad stack" style={{ minWidth: 0 }}>
                   {tab === "info" && data && <InfoEditor data={data as unknown as InfoData} onChange={(d) => { setData(d); setDirty(true); }} pick={(m) => pick(m)} />}
                   {tab === "structure" && data && <StructureEditor data={data as { total_credits: number | null; tree: Node[] }} onChange={(d) => { setData(d); setDirty(true); }} pick={(m) => pick(m)} />}
+                  {tab === "ksec" && data && <KsecEditor data={data as { plos: KsecPlo[] }} onChange={(d) => { setData(d); setDirty(true); }} pick={(m) => pick(m)} />}
                   {tab === "plo" && data && <PloEditor data={data as { plos: Plo[] }} onChange={(d) => { setData(d); setDirty(true); }} pick={(m) => pick(m)} />}
                   {tab === "courses" && data && (
                     <CoursesEditor data={data as { courses: Course[] }} onChange={(d) => { setData(d); setDirty(true); }} pick={(m) => pick(m)} open={openDesc} setOpen={setOpenDesc} />
                   )}
                   {tab === "mapping" && data && (
-                    <MappingEditor data={data as { plo_codes: string[]; rows: MapRow[] }} onChange={(d) => { setData(d); setDirty(true); }} pick={(m) => pick(m)} />
+                    <MappingEditor data={data as MapData} onChange={(d) => { setData(d); setDirty(true); }} pick={(m) => pick(m)} />
                   )}
                   {part.notes && part.notes.length > 0 && <div className="small faint">หมายเหตุจากระบบ: {part.notes.join(" · ")}</div>}
                 </section>
@@ -274,6 +279,7 @@ function firstPage(key: string, data: Record<string, unknown> | null): number | 
     return metaPage(metas.name_th) ?? metaPage(metas.program_code) ?? metaPage(Object.values(metas).find((m) => m?.source?.page));
   }
   if (key === "structure") return metaPage(((data.tree as Node[]) ?? [])[0]?.meta) ?? metaPage((data.meta as { total_credits?: Meta })?.total_credits);
+  if (key === "ksec") return metaPage(((data.plos as KsecPlo[]) ?? [])[0]?.meta);
   if (key === "plo") return metaPage(((data.plos as Plo[]) ?? [])[0]?.meta);
   if (key === "courses") return metaPage(((data.courses as Course[]) ?? [])[0]?.meta);
   if (key === "mapping") return metaPage(((data.rows as MapRow[]) ?? [])[0]?.meta);
@@ -524,9 +530,67 @@ function CoursesEditor({ data, onChange, pick, open, setOpen }: { data: { course
   );
 }
 
-function MappingEditor({ data, onChange, pick }: { data: { plo_codes: string[]; rows: MapRow[] }; onChange: (d: Record<string, unknown>) => void; pick: (m?: Meta | null) => void }) {
+function KsecEditor({ data, onChange, pick }: { data: { plos: KsecPlo[] }; onChange: (d: Record<string, unknown>) => void; pick: (m?: Meta | null) => void }) {
+  const plos = data.plos ?? [];
+  const set = (pi: number, ii: number, f: keyof KsecItem, v: string) => { const c = structuredClone(data); (c.plos[pi].items[ii] as unknown as Record<string, unknown>)[f] = v || null; onChange(c); };
+  const add = (pi: number) => { const c = structuredClone(data); c.plos[pi].items.push({ code: "", category: "K", subtype: null, text: "" }); onChange(c); };
+  const del = (pi: number, ii: number) => { const c = structuredClone(data); c.plos[pi].items.splice(ii, 1); onChange(c); };
+  const total = plos.reduce((n, p) => n + (p.items?.length ?? 0), 0);
+  const odd = plos.reduce((n, p) => n + p.items.filter((it) => it.meta?.note).length, 0);
+  return (
+    <div className="stack" style={{ gap: 12 }}>
+      <div className="row small faint">KSEC {total} รายการใน {plos.length} PLO · <Pill kind="warn">อยู่ผิดคอลัมน์ด้าน {odd}</Pill> คลิกหัว PLO เพื่อเปิดหน้าต้นฉบับ · รหัสใช้รูปแบบ K1-1 (เล่มที่เขียน K1.1 ถูกแปลงให้)</div>
+      {plos.length === 0 && <Note kind="warn">ไม่พบตาราง PLO × ด้าน K/S/E/C ในหมวดที่ 3 · เพิ่มด้วยมือได้ใน R1</Note>}
+      {plos.map((p, pi) => (
+        <div key={p.code + (p.plan ?? "") + pi} className="card pad stack" style={{ gap: 8, background: "var(--surface-2)" }}>
+          <div className="between" style={{ cursor: "pointer" }} onClick={() => pick(p.meta)}>
+            <div><b>{p.code}</b> {p.plan && <Pill kind="info">{p.plan}</Pill>} {p.group && <Pill kind="grey">{p.group}</Pill>} <span className="small faint">· {p.items.length} รายการ · หน้า {p.meta?.source?.page ?? "–"}</span><div className="small">{p.text}</div></div>
+            <button className="btn xs" onClick={(e) => { e.stopPropagation(); add(pi); }}>+ เพิ่มรายการ</button>
+          </div>
+          <div className="tbl-wrap">
+            <table className="tbl">
+              <thead><tr><th>รหัส</th><th>ด้าน</th><th>ประเภท</th><th>รายละเอียด</th><th>หน้า</th><th></th></tr></thead>
+              <tbody>
+                {p.items.map((it, ii) => (
+                  <tr key={it.code + ii} className={it.meta?.note ? "low" : ""} title={it.meta?.note ?? ""}>
+                    <td><input className="cell" style={{ minWidth: 80 }} value={it.code} onChange={(e) => set(pi, ii, "code", e.target.value)} /></td>
+                    <td>
+                      <select className="cell" value={it.category} onChange={(e) => set(pi, ii, "category", e.target.value)}>
+                        {["K", "S", "E", "C"].map((c) => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </td>
+                    <td>
+                      <select className="cell" value={it.subtype ?? ""} onChange={(e) => set(pi, ii, "subtype", e.target.value)}>
+                        <option value="">–</option><option value="ทั่วไป">ทั่วไป</option><option value="ลักษณะเฉพาะ">ลักษณะเฉพาะ</option>
+                      </select>
+                    </td>
+                    <td><input className="cell" style={{ minWidth: 320 }} value={it.text} onChange={(e) => set(pi, ii, "text", e.target.value)} /></td>
+                    <td>{it.meta?.source?.page ?? "–"}</td>
+                    <td><button className="btn xs ghost" onClick={() => del(pi, ii)}>ลบ</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MappingEditor({ data, onChange, pick }: { data: MapData; onChange: (d: Record<string, unknown>) => void; pick: (m?: Meta | null) => void }) {
   const plos = data.plo_codes ?? [];
   const rows = data.rows ?? [];
+  const kcols = data.ksec_columns ?? [];
+  const krows = data.ksec_rows ?? [];
+  const setCodes = (i: number, col: string, text: string) => {
+    const c = structuredClone(data);
+    const r = c.ksec_rows![i];
+    r.by_column[col] = text.split(/[\s,;]+/).map((s) => s.trim()).filter(Boolean);
+    r.ksec_codes = (c.ksec_columns ?? []).flatMap((k) => r.by_column[k] ?? []);
+    r.plos = Array.from(new Set((c.ksec_columns ?? []).filter((k) => (r.by_column[k] ?? []).length > 0).map((k) => "PLO" + k.slice(1))));
+    onChange(c);
+  };
   const toggle = (i: number, plo: string) => {
     const c = structuredClone(data);
     const set = new Set(c.rows[i].plos);
@@ -559,6 +623,27 @@ function MappingEditor({ data, onChange, pick }: { data: { plo_codes: string[]; 
           </tbody>
         </table>
       </div>
+      {kcols.length > 0 && (
+        <>
+          <div className="row small faint" style={{ marginTop: 10 }}><b>4.2 รายวิชา × KSEC</b> · รายวิชา {krows.length} · พิมพ์รหัสคั่นด้วยช่องว่างหรือจุลภาค (เช่น K1-1 K1-2)</div>
+          <div className="tbl-wrap">
+            <table className="tbl">
+              <thead><tr><th>รายวิชา</th>{kcols.map((k) => <th key={k} className="c">{k}</th>)}<th>หน้า</th></tr></thead>
+              <tbody>
+                {krows.map((r, i) => (
+                  <tr key={r.course_code + i} className="click">
+                    <td onClick={() => pick(r.meta)} style={{ whiteSpace: "nowrap" }}>{r.course_code} <span className="small faint">{r.course_name}</span></td>
+                    {kcols.map((k) => (
+                      <td key={k}><input className="cell" style={{ minWidth: 64, fontSize: 12 }} value={(r.by_column?.[k] ?? []).join(" ")} onChange={(e) => setCodes(i, k, e.target.value)} /></td>
+                    ))}
+                    <td>{r.meta?.source?.page ?? "–"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
     </>
   );
 }
