@@ -72,6 +72,70 @@ def run_checks(parts: dict[str, dict[str, Any]]) -> list[Check]:
     )
 
     courses = crs.get("courses") or []
+    mp = parts.get("mapping") or {}
+    mrows = mp.get("rows") or []
+    if mrows:
+        plo_codes = mp.get("plo_codes") or []
+        covered = {p for r in mrows for p in r.get("plos", [])}
+        missing = [p for p in plo_codes if p not in covered]
+        checks.append(
+            Check(
+                "plo_covered",
+                "warn" if missing else "pass",
+                f"PLO ที่ไม่มีรายวิชารองรับ: {', '.join(missing)}"
+                if missing
+                else f"ทุก PLO ({len(plo_codes)}) มีรายวิชารองรับใน Mapping",
+                "mapping",
+            )
+        )
+        declared = [p.get("code") for p in (plo.get("plos") or [])]
+        absent = [p for p in declared if p and p not in plo_codes]
+        if declared:
+            checks.append(
+                Check(
+                    "mapping_has_all_plos",
+                    "warn" if absent else "pass",
+                    f"PLO ในหมวดที่ 3 ที่ไม่มีคอลัมน์ใน Mapping: {', '.join(absent)}"
+                    if absent
+                    else "คอลัมน์ Mapping ครบทุก PLO ของหมวดที่ 3",
+                    "mapping",
+                )
+            )
+        unmapped = mp.get("unmapped_courses") or []
+        checks.append(
+            Check(
+                "courses_unmapped",
+                "warn" if unmapped else "pass",
+                f"รายวิชาใน Mapping ที่ไม่มี PLO เลย: {', '.join(unmapped[:8])}"
+                if unmapped
+                else "ทุกรายวิชาใน Mapping มีอย่างน้อย 1 PLO",
+                "mapping",
+            )
+        )
+        if courses:
+            listed = {c.get("code_th") for c in courses}
+            mapped = {r["course_code"] for r in mrows}
+            only_list = sorted(listed - mapped)
+            only_map = sorted(mapped - listed)
+            checks.append(
+                Check(
+                    "mapping_vs_courses",
+                    "warn" if (only_list or only_map) else "pass",
+                    (
+                        f"อยู่ในรายวิชาแต่ไม่อยู่ใน Mapping {len(only_list)}: {', '.join(only_list[:6])}"
+                        if only_list
+                        else ""
+                    )
+                    + (" · " if only_list and only_map else "")
+                    + (
+                        f"อยู่ใน Mapping แต่ไม่อยู่ในรายวิชา {len(only_map)}: {', '.join(only_map[:6])}"
+                        if only_map
+                        else ""
+                    )
+                    or "รายวิชาใน Mapping ตรงกับรายการรายวิชา",
+                    "mapping",
+                )
+            )
     codes = Counter(c.get("code_th") for c in courses)
     dup = [c for c, n in codes.items() if n > 1]
     checks.append(

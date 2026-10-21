@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { api, fmtBytes, fmtTime, PART_LABELS, type Job } from "@/lib/api";
 import { Ic, Note, PageHead, Pill, Steps } from "@/components/ui";
 
-const POC_PARTS = new Set(["structure", "plo", "courses"]);
+const POC_PARTS = new Set(["structure", "plo", "courses", "mapping"]);
 const ORDER = ["info", "teachers", "plan", "plo", "ksec", "structure", "modules", "courses", "mapping", "appr"];
 
 const STATUS_TH: Record<Job["status"], [string, "ok" | "warn" | "red" | "info" | "grey"]> = {
@@ -55,7 +55,7 @@ export default function ImportPage() {
       <PageHead
         crumb={["บริหารข้อมูลหลักสูตร", "นำเข้าข้อมูลเล่มหลักสูตรด้วย AI"]}
         title="นำเข้าข้อมูลเล่มหลักสูตร"
-        sub="อัปโหลดไฟล์เล่มหลักสูตร (Word/PDF) AI อ่านและสกัดข้อมูลครบทุกหมวดของคู่มือหลักสูตร (10 ส่วน) ตรวจความสอดคล้องข้ามหมวด แล้วให้ยืนยันทีละส่วนก่อนบันทึก · POC นี้ทำ 3 ส่วนแรก"
+        sub="อัปโหลดไฟล์เล่มหลักสูตร (Word/PDF) AI อ่านและสกัดข้อมูลครบทุกหมวดของคู่มือหลักสูตร (10 ส่วน) ตรวจความสอดคล้องข้ามหมวด แล้วให้ยืนยันทีละส่วนก่อนบันทึก · POC นี้ทำ 4 ส่วน (โครงสร้าง PLO รายวิชา Mapping)"
       />
       <Steps current={0} />
       <div className="split">

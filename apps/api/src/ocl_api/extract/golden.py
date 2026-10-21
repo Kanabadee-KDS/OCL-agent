@@ -83,6 +83,8 @@ def render_golden(extract_dir: str | Path, *, book: str, reviewer: str = "") -> 
     L.append("")
     L.append("PLO ที่เล่มมีแต่ระบบไม่พบ (เขียนเพิ่ม): ______________________")
 
+    mp_path = d / "mapping.json"
+    mp = json.loads(mp_path.read_text(encoding="utf-8"))["data"] if mp_path.exists() else {}
     courses = crs.get("courses") or []
     L += [
         "",
@@ -101,9 +103,24 @@ def render_golden(extract_dir: str | Path, *, book: str, reviewer: str = "") -> 
             f"| {i} | {c['code_th']} | {c.get('name_th') or ''} | {en} | {c.get('credit_text') or ''} | {grp} "
             f"| {desc} | {_page(c.get('meta'))} | {_conf(c.get('meta'))} |  |  |"
         )
+    L += ["", "รายวิชาที่เล่มมีแต่ระบบไม่พบ (เขียนเพิ่ม): ______________________"]
+    if mp.get("rows"):
+        plos = mp.get("plo_codes") or []
+        L += [
+            "",
+            f"## 3b. Curriculum Mapping (หมวดที่ 4 ข้อ 4.1) · ระบบพบ {len(mp['rows'])} แถว × {len(plos)} PLO",
+            "",
+            "ตรวจทีละแถวว่าจุด ● ตรงกับเล่ม (ทุกช่องในแถว) ติ๊ก ✓ เมื่อทั้งแถวถูก",
+            "",
+            "| # | รายวิชา | " + " | ".join(plos) + " | หน้า | ✓/✗ | หมายเหตุ |",
+            "|" + " --- |" * (len(plos) + 5),
+        ]
+        for i, r in enumerate(mp["rows"], start=1):
+            marks = " | ".join("●" if p in r["plos"] else "" for p in plos)
+            L.append(
+                f"| {i} | {r['course_code']} {r.get('course_name') or ''} | {marks} | {_page(r.get('meta'))} |  |  |"
+            )
     L += [
-        "",
-        "รายวิชาที่เล่มมีแต่ระบบไม่พบ (เขียนเพิ่ม): ______________________",
         "",
         "## 4. สรุปผลตรวจ",
         "",
@@ -113,6 +130,7 @@ def render_golden(extract_dir: str | Path, *, book: str, reviewer: str = "") -> 
         f"| โครงสร้างหลักสูตร (แถว) | {st.get('node_count', 0)} |  |  | ≥ 95% |",
         f"| PLO | {plo.get('count', 0)} |  |  | ≥ 95% |",
         f"| รายวิชา (แถว × 4 ช่อง) | {len(courses) * 4} |  |  | ≥ 95% |",
+        f"| Curriculum Mapping (แถว) | {len(mp.get('rows') or [])} |  |  | ≥ 95% |",
         "",
     ]
     return "\n".join(L)

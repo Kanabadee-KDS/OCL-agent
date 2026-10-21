@@ -106,8 +106,36 @@ def render_courses(data: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def render_mapping(data: dict[str, Any]) -> str:
+    plos = data.get("plo_codes") or []
+    rows = data.get("rows") or []
+    if not rows:
+        return (
+            "# Curriculum Mapping\n\n> AI สกัดไม่ได้ กรอกด้วยมือ\n\n"
+            "| รายวิชา | PLO1 | PLO2 | PLO3 |\n| --- | --- | --- | --- |\n| | | | |\n"
+        )
+    lines = [
+        "# Curriculum Mapping (รายวิชา × PLO)",
+        "",
+        f"รายวิชา {len(rows)} · PLO {len(plos)} · ● = รับผิดชอบ",
+        "",
+        "| รายวิชา | " + " | ".join(plos) + " | หน้า |",
+        "|" + " --- |" * (len(plos) + 2),
+    ]
+    group = None
+    for r in rows:
+        if r.get("group") and r["group"] != group:
+            group = r["group"]
+            lines.append(f"| **{group}** |" + " |" * (len(plos) + 1))
+        marks = " | ".join("●" if p in r["plos"] else "" for p in plos)
+        page = (r.get("meta") or {}).get("source", {}).get("page") or ""
+        lines.append(f"| {r['course_code']} {r.get('course_name') or ''} | {marks} | {page} |")
+    return "\n".join(lines) + "\n"
+
+
 RENDERERS = {
     "structure": ("2-course_structure.md", render_structure),
     "plo": ("4-plos.md", render_plo),
     "courses": ("3-courses_list.md", render_courses),
+    "mapping": ("5-curriculum_mapping.md", render_mapping),
 }

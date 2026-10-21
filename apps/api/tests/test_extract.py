@@ -436,3 +436,71 @@ def test_subsection_without_bold_headings() -> None:
     ch4 = chapter(doc, "4")
     assert [b.text for b in subsection(ch4.blocks, "3")] == ["เนื้อหาข้อ 3"]
     assert [b.text for b in subsection(ch4.blocks, "1")] == ["เนื้อหาข้อ 1"]
+
+
+def test_mapping_table() -> None:
+    from ocl_api.extract.mapping import extract_mapping
+
+    blocks = [
+        H("หมวดที่ 4 โครงสร้างหลักสูตร รายวิชา และหน่วยกิต", 1, 40),
+        H("4. แผนที่กระจายความรับผิดชอบ", 2, 48),
+        Table(
+            rows=[
+                ["ชุดวิชา/รายวิชา", "ผลลัพธ์การเรียนรู้ของหลักสูตร", "", ""],
+                ["ชุดวิชา/รายวิชา", "PLO1", "PLO2", "PLO3"],
+                ["1. หมวดวิชาศึกษาทั่วไป", "", "", ""],
+                ["ศท111 ศิลปะการใช้ชีวิต", "●", "", ""],
+                ["ศท112 พลังการสื่อสาร", "●", "", "●"],
+                ["2. หมวดวิชาเฉพาะ", "", "", ""],
+                ["วป101 ภูมิอากาศเบื้องต้น", "", "●", ""],
+                ["วป999 ไม่มีจุด", "", "", ""],
+            ],
+            page=48,
+        ),
+    ]
+    doc = Document(source_name="x.docx", source_type="docx", blocks=blocks)
+    r = extract_mapping(doc)
+    assert r.data["plo_codes"] == ["PLO1", "PLO2", "PLO3"]
+    rows = {x["course_code"]: x for x in r.data["rows"]}
+    assert (
+        rows["ศท112"]["plos"] == ["PLO1", "PLO3"] and rows["ศท112"]["group"] == "1. หมวดวิชาศึกษาทั่วไป"
+    )
+    assert rows["วป101"]["plos"] == ["PLO2"] and rows["วป101"]["meta"]["source"]["page"] == 48
+    assert r.data["unmapped_courses"] == ["วป999"]
+    checks = {
+        c.key: c
+        for c in run_checks(
+            {
+                "mapping": r.data,
+                "courses": {"courses": [{"code_th": "ศท111"}, {"code_th": "ศท113"}]},
+            }
+        )
+    }
+    assert checks["plo_covered"].status == "pass"
+    assert (
+        checks["courses_unmapped"].status == "warn"
+        and "วป999" in checks["courses_unmapped"].message
+    )
+    assert (
+        checks["mapping_vs_courses"].status == "warn"
+        and "ศท113" in checks["mapping_vs_courses"].message
+    )
+    from ocl_api.extract.render import render_mapping
+
+    md = render_mapping(r.data)
+    assert "| ศท112 พลังการสื่อสาร | ● |  | ● | 48 |" in md
+
+
+def test_mapping_missing_plo_column_is_flagged() -> None:
+    data = {
+        "plo_codes": ["PLO1", "PLO2"],
+        "rows": [{"course_code": "ศท111", "plos": ["PLO1", "PLO2"]}],
+        "unmapped_courses": [],
+    }
+    plo = {"plos": [{"code": "PLO1"}, {"code": "PLO2"}, {"code": "PLO3"}]}
+    checks = {c.key: c for c in run_checks({"mapping": data, "plo": plo, "courses": {}})}
+    assert (
+        checks["mapping_has_all_plos"].status == "warn"
+        and "PLO3" in checks["mapping_has_all_plos"].message
+    )
+    assert checks["plo_covered"].status == "pass"

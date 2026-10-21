@@ -11,6 +11,7 @@ type Tab = string; // part key | "check" | "preview"
 
 type Node = { number: string; level: number; name: string; credits: number | null; children: Node[]; meta?: Meta; plan?: boolean };
 type Plo = { code: string; text: string; sub_plos: { code: string; text: string; meta?: Meta }[]; meta?: Meta };
+type MapRow = { course_code: string; course_name: string | null; group: string | null; plos: string[]; meta?: Meta };
 type Course = {
   code_th: string; code_en: string | null; name_th: string | null; name_en: string | null; credit_text: string | null;
   credits: number | null; description_th: string | null; description_en: string | null; prerequisite: string | null;
@@ -74,7 +75,7 @@ export default function ReviewClient() {
       if (ORDER.includes(tab)) await loadPart(tab);
       if (tab === "preview") {
         const xs = await Promise.all(
-          ["2-course_structure.md", "4-plos.md", "3-courses_list.md"].map((n) => api.fileText(id, `extract/md/${n}`).then((t) => [n, t] as const)),
+          ["2-course_structure.md", "4-plos.md", "3-courses_list.md", "5-curriculum_mapping.md"].map((n) => api.fileText(id, `extract/md/${n}`).then((t) => [n, t] as const)),
         );
         if (alive) setPreview(Object.fromEntries(xs));
       }
@@ -202,7 +203,7 @@ export default function ReviewClient() {
           {tab === "check" && <ChecksView checks={checks} go={setTab} />}
           {tab === "preview" && (
             <section className="stack">
-              {["2-course_structure.md", "4-plos.md", "3-courses_list.md"].map((n) => (
+              {["2-course_structure.md", "4-plos.md", "3-courses_list.md", "5-curriculum_mapping.md"].map((n) => (
                 <div key={n} className="card pad stack">
                   <div className="between"><b>{n}</b><a className="btn sm" href={api.fileUrl(id, `extract/md/${n}`)} target="_blank">เปิดไฟล์</a></div>
                   {preview[n] ? <Markdown text={preview[n]} /> : <div className="small faint">กำลังโหลด…</div>}
@@ -235,6 +236,9 @@ export default function ReviewClient() {
                   {tab === "courses" && data && (
                     <CoursesEditor data={data as { courses: Course[] }} onChange={(d) => { setData(d); setDirty(true); }} pick={(m) => pick(m)} open={openDesc} setOpen={setOpenDesc} />
                   )}
+                  {tab === "mapping" && data && (
+                    <MappingEditor data={data as { plo_codes: string[]; rows: MapRow[] }} onChange={(d) => { setData(d); setDirty(true); }} pick={(m) => pick(m)} />
+                  )}
                   {part.notes && part.notes.length > 0 && <div className="small faint">หมายเหตุจากระบบ: {part.notes.join(" · ")}</div>}
                 </section>
               </div>
@@ -258,6 +262,7 @@ function firstPage(key: string, data: Record<string, unknown> | null): number | 
   if (key === "structure") return metaPage(((data.tree as Node[]) ?? [])[0]?.meta) ?? metaPage((data.meta as { total_credits?: Meta })?.total_credits);
   if (key === "plo") return metaPage(((data.plos as Plo[]) ?? [])[0]?.meta);
   if (key === "courses") return metaPage(((data.courses as Course[]) ?? [])[0]?.meta);
+  if (key === "mapping") return metaPage(((data.rows as MapRow[]) ?? [])[0]?.meta);
   return null;
 }
 
@@ -389,6 +394,45 @@ function CoursesEditor({ data, onChange, pick, open, setOpen }: { data: { course
                 )}
               </Fragment>
             ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
+function MappingEditor({ data, onChange, pick }: { data: { plo_codes: string[]; rows: MapRow[] }; onChange: (d: Record<string, unknown>) => void; pick: (m?: Meta | null) => void }) {
+  const plos = data.plo_codes ?? [];
+  const rows = data.rows ?? [];
+  const toggle = (i: number, plo: string) => {
+    const c = structuredClone(data);
+    const set = new Set(c.rows[i].plos);
+    if (set.has(plo)) set.delete(plo); else set.add(plo);
+    c.rows[i].plos = plos.filter((p) => set.has(p));
+    onChange(c);
+  };
+  const flagged = rows.map((r, i) => ({ r, head: r.group && (i === 0 || rows[i - 1].group !== r.group) ? r.group : null }));
+  return (
+    <>
+      <div className="row small faint">รายวิชา {rows.length} × PLO {plos.length} · คลิกช่องเพื่อสลับ ● · คลิกชื่อวิชาเพื่อเปิดหน้าต้นฉบับ</div>
+      <div className="tbl-wrap">
+        <table className="tbl">
+          <thead><tr><th>รายวิชา</th>{plos.map((p) => <th key={p} className="c">{p}</th>)}<th>หน้า</th></tr></thead>
+          <tbody>
+            {flagged.map(({ r, head }, i) => {
+              return (
+                <Fragment key={r.course_code + i}>
+                  {head && <tr><td colSpan={plos.length + 2} style={{ background: "var(--surface-2)", fontWeight: 600 }}>{head}</td></tr>}
+                  <tr className={`click ${r.plos.length === 0 ? "low" : ""}`}>
+                    <td onClick={() => pick(r.meta)}>{r.course_code} <span className="small faint">{r.course_name}</span></td>
+                    {plos.map((p) => (
+                      <td key={p} className="c" onClick={() => toggle(i, p)} style={{ cursor: "pointer", fontSize: 16 }}>{r.plos.includes(p) ? "●" : <span style={{ color: "var(--line-2)" }}>·</span>}</td>
+                    ))}
+                    <td>{r.meta?.source?.page ?? "–"}</td>
+                  </tr>
+                </Fragment>
+              );
+            })}
           </tbody>
         </table>
       </div>

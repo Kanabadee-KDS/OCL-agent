@@ -9,13 +9,19 @@ from typing import Any
 
 from ocl_api.extract.base import PartResult, load_document
 from ocl_api.extract.courses import extract_courses
+from ocl_api.extract.mapping import extract_mapping
 from ocl_api.extract.plo import extract_plo
 from ocl_api.extract.render import RENDERERS
 from ocl_api.extract.structure import extract_structure
 from ocl_api.extract.validators import run_checks
 
-PLUGINS = {"structure": extract_structure, "plo": extract_plo, "courses": extract_courses}
-DEFAULT_PARTS = ["structure", "plo", "courses"]
+PLUGINS = {
+    "structure": extract_structure,
+    "plo": extract_plo,
+    "courses": extract_courses,
+    "mapping": extract_mapping,
+}
+DEFAULT_PARTS = ["structure", "plo", "courses", "mapping"]
 
 
 def extract(
