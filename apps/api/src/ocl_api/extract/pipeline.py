@@ -13,6 +13,7 @@ from ocl_api.extract.courses import extract_courses
 from ocl_api.extract.info import extract_info
 from ocl_api.extract.ksec import extract_ksec
 from ocl_api.extract.mapping import extract_mapping
+from ocl_api.extract.plan import extract_plan
 from ocl_api.extract.plo import extract_plo
 from ocl_api.extract.render import RENDERERS
 from ocl_api.extract.structure import extract_structure
@@ -22,6 +23,7 @@ from ocl_api.extract.validators import run_checks
 PLUGINS = {
     "info": extract_info,
     "teachers": extract_teachers,
+    "plan": extract_plan,
     "structure": extract_structure,
     "plo": extract_plo,
     "ksec": extract_ksec,
@@ -29,7 +31,17 @@ PLUGINS = {
     "mapping": extract_mapping,
     "appr": extract_approval,
 }
-DEFAULT_PARTS = ["info", "teachers", "structure", "plo", "ksec", "courses", "mapping", "appr"]
+DEFAULT_PARTS = [
+    "info",
+    "teachers",
+    "plan",
+    "structure",
+    "plo",
+    "ksec",
+    "courses",
+    "mapping",
+    "appr",
+]
 
 
 def extract(

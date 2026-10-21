@@ -320,9 +320,61 @@ def render_teachers(data: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def render_plan(data: dict[str, Any]) -> str:
+    plans = data.get("plans") or []
+    lines = ["# แผนการรับนิสิตและรูปแบบการสอน", ""]
+    if not plans:
+        lines += [
+            "> AI สกัดไม่ได้ กรอกด้วยมือ",
+            "",
+            "| ชั้นปี | ปี 1 | ปี 2 | ปี 3 | ปี 4 | ปี 5 |",
+            "| --- | --- | --- | --- | --- | --- |",
+            "| ชั้นปีที่ 1 | | | | | |",
+            "| รวม | | | | | |",
+            "| คาดว่าจะสำเร็จการศึกษา | | | | | |",
+            "",
+        ]
+    for p in plans:
+        if p.get("name"):
+            lines += [f"## {p['name']}", ""]
+        lines += [
+            "| จำนวนนิสิต | " + " | ".join(p["years"]) + " |",
+            "|" + " --- |" * (len(p["years"]) + 1),
+        ]
+        for r in p["rows"]:
+            lines.append(f"| {r['label']} | " + " | ".join(str(v) for v in r["values"]) + " |")
+        if p.get("total"):
+            lines.append("| **รวม** | " + " | ".join(str(v) for v in p["total"]) + " |")
+        if p.get("graduates"):
+            lines.append(
+                "| คาดว่าจะสำเร็จการศึกษา | " + " | ".join(str(v) for v in p["graduates"]) + " |"
+            )
+        lines.append("")
+    modes = data.get("teaching_modes") or []
+    m = (data.get("meta") or {}).get("teaching_modes") or {}
+    lines += [
+        "## รูปแบบการสอน",
+        "",
+        ("- " + " · ".join(modes) if modes else "_[ไม่พบ]_")
+        + (f"  \n  <sub>อนุมาน · {m.get('note') or ''}</sub>" if m.get("inferred") else ""),
+    ]
+    methods = data.get("teaching_methods") or []
+    if methods:
+        lines += [
+            "",
+            "## วิธีการสอนตามผลลัพธ์การเรียนรู้ (หมวดที่ 5)",
+            "",
+            "| ผลลัพธ์ | วิธีการสอน |",
+            "| --- | --- |",
+        ]
+        lines += [f"| {x['outcome']} | {x['methods']} |" for x in methods]
+    return "\n".join(lines) + "\n"
+
+
 RENDERERS = {
     "info": ("1-program_info.md", render_info),
     "teachers": ("8-teachers.md", render_teachers),
+    "plan": ("9-admission_plan.md", render_plan),
     "structure": ("2-course_structure.md", render_structure),
     "plo": ("4-plos.md", render_plo),
     "ksec": ("4b-ksec.md", render_ksec),

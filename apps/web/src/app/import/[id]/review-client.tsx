@@ -23,6 +23,8 @@ type Plo = { code: string; text: string; sub_plos: { code: string; text: string;
 type MapRow = { course_code: string; course_name: string | null; group: string | null; plos: string[]; meta?: Meta };
 type KsecRow = { course_code: string; course_name: string | null; group: string | null; by_column: Record<string, string[]>; ksec_codes: string[]; plos: string[]; meta?: Meta };
 type MapData = { plo_codes: string[]; rows: MapRow[]; ksec_columns?: string[]; ksec_rows?: KsecRow[] };
+type PlanTable = { name: string | null; years: string[]; rows: { label: string; values: number[] }[]; total: number[] | null; graduates: number[] | null; meta?: Meta };
+type PlanData = { plans: PlanTable[]; teaching_modes: string[]; teaching_methods: { outcome: string; methods: string; meta?: Meta }[]; meta: Record<string, Meta | undefined>; intake_per_year?: number };
 type Degree = { degree: string; field: string | null; year: number | null; level: string | null; institution: string | null };
 type Teacher = { order: number | null; responsible: boolean; rank: string | null; doctor: boolean; name: string; group: string | null; degrees: Degree[]; institutions_text: string | null; highest_level: string | null; meta?: Meta };
 type ApprRow = { level_key: string; level: string; body_text?: string; meeting_no: string | null; date: { day?: number; month?: number; year_be?: number; text: string; iso?: string | null } | null; resolution: string; pending: boolean; meta?: Meta };
@@ -92,7 +94,7 @@ export default function ReviewClient() {
       if (ORDER.includes(tab)) await loadPart(tab);
       if (tab === "preview") {
         const xs = await Promise.all(
-          ["1-program_info.md", "8-teachers.md", "2-course_structure.md", "4-plos.md", "4b-ksec.md", "3-courses_list.md", "5-curriculum_mapping.md", "7-approval.md"].map((n) => api.fileText(id, `extract/md/${n}`).then((t) => [n, t] as const)),
+          ["1-program_info.md", "8-teachers.md", "9-admission_plan.md", "2-course_structure.md", "4-plos.md", "4b-ksec.md", "3-courses_list.md", "5-curriculum_mapping.md", "7-approval.md"].map((n) => api.fileText(id, `extract/md/${n}`).then((t) => [n, t] as const)),
         );
         if (alive) setPreview(Object.fromEntries(xs));
       }
@@ -220,7 +222,7 @@ export default function ReviewClient() {
           {tab === "check" && <ChecksView checks={checks} go={setTab} />}
           {tab === "preview" && (
             <section className="stack">
-              {["1-program_info.md", "8-teachers.md", "2-course_structure.md", "4-plos.md", "4b-ksec.md", "3-courses_list.md", "5-curriculum_mapping.md", "7-approval.md"].map((n) => (
+              {["1-program_info.md", "8-teachers.md", "9-admission_plan.md", "2-course_structure.md", "4-plos.md", "4b-ksec.md", "3-courses_list.md", "5-curriculum_mapping.md", "7-approval.md"].map((n) => (
                 <div key={n} className="card pad stack">
                   <div className="between"><b>{n}</b><a className="btn sm" href={api.fileUrl(id, `extract/md/${n}`)} target="_blank">เปิดไฟล์</a></div>
                   {preview[n] ? <Markdown text={preview[n]} /> : <div className="small faint">กำลังโหลด…</div>}
@@ -250,6 +252,7 @@ export default function ReviewClient() {
                 <section className="card pad stack" style={{ minWidth: 0 }}>
                   {tab === "info" && data && <InfoEditor data={data as unknown as InfoData} onChange={(d) => { setData(d); setDirty(true); }} pick={(m) => pick(m)} />}
                   {tab === "structure" && data && <StructureEditor data={data as { total_credits: number | null; tree: Node[] }} onChange={(d) => { setData(d); setDirty(true); }} pick={(m) => pick(m)} />}
+                  {tab === "plan" && data && <PlanEditor data={data as unknown as PlanData} onChange={(d) => { setData(d); setDirty(true); }} pick={(m) => pick(m)} />}
                   {tab === "teachers" && data && <TeachersEditor data={data as { teachers: Teacher[]; responsible_count: number }} onChange={(d) => { setData(d); setDirty(true); }} pick={(m) => pick(m)} />}
                   {tab === "appr" && data && <ApprEditor data={data as unknown as ApprData} onChange={(d) => { setData(d); setDirty(true); }} pick={(m) => pick(m)} />}
                   {tab === "ksec" && data && <KsecEditor data={data as { plos: KsecPlo[] }} onChange={(d) => { setData(d); setDirty(true); }} pick={(m) => pick(m)} />}
@@ -285,6 +288,7 @@ function firstPage(key: string, data: Record<string, unknown> | null): number | 
     return metaPage(metas.name_th) ?? metaPage(metas.program_code) ?? metaPage(Object.values(metas).find((m) => m?.source?.page));
   }
   if (key === "structure") return metaPage(((data.tree as Node[]) ?? [])[0]?.meta) ?? metaPage((data.meta as { total_credits?: Meta })?.total_credits);
+  if (key === "plan") return metaPage(((data.plans as PlanTable[]) ?? [])[0]?.meta);
   if (key === "teachers") return metaPage(((data.teachers as Teacher[]) ?? [])[0]?.meta);
   if (key === "appr") return metaPage(((data.approvals as ApprRow[]) ?? [])[0]?.meta) ?? metaPage((data.meta as Record<string, Meta | undefined>)?.status);
   if (key === "ksec") return metaPage(((data.plos as KsecPlo[]) ?? [])[0]?.meta);
@@ -550,6 +554,73 @@ const parseDegreeLine = (line: string): Degree | null => {
   const level = /ด\.$|^Ph\.?D|^D\.|^DEc/i.test(degree) ? "เอก" : /ม\.$|^M\.|^MBA|^MSc|^PDSC/i.test(degree) ? "โท" : /บ\.$|^B\./i.test(degree) ? "ตรี" : null;
   return { degree, field: f ? f[1].trim() : null, year: y ? Number(y[1]) : null, level, institution: inst?.trim() || null };
 };
+
+const MODES = ["On-site", "Online", "Hybrid", "WIL"];
+
+function PlanEditor({ data, onChange, pick }: { data: PlanData; onChange: (d: Record<string, unknown>) => void; pick: (m?: Meta | null) => void }) {
+  const plans = data.plans ?? [];
+  const commit = (c: PlanData) => {
+    c.intake_per_year = c.plans.reduce((n, p) => n + (p.rows[0]?.values[0] ?? 0), 0);
+    onChange(c as unknown as Record<string, unknown>);
+  };
+  const setCell = (pi: number, kind: "row" | "total" | "graduates", ri: number, yi: number, v: string) => {
+    const c = structuredClone(data);
+    const n = v === "" ? 0 : Number(v.replace(/\D/g, ""));
+    if (kind === "row") c.plans[pi].rows[ri].values[yi] = n;
+    else {
+      const arr = (c.plans[pi][kind] ?? c.plans[pi].years.map(() => 0)).slice();
+      arr[yi] = n;
+      c.plans[pi][kind] = arr;
+    }
+    commit(c);
+  };
+  const setName = (pi: number, v: string) => { const c = structuredClone(data); c.plans[pi].name = v || null; commit(c); };
+  const toggleMode = (m: string) => { const c = structuredClone(data); const s = new Set(c.teaching_modes ?? []); if (s.has(m)) s.delete(m); else s.add(m); c.teaching_modes = MODES.filter((x) => s.has(x)); commit(c); };
+  const num = (arr: number[] | null | undefined, i: number) => String(arr?.[i] ?? 0);
+  const modeMeta = data.meta?.teaching_modes;
+  return (
+    <div className="stack" style={{ gap: 12 }}>
+      <div className="row small faint">แผนการรับ {plans.length} ตาราง · รับปีละ {data.intake_per_year ?? "–"} คน · คลิกชื่อแผนเพื่อเปิดหน้าต้นฉบับ</div>
+      {plans.length === 0 && <Note kind="warn">ไม่พบตารางแผนการรับนิสิตในหมวดที่ 2 ข้อ 4</Note>}
+      {plans.map((p, pi) => (
+        <div key={pi} className="card pad stack" style={{ gap: 8, background: "var(--surface-2)" }}>
+          <div className="row" style={{ flexWrap: "nowrap", alignItems: "center" }} onClick={() => pick(p.meta)}>
+            <input className="inp" style={{ maxWidth: 320 }} value={p.name ?? ""} placeholder="ชื่อแผน/วิชาเอก (ถ้ามี)" onChange={(e) => setName(pi, e.target.value)} onClick={(e) => e.stopPropagation()} />
+            <span className="small faint">หน้า {p.meta?.source?.page ?? "–"}</span>
+          </div>
+          <div className="tbl-wrap">
+            <table className="tbl">
+              <thead><tr><th>จำนวนนิสิต</th>{p.years.map((y) => <th key={y} className="c">{y}</th>)}</tr></thead>
+              <tbody>
+                {p.rows.map((r, ri) => (
+                  <tr key={r.label}><td>{r.label}</td>{p.years.map((y, yi) => <td key={y} className="c"><input className="cell" style={{ width: 64, textAlign: "center" }} value={String(r.values[yi] ?? 0)} onChange={(e) => setCell(pi, "row", ri, yi, e.target.value)} /></td>)}</tr>
+                ))}
+                <tr style={{ fontWeight: 600 }}><td>รวม</td>{p.years.map((y, yi) => <td key={y} className="c"><input className="cell" style={{ width: 64, textAlign: "center" }} value={num(p.total, yi)} onChange={(e) => setCell(pi, "total", 0, yi, e.target.value)} /></td>)}</tr>
+                <tr><td>คาดว่าจะสำเร็จการศึกษา</td>{p.years.map((y, yi) => <td key={y} className="c"><input className="cell" style={{ width: 64, textAlign: "center" }} value={num(p.graduates, yi)} onChange={(e) => setCell(pi, "graduates", 0, yi, e.target.value)} /></td>)}</tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ))}
+      <div className="card pad stack" style={{ gap: 8, background: "var(--surface-2)" }}>
+        <div><b>รูปแบบการสอน</b> {modeMeta?.inferred && <Pill kind="warn">อนุมาน</Pill>} <span className="small faint">{modeMeta?.note}</span></div>
+        <div className="row">
+          {MODES.map((m) => (
+            <label key={m} className="row small" style={{ gap: 6, cursor: "pointer" }}><input type="checkbox" checked={(data.teaching_modes ?? []).includes(m)} onChange={() => toggleMode(m)} /> {m}</label>
+          ))}
+        </div>
+      </div>
+      {(data.teaching_methods ?? []).length > 0 && (
+        <div className="stack" style={{ gap: 6 }}>
+          <b>วิธีการสอนตามผลลัพธ์การเรียนรู้ (หมวดที่ 5)</b>
+          <div className="tbl-wrap"><table className="tbl"><thead><tr><th>ผลลัพธ์</th><th>วิธีการสอน</th><th>หน้า</th></tr></thead><tbody>
+            {data.teaching_methods.map((x, i) => <tr key={i} className="click" onClick={() => pick(x.meta)}><td className="small">{x.outcome}</td><td className="small">{x.methods}</td><td>{x.meta?.source?.page ?? "–"}</td></tr>)}
+          </tbody></table></div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function TeachersEditor({ data, onChange, pick }: { data: { teachers: Teacher[]; responsible_count: number }; onChange: (d: Record<string, unknown>) => void; pick: (m?: Meta | null) => void }) {
   const rows = data.teachers ?? [];

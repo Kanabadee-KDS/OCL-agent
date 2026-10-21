@@ -24,6 +24,7 @@ STEP_OF = {"queued": 1, "ingesting": 2, "extracting": 2, "review": 3, "done": 4,
 PARTS = [
     "info",
     "teachers",
+    "plan",
     "structure",
     "plo",
     "ksec",

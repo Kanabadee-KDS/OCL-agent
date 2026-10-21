@@ -108,6 +108,33 @@ def render_golden(extract_dir: str | Path, *, book: str, reviewer: str = "") -> 
             )
         L += ["", "อาจารย์ที่เล่มมีแต่ระบบไม่พบ (เขียนเพิ่ม): ______________________"]
 
+    pl_path = d / "plan.json"
+    pl = json.loads(pl_path.read_text(encoding="utf-8"))["data"] if pl_path.exists() else {}
+    if pl.get("plans"):
+        L += [
+            "",
+            f"## 1c. แผนการรับนิสิต (หมวดที่ 2 ข้อ 4) · {len(pl['plans'])} ตาราง · รูปแบบการสอน (อนุมาน): {' · '.join(pl.get('teaching_modes') or [])}",
+            "",
+        ]
+        for p in pl["plans"]:
+            L += [
+                f"**{p.get('name') or 'แผนการรับ'}** (หน้า {_page(p.get('meta'))})",
+                "",
+                "| แถว | " + " | ".join(p["years"]) + " | ✓/✗ | หมายเหตุ |",
+                "|" + " --- |" * (len(p["years"]) + 3),
+            ]
+            for r in p["rows"]:
+                L.append(
+                    f"| {r['label']} | " + " | ".join(str(v) for v in r["values"]) + " |  |  |"
+                )
+            if p.get("total"):
+                L.append("| รวม | " + " | ".join(str(v) for v in p["total"]) + " |  |  |")
+            if p.get("graduates"):
+                L.append(
+                    "| คาดว่าจะสำเร็จ | " + " | ".join(str(v) for v in p["graduates"]) + " |  |  |"
+                )
+            L.append("")
+
     ap_path = d / "appr.json"
     ap = json.loads(ap_path.read_text(encoding="utf-8"))["data"] if ap_path.exists() else {}
     if ap.get("approvals"):
@@ -248,6 +275,7 @@ def render_golden(extract_dir: str | Path, *, book: str, reviewer: str = "") -> 
         "| หัวข้อหลักครบ (หมวด 1–8) | 8 |  |  | ต้อง 100% |",
         f"| ข้อมูลหลัก + หมวด 1 (ฟิลด์) | {info.get('count', 0)} |  |  | ≥ 95% |",
         f"| มติอนุมัติ (แถว) | {len(ap.get('approvals') or [])} |  |  | ≥ 95% |",
+        f"| แผนการรับนิสิต (แถว) | {sum(len(p['rows']) + 2 for p in pl.get('plans') or [])} |  |  | ≥ 95% |",
         f"| อาจารย์ (คน × 4 ช่อง) | {len(tc.get('teachers') or []) * 4} |  |  | ≥ 95% |",
         f"| โครงสร้างหลักสูตร (แถว) | {st.get('node_count', 0)} |  |  | ≥ 95% |",
         f"| PLO | {plo.get('count', 0)} |  |  | ≥ 95% |",

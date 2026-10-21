@@ -388,6 +388,77 @@ def _teacher_checks(tc: dict[str, Any], info: dict[str, Any]) -> list[Check]:
     return out
 
 
+def _plan_checks(pl: dict[str, Any], info: dict[str, Any]) -> list[Check]:
+    out: list[Check] = []
+    plans = pl.get("plans") or []
+    if not plans:
+        out.append(Check("plan_present", "fail", "ไม่พบตารางแผนการรับนิสิตในหมวดที่ 2 ข้อ 4", "plan"))
+        return out
+    out.append(
+        Check(
+            "plan_present",
+            "pass",
+            f"แผนการรับนิสิต {len(plans)} ตาราง · รับปีละ {pl.get('intake_per_year')} คน · "
+            f"ปี {plans[0]['years'][0]}–{plans[0]['years'][-1]}",
+            "plan",
+        )
+    )
+    bad = []
+    for p in plans:
+        if not p.get("total"):
+            continue
+        for k, y in enumerate(p["years"]):
+            s = sum(r["values"][k] for r in p["rows"])
+            if s != p["total"][k]:
+                bad.append(f"{p.get('name') or 'แผน'} ปี {y}: {s} ≠ รวม {p['total'][k]}")
+    out.append(
+        Check(
+            "plan_totals",
+            "warn" if bad else "pass",
+            "; ".join(bad[:4]) if bad else "แถวรวมตรงกับผลบวกของชั้นปีทุกปี",
+            "plan",
+        )
+    )
+    iv = info.get("values") or {}
+    if iv.get("start_year") and plans[0]["years"]:
+        same = str(iv["start_year"]) == str(plans[0]["years"][0])
+        out.append(
+            Check(
+                "plan_vs_start",
+                "pass" if same else "warn",
+                f"ปีแรกของแผนรับ {plans[0]['years'][0]} "
+                + ("= " if same else "≠ ")
+                + f"ปีที่เริ่มใช้หลักสูตร {iv['start_year']}",
+                "plan",
+            )
+        )
+    if iv.get("duration_years") and pl.get("duration_years"):
+        same = int(iv["duration_years"]) == int(pl["duration_years"])
+        out.append(
+            Check(
+                "plan_vs_duration",
+                "pass" if same else "warn",
+                f"จำนวนชั้นปีในแผนรับ {pl['duration_years']} "
+                + ("= " if same else "≠ ")
+                + f"ระยะเวลาหลักสูตร {iv['duration_years']} ปี",
+                "plan",
+            )
+        )
+    m = (pl.get("meta") or {}).get("teaching_modes") or {}
+    if m.get("inferred"):
+        out.append(
+            Check(
+                "teaching_modes_inferred",
+                "info",
+                "รูปแบบการสอน "
+                + " · ".join(pl.get("teaching_modes") or [])
+                + " อนุมานโดยระบบ ต้องให้คนยืนยัน",
+                "plan",
+            )
+        )
+    return out
+
+
 def run_checks(parts: dict[str, dict[str, Any]]) -> list[Check]:
     checks: list[Check] = []
     st = parts.get("structure") or {}
@@ -402,6 +473,9 @@ def run_checks(parts: dict[str, dict[str, Any]]) -> list[Check]:
     tc = parts.get("teachers") or {}
     if tc:
         checks += _teacher_checks(tc, info)
+    pl = parts.get("plan") or {}
+    if pl:
+        checks += _plan_checks(pl, info)
 
     tree = st.get("tree") or []
     total = st.get("total_credits")

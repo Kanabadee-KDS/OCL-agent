@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { api, fmtBytes, fmtTime, PART_LABELS, type Job } from "@/lib/api";
 import { Ic, Note, PageHead, Pill, Steps } from "@/components/ui";
 
-const POC_PARTS = new Set(["info", "teachers", "structure", "plo", "ksec", "courses", "mapping", "appr"]);
+const POC_PARTS = new Set(["info", "teachers", "plan", "structure", "plo", "ksec", "courses", "mapping", "appr"]);
 const ORDER = ["info", "teachers", "plan", "plo", "ksec", "structure", "modules", "courses", "mapping", "appr"];
 
 const STATUS_TH: Record<Job["status"], [string, "ok" | "warn" | "red" | "info" | "grey"]> = {

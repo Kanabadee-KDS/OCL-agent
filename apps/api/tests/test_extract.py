@@ -216,7 +216,7 @@ def test_pipeline_roundtrip(tmp_path: Path) -> None:
     report = extract(tmp_path, gateway=None)
     assert report["parts"]["courses"]["count"] == 2
     fails = [c["key"] for c in report["checks"]["items"] if c["status"] == "fail"]
-    assert set(fails) == {"ksec_present", "approval_present", "teachers_present"}, (
+    assert set(fails) == {"ksec_present", "approval_present", "teachers_present", "plan_present"}, (
         "sample_doc has no KSEC table, item 13 or teacher table"
     )
     assert (tmp_path / "extract" / "courses.json").exists()
@@ -961,3 +961,87 @@ def test_teachers_degrees_institutions_and_checks() -> None:
         "| 1* | สมชาย ใจดี | รศ. ดร. | วิชาเอกก | วท.บ. (เคมี), 2540 – ม.ก · ปร.ด. (เคมี), 2548 – ม.ข | 9 |"
         in md
     )
+
+
+def test_admission_plan_tables_and_checks() -> None:
+    from ocl_api.extract.plan import extract_plan
+    from ocl_api.extract.render import render_plan
+
+    blocks = [
+        H("หมวดที่ 1 ข้อมูลทั่วไป", 1, 5),
+        P("8. สถานที่จัดการเรียนการสอน คณะเศรษฐศาสตร์ และผ่านระบบออนไลน์", 7),
+        H("หมวดที่ 2 ข้อมูลเฉพาะของหลักสูตร", 1, 11),
+        H("4. แผนการรับนิสิต", 2, 14),
+        Table(
+            rows=[
+                ["ชั้นปีที่ศึกษา", "จำนวนนิสิตแต่ละปีการศึกษา", "", "", ""],
+                ["ชั้นปีที่ศึกษา", "2569", "", "2570", ""],
+                ["", "แผน 1", "แผน 2", "แผน 1", "แผน 2"],
+                ["ชั้นปีที่ 1", "5", "6", "5", "6"],
+                ["ชั้นปีที่ 2", "-", "-", "5", "6"],
+                ["รวม", "5", "6", "10", "12"],
+                ["คาดว่าจะสำเร็จการศึกษา", "-", "-", "5", "6"],
+            ],
+            page=14,
+        ),
+        H("หมวดที่ 4 โครงสร้างหลักสูตร รายวิชา และหน่วยกิต", 1, 25),
+        P("วอภ485 สหกิจศึกษา 6(0-18-0)", 30),
+        H("หมวดที่ 5 การจัดกระบวนการเรียนรู้และการประเมินผล", 1, 40),
+        H("1. การจัดกระบวนการเรียนรู้", 2, 40),
+        Table(
+            rows=[["ผลลัพธ์การเรียนรู้ของหลักสูตร", "วิธีการสอน/กิจกรรมการเรียนรู้"], ["PLO1: ก", "บรรยาย"]],
+            page=40,
+        ),
+        H("2. การประเมินผลลัพธ์การเรียนรู้", 2, 41),
+    ]
+    doc = Document(source_name="p.docx", source_type="docx", blocks=blocks)
+    r = extract_plan(doc)
+    d = r.data
+    assert [p["name"] for p in d["plans"]] == ["แผน 1", "แผน 2"], "side-by-side plans are split"
+    p1, p2 = d["plans"]
+    assert (
+        p1["years"] == ["2569", "2570"]
+        and p1["rows"][1]["values"] == [0, 5]
+        and p1["total"] == [5, 10]
+    )
+    assert p2["graduates"] == [0, 6] and d["intake_per_year"] == 11 and d["duration_years"] == 2
+    assert (
+        d["teaching_modes"] == ["On-site", "Online", "Hybrid", "WIL"]
+        and d["meta"]["teaching_modes"]["inferred"]
+    )
+    assert d["teaching_methods"] == [
+        {"outcome": "PLO1: ก", "methods": "บรรยาย", "meta": d["teaching_methods"][0]["meta"]}
+    ]
+    checks = {
+        c.key: c
+        for c in run_checks(
+            {"plan": d, "info": {"values": {"start_year": 2570, "duration_years": 2}}}
+        )
+    }
+    assert checks["plan_present"].status == "pass" and checks["plan_totals"].status == "pass"
+    assert checks["plan_vs_start"].status == "warn" and checks["plan_vs_duration"].status == "pass"
+    assert checks["teaching_modes_inferred"].status == "info"
+    md = render_plan(d)
+    assert (
+        "## แผน 2" in md and "| ชั้นปีที่ 2 | 0 | 6 |" in md and "On-site · Online · Hybrid · WIL" in md
+    )
+
+    # single plan with a merged "จำนวนนิสิต | 2570 | 2571" header and a mismatching total
+    t = Table(
+        rows=[
+            ["จำนวนนิสิต", "2570", "2571"],
+            ["ชั้นปีที่ 1", "70", "70"],
+            ["ชั้นปีที่ 2", "-", "70"],
+            ["รวม", "70", "150"],
+        ],
+        page=15,
+    )
+    doc2 = Document(
+        source_name="q.docx",
+        source_type="docx",
+        blocks=[H("หมวดที่ 2 ข้อมูลเฉพาะของหลักสูตร", 1, 11), H("4. แผนการรับนิสิต", 2, 15), t],
+    )
+    d2 = extract_plan(doc2).data
+    assert d2["plans"][0]["name"] is None and d2["plans"][0]["total"] == [70, 150]
+    checks = {c.key: c for c in run_checks({"plan": d2, "info": {}})}
+    assert checks["plan_totals"].status == "warn" and "2571" in checks["plan_totals"].message
