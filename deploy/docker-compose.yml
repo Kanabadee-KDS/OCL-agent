@@ -39,6 +39,8 @@ services:
     image: ocl-api:poc
     restart: unless-stopped
     command: ["ocl", "worker"]
+    healthcheck:
+      disable: true  # the image's healthcheck probes the API port; the worker has none
     env_file: .env
     environment:
       DATA_DIR: /server_data
