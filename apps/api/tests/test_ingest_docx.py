@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from ocl_api.ingest.docx_reader import DocxReader, merge_split_tables
-from ocl_api.ingest.glyphs import map_symbol
+from ocl_api.ingest.glyphs import map_pua_text, map_symbol
 from ocl_api.ingest.model import Paragraph, Table
 from ocl_api.ingest.pipeline import ingest
 
@@ -210,3 +210,10 @@ def test_merge_only_adjacent_same_header() -> None:
     merged = merge_split_tables([a, Paragraph(text=""), b, Paragraph(text="ข้อความคั่น"), c])
     tables = [t for t in merged if isinstance(t, Table)]
     assert len(tables) == 2 and tables[0].rows == [["h1", "h2"], ["1", "2"], ["3", "4"]]
+
+
+def test_letters_typed_in_a_symbol_font_are_mapped() -> None:
+    # Word keeps the letter "R" when Wingdings 2 is applied to a normal run (ศศ.ม. book)
+    assert map_pua_text("Wingdings 2", "R", {}) == "\u2612"
+    assert map_pua_text("Wingdings 2", " ", {}) == " "  # unknown codes stay as typed
+    assert map_pua_text("TH SarabunPSK", "R", {}) == "R"

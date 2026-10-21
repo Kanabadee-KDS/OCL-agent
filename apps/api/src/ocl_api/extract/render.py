@@ -16,6 +16,77 @@ def _conf(m: dict[str, Any] | None) -> str:
     return f"ความมั่นใจ {c}" + (f" · หน้า {p}" if p else "")
 
 
+def _val(v: Any) -> str:
+    if v is None or v == "" or v == []:
+        return ""
+    if isinstance(v, bool):
+        return "ใช่" if v else "ไม่ใช่"
+    if isinstance(v, list):
+        return "; ".join(str(x) for x in v)
+    return str(v)
+
+
+def render_info(data: dict[str, Any]) -> str:
+    values = data.get("values") or {}
+    metas = data.get("meta") or {}
+    fields = data.get("fields") or []
+    if not any(values.get(k) not in (None, "", []) for k in ("name_th", "degree_full_th")):
+        return (
+            "# ข้อมูลหลักสูตร\n\n> AI สกัดไม่ได้ กรอกด้วยมือ\n\n"
+            "| ฟิลด์ | ค่า |\n| --- | --- |\n| ชื่อหลักสูตร (ไทย) | |\n"
+            "| ชื่อหลักสูตร (อังกฤษ) | |\n| ปีการศึกษาที่เริ่มใช้ | |\n| หน่วยกิตตลอดหลักสูตร | |\n"
+        )
+    year = values.get("edition_year") or values.get("start_year")
+    lines = [
+        "# ข้อมูลหลักสูตร",
+        "",
+        f"**{values.get('name_th') or ''}**  ",
+        f"{values.get('name_en') or ''}  ",
+        f"{values.get('degree_full_th') or ''} · {values.get('degree_abbr_th') or ''}  ",
+        f"ฉบับ พ.ศ. {year or '–'} ({values.get('revision_type') or '–'}) · "
+        f"หน่วยกิตตลอดหลักสูตร ไม่น้อยกว่า **{values.get('total_credits') or '–'}** หน่วยกิต · "
+        f"ระยะเวลา {values.get('duration_years') or '–'} ปี",
+        "",
+    ]
+    group = None
+    for f in fields:
+        v = values.get(f["key"])
+        if v in (None, "", []):
+            continue
+        if f["group"] != group:
+            group = f["group"]
+            lines += ["", f"## {group}", "", "| ฟิลด์ | ค่า | ที่มา |", "| --- | --- | --- |"]
+        m = metas.get(f["key"]) or {}
+        src = ("อนุมาน · " if m.get("inferred") else "") + _conf(m)
+        lines.append(f"| {f['label']} | {_val(v)} | {src} |")
+    majors = data.get("majors") or []
+    lines += ["", "## วิชาเอก/แขนงวิชา", ""]
+    lines += [f"- {x['name']}" for x in majors] or ["ไม่มี"]
+    collab = data.get("collaborations") or []
+    lines += ["", "## ความร่วมมือกับสถาบันอื่น", ""]
+    if collab:
+        lines += ["| สถาบัน | ประเทศ | ในประเทศ/ต่างประเทศ |", "| --- | --- | --- |"]
+        lines += [
+            f"| {x['institution']} | {x.get('country') or ''} | "
+            f"{'ในประเทศ' if x.get('domestic') else 'ต่างประเทศ'} |"
+            for x in collab
+        ]
+    else:
+        lines.append(values.get("collaboration_text") or "ไม่มี")
+    careers = data.get("careers") or []
+    lines += ["", "## อาชีพที่ประกอบได้หลังสำเร็จการศึกษา", ""]
+    if careers:
+        lines += ["| กลุ่ม | อาชีพ | หน้า |", "| --- | --- | --- |"]
+        lines += [
+            f"| {c.get('group') or ''} | {c['name']} | "
+            f"{((c.get('meta') or {}).get('source') or {}).get('page') or ''} |"
+            for c in careers
+        ]
+    else:
+        lines.append("_[ไม่พบ]_")
+    return "\n".join(lines) + "\n"
+
+
 def render_structure(data: dict[str, Any]) -> str:
     tree = data.get("tree") or []
     if not tree:
@@ -134,6 +205,7 @@ def render_mapping(data: dict[str, Any]) -> str:
 
 
 RENDERERS = {
+    "info": ("1-program_info.md", render_info),
     "structure": ("2-course_structure.md", render_structure),
     "plo": ("4-plos.md", render_plo),
     "courses": ("3-courses_list.md", render_courses),

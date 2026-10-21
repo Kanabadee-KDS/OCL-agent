@@ -504,3 +504,171 @@ def test_mapping_missing_plo_column_is_flagged() -> None:
         and "PLO3" in checks["mapping_has_all_plos"].message
     )
     assert checks["plo_covered"].status == "pass"
+
+
+def _ingest_dir(tmp_path: Path, doc: Document) -> Path:
+    (tmp_path / "document.json").write_text(
+        json.dumps(doc.to_dict(), ensure_ascii=False), encoding="utf-8"
+    )
+    return tmp_path
+
+
+def info_doc() -> Document:
+    blocks = [
+        H("คู่มือ", 0, 1),
+        H("หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาทดสอบ (หลักสูตรปรับปรุง พ.ศ. 2569)", 0, 1),
+        H("คณะทดสอบ มหาวิทยาลัยศรีนครินทรวิโรฒ", 0, 1),
+        H("หมวดที่ 1 ข้อมูลทั่วไป", 1, 5),
+        H("1. รหัสและชื่อหลักสูตร", 2, 5),
+        P("รหัสหลักสูตร 25290091100204", 5),
+        P(
+            "ภาษาไทย: หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาทดสอบ "
+            "ภาษาอังกฤษ: Bachelor of Science Program in Testing",
+            5,
+        ),
+        H("2. ชื่อปริญญาและสาขาวิชา", 2, 5),
+        P("ภาษาไทย ชื่อเต็ม: วิทยาศาสตรบัณฑิต (ทดสอบ) ชื่อย่อ: วท.บ. (ทดสอบ)", 5),
+        P("ภาษาอังกฤษ ชื่อเต็ม: Bachelor of Science (Testing)", 5),
+        P("ชื่อย่อ: B.Sc. (Testing)", 5),
+        H("3. วิชาเอก/แขนงวิชา (ถ้ามี)", 2, 5),
+        P("1) วิชาเอกก", 5),
+        P("2) วิชาเอกข", 5),
+        H("4. จำนวนหน่วยกิตที่เรียนตลอดหลักสูตร", 2, 5),
+        P("ไม่น้อยกว่า 127 หน่วยกิต", 5),
+        H("5. รูปแบบของหลักสูตร", 2, 5),
+        H("5.1 รูปแบบ", 3, 5),
+        P("☑ หลักสูตรปริญญาตรีทางวิชาการ", 5),
+        P("□ หลักสูตรปริญญาตรีทางวิชาชีพหรือปฏิบัติการ", 5),
+        H("5.2 ระยะเวลาการศึกษา", 3, 5),
+        P("☑ หลักสูตรแบบเต็มเวลา", 5),
+        P("□ 2 ปี ☑ 4 ปี □ 5 ปี □ 6 ปี", 5),
+        P("☒ หลักสูตรแบบการศึกษาตลอดชีวิต (Lifelong Learning) ไม่กำหนดระยะเวลาการศึกษา", 5),
+        H("5.3 ภาษาที่ใช้ในการจัดการเรียนการสอน", 3, 6),
+        P("ภาษาไทย เอกสารและตำราเป็นภาษาไทยและภาษาอังกฤษ", 6),
+        H("5.4 การรับเข้าศึกษา", 3, 6),
+        P("รับผู้เข้าศึกษาชาวไทยและชาวต่างประเทศ", 6),
+        H("5.5 ความร่วมมือกับสถาบันอื่น", 3, 6),
+        P("เป็นหลักสูตรความร่วมมือกับสถาบันอื่นได้แก่ 5.6 การให้ปริญญาแก่ผู้สำเร็จการศึกษา", 6),
+        P("ให้ปริญญาเพียงสาขาวิชาเดียว", 6),
+        H("6. ระบบการจัดการศึกษา", 2, 6),
+        H("6.1 ระบบ", 3, 6),
+        P("ระบบการศึกษาเป็นแบบทวิภาค", 6),
+        H("7. การดำเนินการเรียนการสอน", 2, 6),
+        P("ภาคต้น เดือนสิงหาคม – ธันวาคม", 6),
+        P("ภาคปลาย เดือนมกราคม – พฤษภาคม", 6),
+        H("10. อาชีพที่ประกอบได้หลังสำเร็จการศึกษา", 2, 7),
+        P("วิชาเอกก", 7),
+        P("10.1 นักวิชาการ", 7),
+        P("10.2 นักวิจัย", 7),
+        H("13. สถานภาพของหลักสูตรและการพิจารณาอนุมัติ/เห็นชอบหลักสูตร", 2, 11),
+        P(
+            "เป็นหลักสูตรปรับปรุง จากหลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาทดสอบ (หลักสูตรปรับปรุง พ.ศ. 2564) "
+            "โดยจะเริ่มใช้หลักสูตรนี้ในภาคการศึกษา 1 ของปีการศึกษา 2569",
+            11,
+        ),
+        P("ได้รับอนุมัติ/เห็นชอบหลักสูตรจากสภาวิชาการ ในการประชุมครั้งที่ 4/2568", 11),
+        H("หมวดที่ 4 โครงสร้างหลักสูตร รายวิชา และหน่วยกิต", 1, 25),
+        P("2.2.3 วิชาสหกิจศึกษา 6 หน่วยกิต", 26),
+    ]
+    return Document(source_name="info.docx", source_type="docx", blocks=blocks, pages=40)
+
+
+def test_info_fields_from_chapter_1() -> None:
+    from ocl_api.extract.info import extract_info
+
+    r = extract_info(info_doc())
+    v = r.data["values"]
+    assert v["program_code"] == "25290091100204" and v["faculty"] == "คณะทดสอบ"
+    assert v["name_th"] == "หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาทดสอบ"
+    assert v["name_en"] == "Bachelor of Science Program in Testing"
+    assert (
+        v["degree_full_th"] == "วิทยาศาสตรบัณฑิต (ทดสอบ)" and v["degree_abbr_en"] == "B.Sc. (Testing)"
+    )
+    assert v["field_of_study"] == "ทดสอบ" and v["level"] == "ป.ตรี"
+    assert v["total_credits"] == 127 and v["duration_years"] == 4
+    assert v["program_type"] == "ปริญญาตรีทางวิชาการ" and v["study_mode"] == "เต็มเวลา"
+    assert v["lifelong"] is True, "☒ counts as a ticked box (Wingdings 2 letter R)"
+    assert v["language"] == "ไทย" and v["education_system"] == "ทวิภาค"
+    assert v["semesters_counted"] == "(1,2)" and r.data["meta"]["semesters_counted"]["inferred"]
+    assert v["revision_type"] == "ปรับปรุง" and v["edition_year"] == 2569
+    assert v["previous_program"] == "วิทยาศาสตรบัณฑิต สาขาวิชาทดสอบ" and v["previous_year"] == 2564
+    assert v["start_semester"] == 1 and v["start_year"] == 2569
+    assert v["cwie"] is True and r.data["meta"]["cwie"]["source"]["page"] == 26
+    assert v["standard_criteria"] == "ประกาศ อว. 2565 (ตรี)"
+    assert [m["name"] for m in r.data["majors"]] == ["วิชาเอกก", "วิชาเอกข"]
+    assert [(c["group"], c["name"]) for c in r.data["careers"]] == [
+        ("วิชาเอกก", "นักวิชาการ"),
+        ("วิชาเอกก", "นักวิจัย"),
+    ]
+    assert (
+        v["collaboration_text"].startswith("เป็นหลักสูตรความร่วมมือ")
+        and "5.6" not in v["collaboration_text"]
+    )
+    assert r.data["missing_required"] == []
+    assert r.data["meta"]["name_th"]["source"]["page"] == 5
+
+
+def test_info_llm_fills_only_literal_values() -> None:
+    from ocl_api.extract.info import extract_info
+
+    doc = info_doc()
+    # drop item 2 so the degree names are missing for the LLM to fill
+    doc.blocks = [b for b in doc.blocks if "ชื่อเต็ม" not in b.text and "ชื่อย่อ" not in b.text]
+
+    class FakeGateway:
+        provider, model = "fake", "fake"
+
+        def chat_json(self, system, user, schema=None, max_tokens=None):
+            class R:
+                data = {
+                    "degree_full_th": "วิทยาศาสตรบัณฑิต (แต่งขึ้น)",  # not in text -> rejected
+                    "degree_full_en": "Bachelor of Science Program in Testing",  # literal -> kept
+                    "degree_abbr_th": None,
+                    "degree_abbr_en": None,
+                }
+
+                class usage:
+                    @staticmethod
+                    def to_dict():
+                        return {"calls": 1}
+
+            return R()
+
+    r = extract_info(doc, FakeGateway())
+    v = r.data["values"]
+    assert v["degree_full_th"] is None and any("แต่งขึ้น" in n for n in r.notes)
+    assert v["degree_full_en"] == "Bachelor of Science Program in Testing"
+    assert r.data["meta"]["degree_full_en"]["by"] == "llm"
+
+
+def test_info_checks_and_render(tmp_path: Path) -> None:
+    from ocl_api.extract.golden import render_golden
+    from ocl_api.extract.info import extract_info
+    from ocl_api.extract.render import render_info
+
+    r = extract_info(info_doc())
+    checks = {
+        c.key: c
+        for c in run_checks({"info": r.data, "structure": {"total_credits": 130, "tree": []}})
+    }
+    assert checks["info_required"].status == "pass"
+    assert checks["program_code_format"].status == "pass"
+    assert (
+        checks["info_credits_match"].status == "fail"
+        and "127" in checks["info_credits_match"].message
+    )
+    assert checks["name_consistent"].status == "pass"
+    assert "2574" in checks["next_revision"].message
+    assert "กลุ่มการศึกษา" in checks["info_inferred"].message
+    md = render_info(r.data)
+    assert "# ข้อมูลหลักสูตร" in md and "| รหัสหลักสูตร สกอ. (14 หลัก) | 25290091100204 |" in md
+    assert "| วิชาเอกก | นักวิชาการ | 7 |" in md
+    assert "AI สกัดไม่ได้" in render_info({"values": {}, "fields": []})
+
+    out = extract(_ingest_dir(tmp_path, info_doc()), parts=["info", "structure", "plo", "courses"])
+    assert out["parts"]["info"]["count"] >= 25
+    sheet = render_golden(Path(out["out_dir"]), book="info")
+    assert (
+        "## 1. ข้อมูลหลัก + หมวดที่ 1" in sheet
+        and "| ชื่อหลักสูตร (ไทย) | หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาทดสอบ | 5 |" in sheet
+    )

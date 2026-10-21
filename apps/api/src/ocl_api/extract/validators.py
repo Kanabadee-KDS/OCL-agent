@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections import Counter
 from typing import Any
 
@@ -12,11 +13,106 @@ def _sum_children(nodes: list[dict[str, Any]]) -> int:
     return sum(int(n.get("credits") or 0) for n in nodes)
 
 
+def _squash(s: Any) -> str:
+    return re.sub(r"\s+", "", str(s or "")).lower()
+
+
+def _info_checks(info: dict[str, Any], st: dict[str, Any]) -> list[Check]:
+    out: list[Check] = []
+    v = info.get("values") or {}
+    metas = info.get("meta") or {}
+    labels = {f["key"]: f["label"] for f in info.get("fields") or []}
+    missing = info.get("missing_required") or []
+    out.append(
+        Check(
+            "info_required",
+            "warn" if missing else "pass",
+            "ฟิลด์บังคับที่ยังว่าง: " + ", ".join(labels.get(k, k) for k in missing)
+            if missing
+            else "ฟิลด์บังคับของข้อมูลหลักครบ (ชื่อ ระดับ ปริญญา หน่วยกิต ปีที่เริ่มใช้)",
+            "info",
+        )
+    )
+    code = v.get("program_code")
+    if code is None:
+        out.append(Check("program_code_format", "warn", "เล่มยังไม่ระบุรหัสหลักสูตร สกอ.", "info"))
+    elif re.fullmatch(r"\d{14}", str(code)):
+        out.append(
+            Check("program_code_format", "pass", f"รหัสหลักสูตร สกอ. {code} ครบ 14 หลัก", "info")
+        )
+    else:
+        out.append(
+            Check("program_code_format", "fail", f"รหัสหลักสูตร '{code}' ไม่ใช่ตัวเลข 14 หลัก", "info")
+        )
+    total_info, total_st = v.get("total_credits"), st.get("total_credits")
+    if total_info is not None and total_st is not None:
+        same = int(total_info) == int(total_st)
+        out.append(
+            Check(
+                "info_credits_match",
+                "pass" if same else "fail",
+                f"หน่วยกิตหมวดที่ 1 ข้อ 4 ({total_info}) "
+                + ("= " if same else "≠ ")
+                + f"โครงสร้างหมวดที่ 4 ({total_st})",
+                "info",
+            )
+        )
+    field, deg_th, deg_en, name_en = (
+        v.get("field_of_study"),
+        v.get("degree_full_th"),
+        v.get("degree_full_en"),
+        v.get("name_en"),
+    )
+    if field and deg_th:
+        ok_th = _squash(field) in _squash(deg_th)
+        m = re.search(r"\((.+?)\)", deg_en or "")
+        ok_en = not (m and name_en) or _squash(m.group(1)) in _squash(name_en)
+        out.append(
+            Check(
+                "name_consistent",
+                "pass" if ok_th and ok_en else "warn",
+                "สาขาวิชาในชื่อหลักสูตรตรงกับชื่อปริญญา (ไทย/อังกฤษ)"
+                if ok_th and ok_en
+                else "สาขาวิชาในชื่อหลักสูตรไม่ตรงกับชื่อปริญญา: "
+                + (f"ไทย '{field}' ∉ '{deg_th}'" if not ok_th else "")
+                + (" · " if not ok_th and not ok_en else "")
+                + (f"อังกฤษ '{m.group(1)}' ∉ '{name_en}'" if not ok_en and m else ""),
+                "info",
+            )
+        )
+    if v.get("start_year"):
+        out.append(
+            Check(
+                "next_revision",
+                "info",
+                f"เริ่มใช้ปีการศึกษา {v['start_year']} → "
+                f"ครบรอบปรับปรุงหลักสูตร พ.ศ. {int(v['start_year']) + 5}",
+                "info",
+            )
+        )
+    inferred = [
+        labels.get(k, k) for k, m in metas.items() if m.get("inferred") and v.get(k) is not None
+    ]
+    if inferred:
+        out.append(
+            Check(
+                "info_inferred",
+                "info",
+                f"ระบบอนุมานเอง {len(inferred)} ฟิลด์ ต้องให้คนยืนยัน: " + ", ".join(inferred),
+                "info",
+            )
+        )
+    return out
+
+
 def run_checks(parts: dict[str, dict[str, Any]]) -> list[Check]:
     checks: list[Check] = []
     st = parts.get("structure") or {}
     plo = parts.get("plo") or {}
     crs = parts.get("courses") or {}
+    info = parts.get("info") or {}
+    if info:
+        checks += _info_checks(info, st)
 
     tree = st.get("tree") or []
     total = st.get("total_credits")

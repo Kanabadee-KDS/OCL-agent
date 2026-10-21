@@ -35,7 +35,7 @@ OCL Agent = ส่วน "นำเข้าข้อมูลเล่มหล
 
 ## 2. Sprint 1 (7 วัน) — ส่งมอบ B: BRD v1 + POC โมดูล AI
 
-สถานะ 21 ต.ค.: D1 ✓ (benchmark: gemma4:26b) · D2 ✓ (ingest docx) · D3 ✓ (ingest pdf, BRD M2/M3) · D4 ✓ (gateway + extract 3 ส่วน, BRD M4/M5) · D5 ✓ (5 เล่ม, golden sheet, HRIS A/B) · D6 ✓ (demo.sh, summary) · **C ✓** (21 ต.ค.: REST API + worker + เว็บ Next.js 3 หน้า + deploy compose บน server ผ่าน end-to-end) · ทุก commit CI เขียว · R1 ส่วนที่ 9 Mapping 4.1 ✓ (parser, 5 เล่ม, แก้ในเว็บได้) · ถัดไป R1: ส่วนที่ 1 ข้อมูลหลัก+หมวด 1, ส่วนที่ 5 KSEC
+สถานะ 21 ต.ค.: D1 ✓ (benchmark: gemma4:26b) · D2 ✓ (ingest docx) · D3 ✓ (ingest pdf, BRD M2/M3) · D4 ✓ (gateway + extract 3 ส่วน, BRD M4/M5) · D5 ✓ (5 เล่ม, golden sheet, HRIS A/B) · D6 ✓ (demo.sh, summary) · **C ✓** (21 ต.ค.: REST API + worker + เว็บ Next.js 3 หน้า + deploy compose บน server ผ่าน end-to-end) · ทุก commit CI เขียว · R1 ส่วนที่ 9 Mapping 4.1 ✓ (parser, 5 เล่ม, แก้ในเว็บได้) · R1 ส่วนที่ 1 ข้อมูลหลัก+หมวด 1 ✓ (21 ต.ค.: 35 ฟิลด์ + วิชาเอก/ความร่วมมือ/อาชีพ, parser ล้วนได้ 30–34 ฟิลด์/เล่ม, อนุมาน 7 ฟิลด์ติดธง, LLM เติมเฉพาะที่ว่าง, validator 6 ข้อ, md `1-program_info.md`, golden §1, ฟอร์มในเว็บ) · POC ครอบคลุม 5/10 ส่วน · ถัดไป R1: ส่วนที่ 5 KSEC, ส่วนที่ 10 มติอนุมัติ (ข้อ 13 อ่านไว้แล้วบางส่วน), ส่วนที่ 2 อาจารย์
 
 เป้าหมายวันส่ง (ลูกค้าเห็น):
 1. **BRD v1** `docs/brd/` Markdown: ภาพรวมระบบ · user story ทุกหน้า (49 routes) · permission matrix 9 บทบาท · state machine คู่มือหลักสูตร/นำเข้า/สมอ.08 · data dictionary 10 ส่วน + ฟิลด์ CUR27 ที่ถอดจาก mock · ข้อสมมติ/คำถามถึงลูกค้า · แผน release

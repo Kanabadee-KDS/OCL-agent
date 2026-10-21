@@ -76,8 +76,18 @@ def map_symbol(font: str | None, code: int, unknown: dict[str, int] | None = Non
 
 def map_pua_text(font: str | None, text: str, unknown: dict[str, int] | None = None) -> str:
     """Map private-use characters (U+F000..U+F0FF) in a run whose font is a symbol font."""
-    if not text or symbol_table(font) is None:
+    table = symbol_table(font)
+    if not text or table is None:
         return text
-    return "".join(
-        map_symbol(font, ord(ch), unknown) if 0xF000 <= ord(ch) <= 0xF0FF else ch for ch in text
-    )
+    out: list[str] = []
+    for ch in text:
+        o = ord(ch)
+        if 0xF000 <= o <= 0xF0FF:
+            out.append(map_symbol(font, o, unknown))
+        elif 0x21 <= o <= 0xFF and o in table:
+            # Word keeps the typed letter when a symbol font is applied to a normal run
+            # (e.g. "R" in Wingdings 2 is a ticked box); map it like the w:sym code.
+            out.append(table[o])
+        else:
+            out.append(ch)
+    return "".join(out)

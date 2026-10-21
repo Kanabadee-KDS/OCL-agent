@@ -9,6 +9,15 @@ import { ConfPill, Ic, Markdown, Note, PageHead, Pill, Steps } from "@/component
 const ORDER = ["info", "teachers", "plan", "plo", "ksec", "structure", "modules", "courses", "mapping", "appr"];
 type Tab = string; // part key | "check" | "preview"
 
+type InfoField = { key: string; label: string; group: string; kind: "text" | "int" | "enum" | "bool" | "list"; options?: string[] };
+type InfoData = {
+  fields: InfoField[];
+  values: Record<string, unknown>;
+  meta: Record<string, Meta | undefined>;
+  majors: { name: string; meta?: Meta }[];
+  collaborations: { institution: string; country: string | null; domestic: boolean; meta?: Meta }[];
+  careers: { group: string | null; name: string; meta?: Meta }[];
+};
 type Node = { number: string; level: number; name: string; credits: number | null; children: Node[]; meta?: Meta; plan?: boolean };
 type Plo = { code: string; text: string; sub_plos: { code: string; text: string; meta?: Meta }[]; meta?: Meta };
 type MapRow = { course_code: string; course_name: string | null; group: string | null; plos: string[]; meta?: Meta };
@@ -23,7 +32,7 @@ export default function ReviewClient() {
   const router = useRouter();
   const [job, setJob] = useState<Job | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>("structure");
+  const [tab, setTab] = useState<Tab>("info");
   const [part, setPart] = useState<Part | null>(null);
   const [data, setData] = useState<Record<string, unknown> | null>(null);
   const [dirty, setDirty] = useState(false);
@@ -75,7 +84,7 @@ export default function ReviewClient() {
       if (ORDER.includes(tab)) await loadPart(tab);
       if (tab === "preview") {
         const xs = await Promise.all(
-          ["2-course_structure.md", "4-plos.md", "3-courses_list.md", "5-curriculum_mapping.md"].map((n) => api.fileText(id, `extract/md/${n}`).then((t) => [n, t] as const)),
+          ["1-program_info.md", "2-course_structure.md", "4-plos.md", "3-courses_list.md", "5-curriculum_mapping.md"].map((n) => api.fileText(id, `extract/md/${n}`).then((t) => [n, t] as const)),
         );
         if (alive) setPreview(Object.fromEntries(xs));
       }
@@ -196,14 +205,14 @@ export default function ReviewClient() {
             <span className="n"><Ic name="eye" size={13} /></span>
             <span>Preview แบบเล่มหลักสูตร<span className="small faint" style={{ display: "block", fontWeight: 400 }}>Markdown ตาม developer prompt</span></span>
           </button>
-          <div className="small faint" style={{ padding: "8px 10px 2px" }}>ยืนยันแล้ว {okN}/{total} ส่วน (POC 3 ส่วน)</div>
+          <div className="small faint" style={{ padding: "8px 10px 2px" }}>ยืนยันแล้ว {okN}/{total} ส่วน (POC {total} ส่วน)</div>
         </nav>
 
         <div className="stack" style={{ minWidth: 0 }}>
           {tab === "check" && <ChecksView checks={checks} go={setTab} />}
           {tab === "preview" && (
             <section className="stack">
-              {["2-course_structure.md", "4-plos.md", "3-courses_list.md", "5-curriculum_mapping.md"].map((n) => (
+              {["1-program_info.md", "2-course_structure.md", "4-plos.md", "3-courses_list.md", "5-curriculum_mapping.md"].map((n) => (
                 <div key={n} className="card pad stack">
                   <div className="between"><b>{n}</b><a className="btn sm" href={api.fileUrl(id, `extract/md/${n}`)} target="_blank">เปิดไฟล์</a></div>
                   {preview[n] ? <Markdown text={preview[n]} /> : <div className="small faint">กำลังโหลด…</div>}
@@ -231,6 +240,7 @@ export default function ReviewClient() {
               <div className="grid" style={{ gridTemplateColumns: "minmax(0,.8fr) minmax(0,1.4fr)" }}>
                 <SourcePanel src={src} page={page} setPage={setPage} hit={hit} filename={job.filename} />
                 <section className="card pad stack" style={{ minWidth: 0 }}>
+                  {tab === "info" && data && <InfoEditor data={data as unknown as InfoData} onChange={(d) => { setData(d); setDirty(true); }} pick={(m) => pick(m)} />}
                   {tab === "structure" && data && <StructureEditor data={data as { total_credits: number | null; tree: Node[] }} onChange={(d) => { setData(d); setDirty(true); }} pick={(m) => pick(m)} />}
                   {tab === "plo" && data && <PloEditor data={data as { plos: Plo[] }} onChange={(d) => { setData(d); setDirty(true); }} pick={(m) => pick(m)} />}
                   {tab === "courses" && data && (
@@ -259,6 +269,10 @@ export default function ReviewClient() {
 function firstPage(key: string, data: Record<string, unknown> | null): number | null {
   if (!data) return null;
   const metaPage = (m?: Meta) => m?.source?.page ?? null;
+  if (key === "info") {
+    const metas = (data.meta as Record<string, Meta | undefined>) ?? {};
+    return metaPage(metas.name_th) ?? metaPage(metas.program_code) ?? metaPage(Object.values(metas).find((m) => m?.source?.page));
+  }
   if (key === "structure") return metaPage(((data.tree as Node[]) ?? [])[0]?.meta) ?? metaPage((data.meta as { total_credits?: Meta })?.total_credits);
   if (key === "plo") return metaPage(((data.plos as Plo[]) ?? [])[0]?.meta);
   if (key === "courses") return metaPage(((data.courses as Course[]) ?? [])[0]?.meta);
@@ -296,6 +310,115 @@ function SourcePanel({ src, page, setPage, hit, filename }: { src: { page: numbe
         })}
       </div>
     </section>
+  );
+}
+
+function InfoEditor({ data, onChange, pick }: { data: InfoData; onChange: (d: Record<string, unknown>) => void; pick: (m?: Meta | null) => void }) {
+  const fields = data.fields ?? [];
+  const values = data.values ?? {};
+  const metas = data.meta ?? {};
+  const groups = Array.from(new Set(fields.map((f) => f.group)));
+  const setValue = (key: string, v: unknown) => { const c = structuredClone(data); c.values[key] = v; onChange(c as unknown as Record<string, unknown>); };
+  const setRow = (list: "majors" | "collaborations" | "careers", i: number, f: string, v: string) => {
+    const c = structuredClone(data);
+    (c[list][i] as unknown as Record<string, unknown>)[f] = v;
+    onChange(c as unknown as Record<string, unknown>);
+  };
+  const addRow = (list: "majors" | "collaborations" | "careers") => {
+    const c = structuredClone(data);
+    const blank = list === "majors" ? { name: "" } : list === "collaborations" ? { institution: "", country: null, domestic: true } : { group: null, name: "" };
+    (c[list] as unknown[]).push(blank);
+    onChange(c as unknown as Record<string, unknown>);
+  };
+  const delRow = (list: "majors" | "collaborations" | "careers", i: number) => {
+    const c = structuredClone(data);
+    (c[list] as unknown[]).splice(i, 1);
+    onChange(c as unknown as Record<string, unknown>);
+  };
+  const inferred = fields.filter((f) => metas[f.key]?.inferred && values[f.key] != null).length;
+  const empty = fields.filter((f) => values[f.key] == null || values[f.key] === "").length;
+  const input = (f: InfoField) => {
+    const v = values[f.key];
+    const stop = (e: React.SyntheticEvent) => e.stopPropagation();
+    if (f.kind === "enum") {
+      const opts = f.options ?? [];
+      return (
+        <select className="inp" value={typeof v === "string" ? v : ""} onChange={(e) => setValue(f.key, e.target.value || null)} onClick={stop}>
+          <option value="">– ไม่ระบุ –</option>
+          {(typeof v === "string" && !opts.includes(v) ? [v, ...opts] : opts).map((o) => <option key={o} value={o}>{o}</option>)}
+        </select>
+      );
+    }
+    if (f.kind === "bool") {
+      return (
+        <select className="inp" value={v === true ? "1" : v === false ? "0" : ""} onChange={(e) => setValue(f.key, e.target.value === "" ? null : e.target.value === "1")} onClick={stop}>
+          <option value="">– ไม่ระบุ –</option><option value="1">ใช่</option><option value="0">ไม่ใช่</option>
+        </select>
+      );
+    }
+    if (f.kind === "int") {
+      return <input className="inp" inputMode="numeric" value={v == null ? "" : String(v)} onChange={(e) => { const t = e.target.value.replace(/\D/g, ""); setValue(f.key, t === "" ? null : Number(t)); }} onClick={stop} />;
+    }
+    if (f.kind === "list") {
+      return <input className="inp" value={Array.isArray(v) ? v.join("; ") : ""} placeholder="คั่นด้วย ;" onChange={(e) => setValue(f.key, e.target.value.split(";").map((s) => s.trim()).filter(Boolean))} onClick={stop} />;
+    }
+    return <input className="inp" value={typeof v === "string" ? v : v == null ? "" : String(v)} onChange={(e) => setValue(f.key, e.target.value || null)} onClick={stop} />;
+  };
+  return (
+    <div className="stack" style={{ gap: 14 }}>
+      <div className="row small faint">
+        ฟิลด์ {fields.length} · <Pill kind="warn">อนุมานโดยระบบ {inferred}</Pill> <Pill kind="grey">ว่าง {empty}</Pill> คลิกป้ายชื่อฟิลด์เพื่อเปิดหน้าต้นฉบับ · ฟิลด์ที่ระบบอนุมานเองมีป้าย &ldquo;อนุมาน&rdquo; ต้องยืนยัน
+      </div>
+      {groups.map((g) => (
+        <div key={g} className="stack" style={{ gap: 8 }}>
+          <b>{g}</b>
+          <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0,1fr))", gap: 10 }}>
+            {fields.filter((f) => f.group === g).map((f) => {
+              const m = metas[f.key];
+              const low = m?.confidence === "low" || (values[f.key] == null && ["name_th", "name_en", "level", "degree_full_th", "total_credits", "start_year"].includes(f.key));
+              return (
+                <div key={f.key} className={`field card pad ${low ? "low" : ""}`} style={{ padding: 10, background: "var(--surface-2)", gridColumn: f.kind === "text" && ["name_th", "name_en", "degree_full_th", "degree_full_en", "previous_program", "collaboration_text", "admission_text", "language_text", "program_type_text"].includes(f.key) ? "1 / -1" : undefined }}>
+                  <label style={{ cursor: m?.source?.page ? "pointer" : undefined }} onClick={() => pick(m)}>
+                    {f.label} {m?.inferred && <Pill kind="warn">อนุมาน</Pill>} {m && <ConfPill meta={m} />} {m?.source?.page && <span className="small faint">หน้า {m.source.page}</span>}
+                  </label>
+                  {input(f)}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+      <SimpleRows title="วิชาเอก/แขนงวิชา" rows={data.majors ?? []} cols={[["name", "ชื่อวิชาเอก/แขนง"]]} onSet={(i, f, v) => setRow("majors", i, f, v)} onAdd={() => addRow("majors")} onDel={(i) => delRow("majors", i)} pick={pick} empty="ไม่มี" />
+      <SimpleRows title="ความร่วมมือกับสถาบันอื่น" rows={data.collaborations ?? []} cols={[["institution", "สถาบัน"], ["country", "ประเทศ"]]} onSet={(i, f, v) => setRow("collaborations", i, f, v)} onAdd={() => addRow("collaborations")} onDel={(i) => delRow("collaborations", i)} pick={pick} empty={String(values.collaboration_text ?? "ไม่มี")} />
+      <SimpleRows title="อาชีพที่ประกอบได้หลังสำเร็จการศึกษา" rows={data.careers ?? []} cols={[["group", "กลุ่ม/วิชาเอก"], ["name", "อาชีพ"]]} onSet={(i, f, v) => setRow("careers", i, f, v)} onAdd={() => addRow("careers")} onDel={(i) => delRow("careers", i)} pick={pick} empty="ไม่พบ" />
+    </div>
+  );
+}
+
+function SimpleRows({ title, rows, cols, onSet, onAdd, onDel, pick, empty }: { title: string; rows: Array<Record<string, unknown>>; cols: [string, string][]; onSet: (i: number, f: string, v: string) => void; onAdd: () => void; onDel: (i: number) => void; pick: (m?: Meta | null) => void; empty: string }) {
+  return (
+    <div className="stack" style={{ gap: 8 }}>
+      <div className="between"><b>{title} <span className="small faint">({rows.length})</span></b><button className="btn xs" onClick={onAdd}>+ เพิ่มแถว</button></div>
+      {rows.length === 0 ? <div className="small faint">{empty}</div> : (
+        <div className="tbl-wrap">
+          <table className="tbl">
+            <thead><tr>{cols.map(([k, l]) => <th key={k}>{l}</th>)}<th>หน้า</th><th></th></tr></thead>
+            <tbody>
+              {rows.map((r, i) => {
+                const m = r.meta as Meta | undefined;
+                return (
+                  <tr key={i} className="click" onClick={() => pick(m)}>
+                    {cols.map(([k]) => <td key={k}><input className="cell" value={r[k] == null ? "" : String(r[k])} onChange={(e) => onSet(i, k, e.target.value)} onClick={(e) => e.stopPropagation()} /></td>)}
+                    <td>{m?.source?.page ?? "–"}</td>
+                    <td><button className="btn xs ghost" onClick={(e) => { e.stopPropagation(); onDel(i); }}>ลบ</button></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
   );
 }
 

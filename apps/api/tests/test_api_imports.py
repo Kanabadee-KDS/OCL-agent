@@ -44,7 +44,7 @@ def test_full_import_flow(client: TestClient, tmp_path: Path) -> None:
     )
     assert r.status_code == 201, r.text
     job = r.json()
-    assert job["status"] == "queued" and job["step"] == 1 and job["parts_total"] == 4
+    assert job["status"] == "queued" and job["step"] == 1 and job["parts_total"] == 5
     jid = job["id"]
 
     job = _wait(client, jid, "review")

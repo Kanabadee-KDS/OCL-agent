@@ -45,9 +45,52 @@ def render_golden(extract_dir: str | Path, *, book: str, reviewer: str = "") -> 
     for c in checks:
         L.append(f"| {c['status'].upper()} | {c['key']} | {c['message']} |")
 
+    info_path = d / "info.json"
+    info = json.loads(info_path.read_text(encoding="utf-8"))["data"] if info_path.exists() else {}
+    iv = info.get("values") or {}
+    im = info.get("meta") or {}
+    if iv:
+        L += [
+            "",
+            f"## 1. ข้อมูลหลัก + หมวดที่ 1 ข้อมูลทั่วไป (ข้อ 1–10, 13) · ระบบอ่านได้ {info.get('count', 0)} ฟิลด์",
+            "",
+            "ฟิลด์ที่ขึ้น 'อนุมาน' เล่มไม่ได้เขียนตรง ๆ ระบบสรุปจากข้อมูลอื่น ให้ตรวจว่าสมเหตุสมผล",
+            "",
+            "| ฟิลด์ | ค่าที่ระบบอ่านได้ | หน้า | ความมั่นใจ | ✓/✗ | หมายเหตุ |",
+            "| --- | --- | --- | --- | --- | --- |",
+        ]
+        for f in info.get("fields") or []:
+            v = iv.get(f["key"])
+            if v in (None, "", []):
+                continue
+            m = im.get(f["key"]) or {}
+            shown = (
+                ("ใช่" if v else "ไม่ใช่")
+                if isinstance(v, bool)
+                else "; ".join(map(str, v))
+                if isinstance(v, list)
+                else str(v)
+            )
+            L.append(
+                f"| {f['label']} | {shown} | {_page(m)} | {'อนุมาน · ' if m.get('inferred') else ''}{_conf(m)} |  |  |"
+            )
+        for x in info.get("majors") or []:
+            L.append(
+                f"| วิชาเอก/แขนง | {x['name']} | {_page(x.get('meta'))} | {_conf(x.get('meta'))} |  |  |"
+            )
+        for x in info.get("collaborations") or []:
+            L.append(
+                f"| ความร่วมมือ | {x['institution']} {x.get('country') or ''} | {_page(x.get('meta'))} | {_conf(x.get('meta'))} |  |  |"
+            )
+        for x in info.get("careers") or []:
+            L.append(
+                f"| อาชีพ{' (' + x['group'] + ')' if x.get('group') else ''} | {x['name']} | {_page(x.get('meta'))} | {_conf(x.get('meta'))} |  |  |"
+            )
+        L += ["", "ฟิลด์ที่เล่มมีแต่ระบบไม่พบ (เขียนเพิ่ม): ______________________"]
+
     L += [
         "",
-        "## 1. โครงสร้างหลักสูตร (หมวดที่ 4 ข้อ 1)",
+        "## 2. โครงสร้างหลักสูตร (หมวดที่ 4 ข้อ 1)",
         "",
         f"หน่วยกิตตลอดหลักสูตรที่ระบบอ่านได้: **{st.get('total_credits')}** (หน้า {_page((st.get('meta') or {}).get('total_credits'))}) → ✓ / ✗ : ____",
         "",
@@ -67,7 +110,7 @@ def render_golden(extract_dir: str | Path, *, book: str, reviewer: str = "") -> 
 
     L += [
         "",
-        "## 2. PLO (หมวดที่ 3 ข้อ 1)",
+        "## 3. PLO (หมวดที่ 3 ข้อ 1)",
         "",
         "| รหัส | ข้อความ | หน้า | ความมั่นใจ | ✓/✗ | หมายเหตุ |",
         "| --- | --- | --- | --- | --- | --- |",
@@ -88,7 +131,7 @@ def render_golden(extract_dir: str | Path, *, book: str, reviewer: str = "") -> 
     courses = crs.get("courses") or []
     L += [
         "",
-        f"## 3. รายวิชา (หมวดที่ 4 ข้อ 2–3) · ระบบพบ {len(courses)} วิชา",
+        f"## 4. รายวิชา (หมวดที่ 4 ข้อ 2–3) · ระบบพบ {len(courses)} วิชา",
         "",
         "ตรวจ 4 ช่อง: รหัส · ชื่อไทย/อังกฤษ · หน่วยกิต · มีคำอธิบาย (ย่อว่า ร/ช/น/ค) เช่น ✓✓✓✓ หรือ ✓✗✓✓",
         "",
@@ -108,7 +151,7 @@ def render_golden(extract_dir: str | Path, *, book: str, reviewer: str = "") -> 
         plos = mp.get("plo_codes") or []
         L += [
             "",
-            f"## 3b. Curriculum Mapping (หมวดที่ 4 ข้อ 4.1) · ระบบพบ {len(mp['rows'])} แถว × {len(plos)} PLO",
+            f"## 4b. Curriculum Mapping (หมวดที่ 4 ข้อ 4.1) · ระบบพบ {len(mp['rows'])} แถว × {len(plos)} PLO",
             "",
             "ตรวจทีละแถวว่าจุด ● ตรงกับเล่ม (ทุกช่องในแถว) ติ๊ก ✓ เมื่อทั้งแถวถูก",
             "",
@@ -122,11 +165,12 @@ def render_golden(extract_dir: str | Path, *, book: str, reviewer: str = "") -> 
             )
     L += [
         "",
-        "## 4. สรุปผลตรวจ",
+        "## 5. สรุปผลตรวจ",
         "",
         "| เกณฑ์ | นับได้ | ถูก | % | ผ่าน/ไม่ผ่าน |",
         "| --- | --- | --- | --- | --- |",
         "| หัวข้อหลักครบ (หมวด 1–8) | 8 |  |  | ต้อง 100% |",
+        f"| ข้อมูลหลัก + หมวด 1 (ฟิลด์) | {info.get('count', 0)} |  |  | ≥ 95% |",
         f"| โครงสร้างหลักสูตร (แถว) | {st.get('node_count', 0)} |  |  | ≥ 95% |",
         f"| PLO | {plo.get('count', 0)} |  |  | ≥ 95% |",
         f"| รายวิชา (แถว × 4 ช่อง) | {len(courses) * 4} |  |  | ≥ 95% |",
