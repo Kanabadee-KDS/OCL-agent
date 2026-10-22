@@ -31,3 +31,6 @@ next-env.d.ts
 .vscode/
 .DS_Store
 tsconfig.tsbuildinfo
+
+# bench runs: keep scores/reports, not the per-book ingest copies (book text + page images)
+docs/eval/run-*/*/ingest/

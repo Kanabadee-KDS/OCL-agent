@@ -17,6 +17,7 @@ from ocl_api.extract.base import (
     PartResult,
     chapter,
     chunk_text,
+    llm_only,
     meta,
     paragraphs_text,
     subsection,
@@ -392,7 +393,7 @@ def extract_courses(doc: Document, gateway=None, *, llm_chunk_chars: int = 20000
     blocks = subsection(ch4.blocks, "2") + subsection(ch4.blocks, "3")
     if not blocks:
         blocks = ch4.blocks
-    courses = parse_courses(blocks)
+    courses = parse_courses(blocks) if not llm_only() else {}
     res.data["parser_count"] = len(courses)
 
     if gateway is not None:

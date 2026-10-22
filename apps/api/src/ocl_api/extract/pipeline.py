@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from ocl_api.extract.approval import extract_approval
-from ocl_api.extract.base import PartResult, load_document
+from ocl_api.extract.base import EXTRACT_MODE, ExtractMode, PartResult, load_document
 from ocl_api.extract.courses import extract_courses
 from ocl_api.extract.info import extract_info
 from ocl_api.extract.ksec import extract_ksec
@@ -53,6 +53,24 @@ def extract(
     parts: list[str] | None = None,
     gateway=None,
     out_dir: str | Path | None = None,
+    mode: ExtractMode = "parser_first",
+) -> dict[str, Any]:
+    if mode == "llm_only" and gateway is None:
+        raise ValueError("llm_only mode needs an LLM gateway")
+    token = EXTRACT_MODE.set(mode)
+    try:
+        return _extract(ingest_dir, parts=parts, gateway=gateway, out_dir=out_dir, mode=mode)
+    finally:
+        EXTRACT_MODE.reset(token)
+
+
+def _extract(
+    ingest_dir: str | Path,
+    *,
+    parts: list[str] | None,
+    gateway,
+    out_dir: str | Path | None,
+    mode: ExtractMode,
 ) -> dict[str, Any]:
     ingest_dir = Path(ingest_dir)
     out = Path(out_dir) if out_dir else ingest_dir / "extract"
@@ -92,6 +110,7 @@ def extract(
         "out_dir": str(out),
         "provider": getattr(gateway, "provider", None) if gateway else None,
         "model": getattr(gateway, "model", None) if gateway else None,
+        "mode": mode,
         "parts": {
             k: {
                 "seconds": timings[k],

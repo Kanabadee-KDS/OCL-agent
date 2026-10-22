@@ -88,7 +88,13 @@ def process_job(store: JobStore, job_id: str, settings: Settings | None = None) 
             for key in parts:
                 store.set_status(job_id, "extracting", PROGRESS.get(key, key))
                 t0 = time.perf_counter()
-                extract(d / "ingest", parts=[key], gateway=gateway, out_dir=d / "extract")
+                extract(
+                    d / "ingest",
+                    parts=[key],
+                    gateway=gateway,
+                    out_dir=d / "extract",
+                    mode=settings.extract_mode if gateway is not None else "parser_first",
+                )
                 job = store.read(job_id)
                 job["timings"][key] = round(time.perf_counter() - t0, 2)
                 store.write(job)

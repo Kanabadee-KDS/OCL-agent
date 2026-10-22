@@ -15,6 +15,7 @@ from typing import Any
 from ocl_api.extract.base import (
     PartResult,
     chapter,
+    llm_only,
     meta,
     paragraphs,
     paragraphs_text,
@@ -646,6 +647,10 @@ def extract_info(doc: Document, gateway=None) -> PartResult:
     )
 
     # ----- LLM fills only what is still empty, with literal evidence -----
+    if llm_only():  # evaluation: the model answers every LLM-capable field itself
+        for k in LLM_FIELDS:
+            values[k] = None
+            metas.pop(k, None)
     missing = [k for k in LLM_FIELDS if values.get(k) is None]
     if missing and gateway is not None:
         blocks = [

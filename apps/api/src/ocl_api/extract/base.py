@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 from collections.abc import Iterator
+from contextvars import ContextVar
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Literal
@@ -10,6 +11,17 @@ from typing import Any, Literal
 from ocl_api.ingest.model import Block, Document, Image, Paragraph, Section, Table
 
 Confidence = Literal["high", "medium", "low"]
+ExtractMode = Literal["parser_first", "llm_only"]
+# parser_first (production): parsers read the book, the LLM fills what they could not.
+# llm_only (evaluation only): the four LLM-capable parts skip their parsers so a model's
+# own reading can be scored against the parser reference (docs/plan.md R1-E).
+EXTRACT_MODE: ContextVar[ExtractMode] = ContextVar("extract_mode", default="parser_first")
+
+
+def llm_only() -> bool:
+    return EXTRACT_MODE.get() == "llm_only"
+
+
 By = Literal["parser", "llm", "merged"]
 
 

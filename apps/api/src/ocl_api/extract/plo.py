@@ -5,7 +5,15 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from ocl_api.extract.base import PartResult, blocks_text, chapter, meta, paragraphs, tables
+from ocl_api.extract.base import (
+    PartResult,
+    blocks_text,
+    chapter,
+    llm_only,
+    meta,
+    paragraphs,
+    tables,
+)
 from ocl_api.ingest.model import Document
 
 RE_PLO = re.compile(r"^\s*(PLO\s?\d+)\s*[:：.)]?\s*(.+)$", re.I)
@@ -72,7 +80,7 @@ def extract_plo(doc: Document, gateway=None) -> PartResult:
         order.append(code)
 
     # paragraphs first (item 1), then table cells
-    for p in paragraphs(ch3.blocks):
+    for p in paragraphs(ch3.blocks) if not llm_only() else []:
         m = RE_SUB.match(p.text)
         if m:
             add(m.group(1), m.group(2), p.page, p.text, "high", True)
@@ -84,7 +92,7 @@ def extract_plo(doc: Document, gateway=None) -> PartResult:
             or (m and re.match(r"^PLO\s?\d", p.text, re.I))
         ):
             add(m.group(1), m.group(2), p.page, p.text, "high", False)
-    for t in tables(ch3.blocks):
+    for t in tables(ch3.blocks) if not llm_only() else []:
         for row in t.rows:
             for cell in row:
                 for line in cell.split("\n"):

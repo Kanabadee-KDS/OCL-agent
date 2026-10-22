@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     gemini_model: str = "gemini-flash-latest"  # alias that tracks Google's current Flash release
     gemini_base_url: str = "https://generativelanguage.googleapis.com"
 
+    # parser_first (production) | llm_only (evaluation: LLM-capable parts skip their parsers)
+    extract_mode: Literal["parser_first", "llm_only"] = "parser_first"
+
     # OCR of scanned PDF pages (MuPDF's built-in Tesseract; needs tessdata for these languages)
     ocr: bool = True
     ocr_language: str = "tha+eng"

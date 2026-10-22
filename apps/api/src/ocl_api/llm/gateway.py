@@ -209,7 +209,7 @@ class LLMGateway:
         meta = data.get("usageMetadata") or {}
         usage = LLMUsage(
             provider="gemini",
-            model=s.gemini_model,
+            model=data.get("modelVersion") or s.gemini_model,  # alias -> the version that answered
             prompt_tokens=int(meta.get("promptTokenCount") or 0),
             completion_tokens=int(meta.get("candidatesTokenCount") or 0),
             seconds=round(time.perf_counter() - t0, 3),

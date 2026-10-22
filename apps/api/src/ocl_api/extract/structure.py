@@ -9,6 +9,7 @@ from ocl_api.extract.base import (
     PartResult,
     blocks_text,
     chapter,
+    llm_only,
     meta,
     paragraphs,
     subsection,
@@ -151,7 +152,7 @@ def extract_structure(doc: Document, gateway=None) -> PartResult:
                 break
 
     flat: list[dict[str, Any]] = []
-    if ch4 is not None:
+    if ch4 is not None and not llm_only():
         blocks = subsection(ch4.blocks, "1") or ch4.blocks
         for t in tables(blocks):
             head = " ".join(t.rows[0]).replace(" ", "")

@@ -55,6 +55,16 @@ cd /home/arsoft/ocl-agent && docker compose -f deploy/docker-compose.yml exec ap
 
 image `ocl-api` ติดตั้ง `tesseract-ocr-tha` และ `tesseract-ocr-eng` ไว้แล้ว (ตัว OCR ฝังอยู่ใน PyMuPDF ใช้แค่ไฟล์ภาษา) ไม่ต้องตั้งค่าเพิ่ม · ตรวจได้จาก `/health` ฟิลด์ `"ocr":"tha+eng"` (เป็น `null` = หาไฟล์ภาษาไม่เจอ ตรวจ `TESSDATA_PREFIX` ใน Dockerfile) · ปิด OCR ได้ด้วย `OCR=false` ใน `deploy/.env` · OCR ใช้ CPU ราว 3 วินาที/หน้า ไม่แตะ GPU
 
+## รัน bench Gemini vs Gemma บน server (R1-E)
+
+คัดลอกเล่มตัวอย่างขึ้น container แล้วรันใน container `api` (ใช้ Ollama บน host และ GEMINI_API_KEY จาก deploy/.env · นอกช่วง 02:30–04:00 · 5 เล่ม × 2 provider × 2 โหมด ราว 20–40 นาที รันใน tmux)
+
+```bash
+cd /home/arsoft/ocl-agent && docker compose -f deploy/docker-compose.yml cp samples/curriculum api:/tmp/books && docker compose -f deploy/docker-compose.yml exec api python tools/bench.py --books /tmp/books --out /server_data/eval/run-$(date +%F) --providers ollama,gemini --modes parser_first,llm_only
+```
+
+ผลอยู่ใน volume `/server_data/eval/<run>/` ดึงกลับด้วย `docker compose -f deploy/docker-compose.yml cp api:/server_data/eval/<run> ./docs/eval/` · รายละเอียดตัวชี้วัดใน `docs/eval/README.md`
+
 ## ฐานข้อมูล
 
 สถานะ/migration (API ทำให้เองตอน start แต่สั่งเองได้)

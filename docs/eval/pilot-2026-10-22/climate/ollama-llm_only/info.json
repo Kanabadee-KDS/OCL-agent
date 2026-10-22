@@ -1,0 +1,645 @@
+{
+ "part": "info",
+ "data": {
+  "fields": [
+   {
+    "key": "program_code",
+    "label": "รหัสหลักสูตร สกอ. (14 หลัก)",
+    "group": "ทะเบียน",
+    "kind": "text"
+   },
+   {
+    "key": "revision_type",
+    "label": "หลักสูตรใหม่/ปรับปรุง",
+    "group": "ทะเบียน",
+    "kind": "enum",
+    "options": [
+     "ใหม่",
+     "ปรับปรุง"
+    ]
+   },
+   {
+    "key": "edition_year",
+    "label": "พ.ศ. ของฉบับนี้",
+    "group": "ทะเบียน",
+    "kind": "int"
+   },
+   {
+    "key": "previous_program",
+    "label": "ปรับปรุงจากหลักสูตร (ฉบับเดิม)",
+    "group": "ทะเบียน",
+    "kind": "text"
+   },
+   {
+    "key": "previous_year",
+    "label": "พ.ศ. ของฉบับเดิม",
+    "group": "ทะเบียน",
+    "kind": "int"
+   },
+   {
+    "key": "faculty",
+    "label": "คณะ/วิทยาลัย",
+    "group": "ทะเบียน",
+    "kind": "text"
+   },
+   {
+    "key": "education_group",
+    "label": "กลุ่มการศึกษา",
+    "group": "ทะเบียน",
+    "kind": "enum",
+    "options": [
+     "ปริญญาตรีหรือต่ำกว่า",
+     "สูงกว่าปริญญาตรี"
+    ]
+   },
+   {
+    "key": "name_th",
+    "label": "ชื่อหลักสูตร (ไทย)",
+    "group": "ชื่อ",
+    "kind": "text"
+   },
+   {
+    "key": "name_en",
+    "label": "ชื่อหลักสูตร (อังกฤษ)",
+    "group": "ชื่อ",
+    "kind": "text"
+   },
+   {
+    "key": "level",
+    "label": "ระดับการศึกษา",
+    "group": "ชื่อ",
+    "kind": "enum",
+    "options": [
+     "ป.ตรี",
+     "ป.บัณฑิต",
+     "ป.โท",
+     "ป.บัณฑิตชั้นสูง",
+     "ป.เอก"
+    ]
+   },
+   {
+    "key": "field_of_study",
+    "label": "สาขาวิชา",
+    "group": "ชื่อ",
+    "kind": "text"
+   },
+   {
+    "key": "degree_full_th",
+    "label": "ชื่อปริญญา เต็ม (ไทย)",
+    "group": "ชื่อ",
+    "kind": "text"
+   },
+   {
+    "key": "degree_abbr_th",
+    "label": "ชื่อปริญญา ย่อ (ไทย)",
+    "group": "ชื่อ",
+    "kind": "text"
+   },
+   {
+    "key": "degree_full_en",
+    "label": "ชื่อปริญญา เต็ม (อังกฤษ)",
+    "group": "ชื่อ",
+    "kind": "text"
+   },
+   {
+    "key": "degree_abbr_en",
+    "label": "ชื่อปริญญา ย่อ (อังกฤษ)",
+    "group": "ชื่อ",
+    "kind": "text"
+   },
+   {
+    "key": "total_credits",
+    "label": "หน่วยกิตตลอดหลักสูตร (ไม่น้อยกว่า)",
+    "group": "เวลา/หน่วยกิต",
+    "kind": "int"
+   },
+   {
+    "key": "duration_years",
+    "label": "จำนวนปีที่ศึกษา",
+    "group": "เวลา/หน่วยกิต",
+    "kind": "int"
+   },
+   {
+    "key": "study_mode",
+    "label": "เต็มเวลา/ไม่เต็มเวลา",
+    "group": "เวลา/หน่วยกิต",
+    "kind": "enum",
+    "options": [
+     "เต็มเวลา",
+     "ไม่เต็มเวลา"
+    ]
+   },
+   {
+    "key": "lifelong",
+    "label": "แบบการศึกษาตลอดชีวิต",
+    "group": "เวลา/หน่วยกิต",
+    "kind": "bool"
+   },
+   {
+    "key": "education_system",
+    "label": "ระบบการจัดการศึกษา",
+    "group": "เวลา/หน่วยกิต",
+    "kind": "enum",
+    "options": [
+     "ทวิภาค",
+     "ไตรภาค",
+     "อื่น ๆ"
+    ]
+   },
+   {
+    "key": "semesters_counted",
+    "label": "ภาคการศึกษาที่นับ",
+    "group": "เวลา/หน่วยกิต",
+    "kind": "enum",
+    "options": [
+     "(1,2)",
+     "(1,2,3)",
+     "(1,2,ฤดูร้อน)",
+     "อื่น ๆ"
+    ]
+   },
+   {
+    "key": "start_semester",
+    "label": "ภาคการศึกษาที่เริ่มใช้",
+    "group": "เวลา/หน่วยกิต",
+    "kind": "int"
+   },
+   {
+    "key": "start_year",
+    "label": "ปีการศึกษาที่เริ่มใช้",
+    "group": "เวลา/หน่วยกิต",
+    "kind": "int"
+   },
+   {
+    "key": "program_type",
+    "label": "รูปแบบของหลักสูตร",
+    "group": "รูปแบบ",
+    "kind": "enum",
+    "options": [
+     "ปริญญาตรีทางวิชาการ",
+     "ปริญญาตรีทางวิชาชีพหรือปฏิบัติการ",
+     "ประกาศนียบัตรบัณฑิต",
+     "ปริญญาโท",
+     "ประกาศนียบัตรบัณฑิตชั้นสูง",
+     "ปริญญาเอก"
+    ]
+   },
+   {
+    "key": "program_type_text",
+    "label": "ข้อความรูปแบบตามเล่ม",
+    "group": "รูปแบบ",
+    "kind": "text"
+   },
+   {
+    "key": "program_categories",
+    "label": "ประเภทหลักสูตร (บัณฑิตศึกษา)",
+    "group": "รูปแบบ",
+    "kind": "list"
+   },
+   {
+    "key": "is_international",
+    "label": "หลักสูตรนานาชาติ",
+    "group": "รูปแบบ",
+    "kind": "bool"
+   },
+   {
+    "key": "cwie",
+    "label": "หลักสูตรฝึกปฏิบัติ CWIE",
+    "group": "รูปแบบ",
+    "kind": "bool"
+   },
+   {
+    "key": "language",
+    "label": "ภาษาที่ใช้สอน",
+    "group": "รูปแบบ",
+    "kind": "enum",
+    "options": [
+     "ไทย",
+     "อังกฤษ",
+     "ไทยและอังกฤษ",
+     "อื่น ๆ"
+    ]
+   },
+   {
+    "key": "language_text",
+    "label": "ข้อความภาษาตามเล่ม",
+    "group": "รูปแบบ",
+    "kind": "text"
+   },
+   {
+    "key": "admission_type",
+    "label": "ประเภทการรับสมัคร",
+    "group": "รูปแบบ",
+    "kind": "enum",
+    "options": [
+     "ไทย",
+     "นานาชาติ"
+    ]
+   },
+   {
+    "key": "admission_text",
+    "label": "การรับเข้าศึกษาตามเล่ม",
+    "group": "รูปแบบ",
+    "kind": "text"
+   },
+   {
+    "key": "standard_criteria",
+    "label": "เกณฑ์มาตรฐานหลักสูตร",
+    "group": "รูปแบบ",
+    "kind": "enum",
+    "options": [
+     "ประกาศ อว. 2565 (ตรี)",
+     "ศธ. 2558 (ตรี)",
+     "ประกาศ อว. 2565 (บัณฑิตศึกษา)",
+     "ศธ. 2558 (บัณฑิตศึกษา)"
+    ]
+   },
+   {
+    "key": "collaboration_text",
+    "label": "ความร่วมมือกับสถาบันอื่น (ข้อความ)",
+    "group": "ความร่วมมือ",
+    "kind": "text"
+   }
+  ],
+  "values": {
+   "program_code": null,
+   "revision_type": "ใหม่",
+   "edition_year": 2569,
+   "previous_program": null,
+   "previous_year": null,
+   "faculty": "คณะวัฒนธรรมสิ่งแวดล้อมและการท่องเที่ยวเชิงนิเวศ",
+   "education_group": "ปริญญาตรีหรือต่ำกว่า",
+   "name_th": "หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาวิทยาการการเปลี่ยนแปลงสภาพภูมิอากาศและสิ่งแวดล้อม",
+   "name_en": "Bachelor of Science Program in Climate Change Science and Environment",
+   "level": "ป.ตรี",
+   "field_of_study": "วิทยาการการเปลี่ยนแปลงสภาพภูมิอากาศและสิ่งแวดล้อม",
+   "degree_full_th": "วิทยาศาสตรบัณฑิต (วิทยาการการเปลี่ยนแปลงสภาพภูมิอากาศและสิ่งแวดล้อม)",
+   "degree_abbr_th": "วท.บ. (วิทยาการการเปลี่ยนแปลงสภาพภูมิอากาศและสิ่งแวดล้อม)",
+   "degree_full_en": "Bachelor of Science (Climate Change Science and Environment)",
+   "degree_abbr_en": "B.Sc. (Climate Change Science and Environment)",
+   "total_credits": null,
+   "duration_years": null,
+   "study_mode": "เต็มเวลา",
+   "lifelong": true,
+   "education_system": "ทวิภาค",
+   "semesters_counted": "(1,2,ฤดูร้อน)",
+   "start_semester": null,
+   "start_year": null,
+   "program_type": "ปริญญาตรีทางวิชาการ",
+   "program_type_text": "หลักสูตรปริญญาตรีทางวิชาการ",
+   "program_categories": [],
+   "is_international": false,
+   "cwie": true,
+   "language": "ไทย",
+   "language_text": "ภาษาไทย เอกสารและตำราเป็นภาษาไทยและภาษาอังกฤษ",
+   "admission_type": "ไทย",
+   "admission_text": "รับผู้เข้าศึกษาชาวไทยและชาวต่างประเทศที่สามารถใช้ภาษาไทยได้เป็นอย่างดี",
+   "standard_criteria": "ประกาศ อว. 2565 (ตรี)",
+   "collaboration_text": "เป็นหลักสูตรเฉพาะของคณะวัฒนธรรมสิ่งแวดล้อมและการท่องเที่ยวเชิงนิเวศ มหาวิทยาลัยศรีนครินทรวิโรฒ"
+  },
+  "meta": {
+   "edition_year": {
+    "confidence": "high",
+    "source": {
+     "page": 1,
+     "snippet": "(หลักสูตรใหม่ พ.ศ. 2569)"
+    },
+    "by": "parser",
+    "inferred": false
+   },
+   "faculty": {
+    "confidence": "high",
+    "source": {
+     "page": 1,
+     "snippet": "คณะวัฒนธรรมสิ่งแวดล้อมและการท่องเที่ยวเชิงนิเวศ"
+    },
+    "by": "parser",
+    "inferred": false
+   },
+   "program_type": {
+    "confidence": "high",
+    "source": {
+     "page": 5,
+     "snippet": "หลักสูตรปริญญาตรีทางวิชาการ"
+    },
+    "by": "parser",
+    "inferred": false
+   },
+   "program_type_text": {
+    "confidence": "high",
+    "source": {
+     "page": 5,
+     "snippet": "หลักสูตรปริญญาตรีทางวิชาการ"
+    },
+    "by": "parser",
+    "inferred": false
+   },
+   "program_categories": {
+    "confidence": "high",
+    "source": {
+     "page": 5,
+     "snippet": ""
+    },
+    "by": "parser",
+    "inferred": false
+   },
+   "study_mode": {
+    "confidence": "high",
+    "source": {
+     "page": 5,
+     "snippet": "☑ หลักสูตรแบบเต็มเวลา"
+    },
+    "by": "parser",
+    "inferred": false
+   },
+   "lifelong": {
+    "confidence": "high",
+    "source": {
+     "page": 5,
+     "snippet": "☑ หลักสูตรแบบการศึกษาตลอดชีวิต (Lifelong Learning) ไม่กำหนดระยะเวลาการศึกษา นิสิตสามารถเรียนรู้ได้โดยเก็บหน่วยกิตสะสมฝากไว้กับคลังหน่วยกิตของมหาวิทยาลัย"
+    },
+    "by": "parser",
+    "inferred": false
+   },
+   "language": {
+    "confidence": "high",
+    "source": {
+     "page": 6,
+     "snippet": "ภาษาไทย เอกสารและตำราเป็นภาษาไทยและภาษาอังกฤษ"
+    },
+    "by": "parser",
+    "inferred": false
+   },
+   "language_text": {
+    "confidence": "high",
+    "source": {
+     "page": 6,
+     "snippet": "ภาษาไทย เอกสารและตำราเป็นภาษาไทยและภาษาอังกฤษ"
+    },
+    "by": "parser",
+    "inferred": false
+   },
+   "admission_text": {
+    "confidence": "high",
+    "source": {
+     "page": 6,
+     "snippet": "รับผู้เข้าศึกษาชาวไทยและชาวต่างประเทศที่สามารถใช้ภาษาไทยได้เป็นอย่างดี"
+    },
+    "by": "parser",
+    "inferred": false
+   },
+   "collaboration_text": {
+    "confidence": "high",
+    "source": {
+     "page": 6,
+     "snippet": "เป็นหลักสูตรเฉพาะของคณะวัฒนธรรมสิ่งแวดล้อมและการท่องเที่ยวเชิงนิเวศ มหาวิทยาลัยศรีนครินทรวิโรฒ"
+    },
+    "by": "parser",
+    "inferred": false
+   },
+   "education_system": {
+    "confidence": "high",
+    "source": {
+     "page": 6,
+     "snippet": "6.1 ระบบ ระบบการศึกษาเป็นแบบทวิภาค คือ ปีการศึกษาหนึ่ง แบ่งออกเป็น 2 ภาคการศึกษาปกติ หนึ่งภาคการศึกษาปกติมีระยะเวลาการศึกษา ไม่น้อยกว่า 15 สัปดาห์ 6.2 การจัดการ"
+    },
+    "by": "parser",
+    "inferred": false
+   },
+   "semesters_counted": {
+    "confidence": "medium",
+    "source": {
+     "page": 6,
+     "snippet": "ภาคต้น เดือนสิงหาคม – ธันวาคม ภาคปลาย เดือนมกราคม – พฤษภาคม ภาคฤดูร้อน เดือนมิถุนายน – กรกฎาคม (กรณีมีภาคฤดูร้อน)"
+    },
+    "by": "parser",
+    "inferred": true
+   },
+   "revision_type": {
+    "confidence": "high",
+    "source": {
+     "page": 11,
+     "snippet": "เป็นหลักสูตรใหม่ โดยจะเริ่มใช้หลักสูตรนี้ ในภาคการศึกษา 1 ของปีการศึกษา 2569"
+    },
+    "by": "parser",
+    "inferred": false
+   },
+   "field_of_study": {
+    "confidence": "high",
+    "source": {
+     "page": 5,
+     "snippet": "หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาวิทยาการการเปลี่ยนแปลงสภาพภูมิอากาศและสิ่งแวดล้อม"
+    },
+    "by": "parser",
+    "inferred": false
+   },
+   "level": {
+    "confidence": "medium",
+    "source": {
+     "page": 5,
+     "snippet": "วิทยาศาสตรบัณฑิต (วิทยาการการเปลี่ยนแปลงสภาพภูมิอากาศและสิ่งแวดล้อม)"
+    },
+    "by": "parser",
+    "inferred": true
+   },
+   "education_group": {
+    "confidence": "medium",
+    "source": {
+     "page": null,
+     "snippet": "ป.ตรี"
+    },
+    "by": "parser",
+    "inferred": true
+   },
+   "is_international": {
+    "confidence": "medium",
+    "source": {
+     "page": 5,
+     "snippet": "หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาวิทยาการการเปลี่ยนแปลงสภาพภูมิอากาศและสิ่งแวดล้อม"
+    },
+    "by": "parser",
+    "inferred": true
+   },
+   "admission_type": {
+    "confidence": "low",
+    "source": {
+     "page": null,
+     "snippet": "รับผู้เข้าศึกษาชาวไทยและชาวต่างประเทศที่สามารถใช้ภาษาไทยได้เป็นอย่างดี"
+    },
+    "by": "parser",
+    "inferred": true
+   },
+   "standard_criteria": {
+    "confidence": "low",
+    "source": {
+     "page": null,
+     "snippet": "ระดับ ป.ตรี · ปี 2569"
+    },
+    "by": "parser",
+    "inferred": true
+   },
+   "cwie": {
+    "confidence": "low",
+    "source": {
+     "page": 29,
+     "snippet": "2.2.1.10 ชุดวิชาฝึกประสบการณ์วิชาชีพ ให้นิสิตเลือกชุดวิชาระหว่างฝึกงานหรือสหกิจศึกษา"
+    },
+    "by": "parser",
+    "inferred": true
+   },
+   "name_th": {
+    "confidence": "low",
+    "source": {
+     "page": null,
+     "snippet": "หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาวิทยาการการเปลี่ยนแปลงสภาพภูมิอากาศและสิ่งแวดล้อม"
+    },
+    "by": "llm",
+    "inferred": false
+   },
+   "name_en": {
+    "confidence": "low",
+    "source": {
+     "page": null,
+     "snippet": "Bachelor of Science Program in Climate Change Science and Environment"
+    },
+    "by": "llm",
+    "inferred": false
+   },
+   "degree_full_th": {
+    "confidence": "low",
+    "source": {
+     "page": null,
+     "snippet": "วิทยาศาสตรบัณฑิต (วิทยาการการเปลี่ยนแปลงสภาพภูมิอากาศและสิ่งแวดล้อม)"
+    },
+    "by": "llm",
+    "inferred": false
+   },
+   "degree_abbr_th": {
+    "confidence": "low",
+    "source": {
+     "page": null,
+     "snippet": "วท.บ. (วิทยาการการเปลี่ยนแปลงสภาพภูมิอากาศและสิ่งแวดล้อม)"
+    },
+    "by": "llm",
+    "inferred": false
+   },
+   "degree_full_en": {
+    "confidence": "low",
+    "source": {
+     "page": null,
+     "snippet": "Bachelor of Science (Climate Change Science and Environment)"
+    },
+    "by": "llm",
+    "inferred": false
+   },
+   "degree_abbr_en": {
+    "confidence": "low",
+    "source": {
+     "page": null,
+     "snippet": "B.Sc. (Climate Change Science and Environment)"
+    },
+    "by": "llm",
+    "inferred": false
+   }
+  },
+  "majors": [],
+  "collaborations": [],
+  "careers": [
+   {
+    "group": null,
+    "name": "ผู้ปฎิบัติงานด้านการประเมินการปล่อยและการดูดกลับก๊าซเรือนกระจก",
+    "meta": {
+     "confidence": "high",
+     "source": {
+      "page": 7,
+      "snippet": "10.1 ผู้ปฎิบัติงานด้านการประเมินการปล่อยและการดูดกลับก๊าซเรือนกระจก"
+     },
+     "by": "parser",
+     "inferred": false
+    }
+   },
+   {
+    "group": null,
+    "name": "นักวิชาการและนักสื่อสารสิ่งแวดล้อม",
+    "meta": {
+     "confidence": "high",
+     "source": {
+      "page": 7,
+      "snippet": "10.2 นักวิชาการและนักสื่อสารสิ่งแวดล้อม"
+     },
+     "by": "parser",
+     "inferred": false
+    }
+   },
+   {
+    "group": null,
+    "name": "พนักงานปฎิบัติงานด้านนโยบายและแผนการเปลี่ยนแปลงสภาพภูมิอากาศ",
+    "meta": {
+     "confidence": "high",
+     "source": {
+      "page": 7,
+      "snippet": "10.3 พนักงานปฎิบัติงานด้านนโยบายและแผนการเปลี่ยนแปลงสภาพภูมิอากาศ"
+     },
+     "by": "parser",
+     "inferred": false
+    }
+   },
+   {
+    "group": null,
+    "name": "ผู้ช่วยนักวิจัยด้านสิ่งแวดล้อมและการเปลี่ยนแปลงสภาพภูมิอากาศ",
+    "meta": {
+     "confidence": "high",
+     "source": {
+      "page": 7,
+      "snippet": "10.4 ผู้ช่วยนักวิจัยด้านสิ่งแวดล้อมและการเปลี่ยนแปลงสภาพภูมิอากาศ"
+     },
+     "by": "parser",
+     "inferred": false
+    }
+   },
+   {
+    "group": null,
+    "name": "เจ้าหน้าที่สิ่งแวดล้อมองค์กร",
+    "meta": {
+     "confidence": "high",
+     "source": {
+      "page": 7,
+      "snippet": "10.5 เจ้าหน้าที่สิ่งแวดล้อมองค์กร"
+     },
+     "by": "parser",
+     "inferred": false
+    }
+   },
+   {
+    "group": null,
+    "name": "อาชีพอื่น ๆ ที่เกี่ยวข้อง",
+    "meta": {
+     "confidence": "high",
+     "source": {
+      "page": 7,
+      "snippet": "10.6 อาชีพอื่น ๆ ที่เกี่ยวข้อง"
+     },
+     "by": "parser",
+     "inferred": false
+    }
+   }
+  ],
+  "count": 26,
+  "missing_required": [
+   "total_credits",
+   "start_year"
+  ]
+ },
+ "notes": [
+  "program_code: เล่มยังไม่ระบุ (รหัสหลักสูตร xxxxxxxxxxxxx)"
+ ],
+ "llm": {
+  "provider": "ollama",
+  "model": "gemma4:26b",
+  "prompt_tokens": 956,
+  "completion_tokens": 207,
+  "seconds": 2.846,
+  "calls": 1,
+  "retries": 0
+ }
+}
