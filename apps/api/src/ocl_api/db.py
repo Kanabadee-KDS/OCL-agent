@@ -72,7 +72,10 @@ def connect(url: str, schema: str | None = None) -> psycopg.Connection[dict[str,
         kwargs["options"] = f"-c search_path={schema},public"
     conn = psycopg.connect(url, **kwargs)
     if schema:
+        # a pooled endpoint (PgBouncer) may drop the `options` startup parameter, so the
+        # search_path is set again on the session
         conn.execute(f'CREATE SCHEMA IF NOT EXISTS "{schema}"')
+        conn.execute(f'SET search_path TO "{schema}", public')
     return conn
 
 

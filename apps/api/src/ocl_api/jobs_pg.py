@@ -8,10 +8,13 @@ the system of record for review; edits and their history never touch edits/*.jso
 
 from __future__ import annotations
 
+import contextlib
 import json
 import secrets
 from pathlib import Path
 from typing import Any
+
+import psycopg
 
 from ocl_api.db import Jsonb, connect
 from ocl_api.jobs import PARTS, JobStore, _changed_fields, now_iso, safe_filename
@@ -22,9 +25,25 @@ class PgJobStore(JobStore):
         super().__init__(root)
         self.url = url
         self.schema = schema
+        self._c: psycopg.Connection[dict[str, Any]] | None = None
 
     def _conn(self):
-        return connect(self.url, self.schema)
+        """One connection per store instance (per API request / per worker process):
+        a remote database such as Neon costs ~0.3 s per connect, and a job walks
+        through dozens of status writes. Reconnects once when the server dropped it."""
+        if self._c is None or self._c.closed:
+            self._c = connect(self.url, self.schema)
+        else:
+            try:
+                self._c.execute("SELECT 1")
+            except psycopg.OperationalError:
+                self._c = connect(self.url, self.schema)
+        return contextlib.nullcontext(self._c)
+
+    def close(self) -> None:
+        if self._c is not None and not self._c.closed:
+            self._c.close()
+        self._c = None
 
     # ---------- job rows ----------
 

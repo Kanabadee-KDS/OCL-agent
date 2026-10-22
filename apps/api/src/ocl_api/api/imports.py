@@ -28,8 +28,14 @@ MAX_UPLOAD = 50 * 1024 * 1024  # the mock promises 50 MB
 ALLOWED = {".docx", ".pdf"}
 
 
-def get_store(settings: Settings = Depends(get_settings)) -> JobStore:
-    return make_store(settings)
+def get_store(settings: Settings = Depends(get_settings)):
+    store = make_store(settings)
+    try:
+        yield store
+    finally:
+        close = getattr(store, "close", None)
+        if close:
+            close()
 
 
 def _job_view(job: dict[str, Any]) -> dict[str, Any]:
@@ -70,13 +76,23 @@ async def create_import(
         raise HTTPException(400, "ไฟล์ว่าง")
     job = store.create(name, data, provider=provider, target=target or None)
     if settings.inline_worker:
-        background.add_task(_run_inline, store, job["id"], settings)
+        background.add_task(_run_inline, job["id"], settings)
     return _job_view(job)
 
 
-def _run_inline(store: JobStore, job_id: str, settings: Settings) -> None:
-    # A thread so the HTTP response is not held while Ollama works (minutes).
-    threading.Thread(target=process_job, args=(store, job_id, settings), daemon=True).start()
+def _run_inline(job_id: str, settings: Settings) -> None:
+    # A thread so the HTTP response is not held while Ollama works (minutes). The thread
+    # gets its own store: the request's one (and its DB connection) closes with the request.
+    def run() -> None:
+        store = make_store(settings)
+        try:
+            process_job(store, job_id, settings)
+        finally:
+            close = getattr(store, "close", None)
+            if close:
+                close()
+
+    threading.Thread(target=run, daemon=True).start()
 
 
 @router.get("/{job_id}")

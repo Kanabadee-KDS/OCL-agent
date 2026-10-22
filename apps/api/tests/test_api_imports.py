@@ -16,6 +16,7 @@ from tests.test_ingest_docx import build_docx
 @pytest.fixture
 def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
     monkeypatch.setenv("DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("DATABASE_URL", "")  # file mode even when .env points at Neon
     monkeypatch.setenv("INLINE_WORKER", "true")
     monkeypatch.setenv("OLLAMA_MODEL", "gemma4:26b")
     monkeypatch.setenv("OLLAMA_KEEP_ALIVE", "10m")
