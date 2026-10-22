@@ -13,7 +13,7 @@
 | Benchmark และผลกระทบต่อระบบ HRIS ที่ใช้ server ร่วมกัน | `docs/bench/` | วัดแล้ว |
 | สคริปต์ demo 15 นาที + คำสั่งเดียวรันทั้ง pipeline | `docs/demo.md` · `tools/demo.sh` | ซ้อมแล้ว |
 | **เว็บ POC 3 หน้า** (อัปโหลด → ตรวจ/แก้/ยืนยันทีละส่วน → บันทึก) หน้าตาตาม design ของลูกค้า + REST API + worker | `apps/web` · `apps/api/src/ocl_api/api` | ใช้งานได้ |
-| **ติดตั้งบน server on-prem** ให้ลูกค้าทดลองเอง | `http://100.104.172.122:8100/import` (Tailscale) · `deploy/` | ทดสอบ end-to-end ผ่าน 21 ต.ค. |
+| **ติดตั้งบน server on-prem** ให้ลูกค้าทดลองเอง (API + worker + web + Postgres ใน compose `ocl`) | `http://100.104.172.122:8100/import` (Tailscale) · `deploy/` | end-to-end ผ่าน 22 ต.ค. (ครบ 10 ส่วน · LLM จริง 57 s/เล่ม · Postgres) |
 
 ## 2. ตัวเลขจากเล่มจริง 5 เล่ม
 
