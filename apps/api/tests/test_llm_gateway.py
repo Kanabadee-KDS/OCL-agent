@@ -223,6 +223,11 @@ def test_gemini_without_key_and_empty_env_key() -> None:
 
     with pytest.raises(LLMError, match="GEMINI_API_KEY"):
         _gateway(never, LLM_PROVIDER="gemini").chat_json("s", "u")
+    # a placeholder or pasted Thai text instead of the key must be a clear error, not a traceback
+    with pytest.raises(LLMError, match="ไม่ถูกต้อง"):
+        _gateway(never, LLM_PROVIDER="gemini", GEMINI_API_KEY="ใส่key").chat_json("s", "u")
+    with pytest.raises(LLMError, match="ไม่ถูกต้อง"):
+        _gateway(never, LLM_PROVIDER="gemini", GEMINI_API_KEY="AIza abc").chat_json("s", "u")
     assert _settings(GEMINI_API_KEY="").gemini_api_key is None
 
 

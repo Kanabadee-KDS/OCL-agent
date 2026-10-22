@@ -100,8 +100,15 @@ class LLMGateway:
         max_tokens: int = 4096,
         retries: int = 1,
     ) -> LLMResult:
-        if self.provider == "gemini" and not self.settings.gemini_api_key:
-            raise LLMError("Gemini provider needs GEMINI_API_KEY")
+        if self.provider == "gemini":
+            key = self.settings.gemini_api_key or ""
+            if not key:
+                raise LLMError("Gemini provider needs GEMINI_API_KEY")
+            if not key.isascii() or any(c.isspace() for c in key):
+                raise LLMError(
+                    "GEMINI_API_KEY ไม่ถูกต้อง: มีช่องว่างหรืออักขระที่ไม่ใช่ ASCII "
+                    "(ตรวจว่าไม่ได้วางข้อความอื่นแทน key ใน deploy/.env)"
+                )
         chat = self._gemini_chat if self.provider == "gemini" else self._ollama_chat
         usage = LLMUsage(self.provider, self.model)
         last_err: Exception | None = None
