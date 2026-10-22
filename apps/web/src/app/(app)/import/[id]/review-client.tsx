@@ -3,6 +3,8 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { can } from "@/lib/perm";
 import { api, fmtTime, PART_LABELS, type Check, type Job, type Meta, type Part } from "@/lib/api";
 import { ConfPill, Ic, Markdown, Note, PageHead, Pill, Steps } from "@/components/ui";
 
@@ -42,6 +44,8 @@ type Course = {
 export default function ReviewClient() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { data: session } = useSession();
+  const canWrite = can(session?.user?.roles, "import_write");
   const [job, setJob] = useState<Job | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("info");
@@ -199,7 +203,7 @@ export default function ReviewClient() {
           <>
             <button className="btn" disabled title="อยู่ใน R1"><Ic name="refresh" size={17} /> สกัดใหม่</button>
             <button className="btn" onClick={() => setTab("preview")}><Ic name="eye" size={17} /> Preview แบบเล่ม</button>
-            <button className="btn primary" disabled={okN === 0 || job.status === "done"} onClick={finalize}>
+            <button className="btn primary" disabled={okN === 0 || job.status === "done" || !canWrite} onClick={finalize}>
               {job.status === "done" ? "บันทึกแล้ว" : `บันทึกเข้าระบบ (${okN}/${total} ส่วน)`}
             </button>
           </>
@@ -245,8 +249,8 @@ export default function ReviewClient() {
                   {part.confirmed && <Pill kind="ok">ยืนยันแล้ว</Pill>} {part.edited && <Pill kind="info">แก้ไขแล้ว {part.edit_count} ครั้ง</Pill>} {dirty && <Pill kind="warn">ยังไม่บันทึก</Pill>}
                 </div>
                 <div className="row">
-                  <button className="btn" disabled={saving || !dirty} onClick={() => save(false)}>บันทึกร่าง</button>
-                  <button className="btn primary" disabled={saving || job.status === "done"} onClick={() => save(true)}>
+                  <button className="btn" disabled={saving || !dirty || !canWrite} onClick={() => save(false)}>บันทึกร่าง</button>
+                  <button className="btn primary" disabled={saving || job.status === "done" || !canWrite} onClick={() => save(true)}>
                     <Ic name="check" size={16} /> ยืนยันส่วนนี้ แล้วไปส่วนถัดไป
                   </button>
                 </div>

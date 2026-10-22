@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { can } from "@/lib/perm";
 import { api, fmtBytes, fmtTime, PART_LABELS, type Job } from "@/lib/api";
 import { Ic, Note, PageHead, Pill, Steps } from "@/components/ui";
 
@@ -20,6 +22,8 @@ const STATUS_TH: Record<Job["status"], [string, "ok" | "warn" | "red" | "info" |
 
 export default function ImportPage() {
   const router = useRouter();
+  const { data: session } = useSession();
+  const canWrite = can(session?.user?.roles, "import_write");
   const [provider, setProvider] = useState<"ollama" | "none" | "gemini">("ollama");
   const [target, setTarget] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -130,7 +134,8 @@ export default function ImportPage() {
                   <div className="small faint">{fmtBytes(file.size)}</div>
                 </div>
               </div>
-              <button className="btn primary" onClick={start} disabled={busy}>
+              {!canWrite && <Note kind="info">บทบาทของคุณดูผลการนำเข้าได้ แต่การอัปโหลด/แก้ไข/ยืนยันสงวนไว้สำหรับผู้ดูแลส่วนกลางและผู้ตรวจสอบระดับหลักสูตร</Note>}
+              <button className="btn primary" onClick={start} disabled={busy || !canWrite}>
                 <Ic name="ai" size={17} /> {busy ? "กำลังส่ง…" : "เริ่มอ่านด้วย AI"}
               </button>
             </div>

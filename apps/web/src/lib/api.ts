@@ -1,5 +1,6 @@
 // "" (empty) = same origin (behind Caddy); unset = local dev API
-export const API_BASE = (process.env.NEXT_PUBLIC_API_BASE ?? "http://127.0.0.1:8000").replace(/\/$/, "");
+// "" or unset = through the Next.js proxy (/api/ocl) which signs the user token for FastAPI
+export const API_BASE = (process.env.NEXT_PUBLIC_API_BASE || "/api/ocl").replace(/\/$/, "");
 
 export type Job = {
   id: string;

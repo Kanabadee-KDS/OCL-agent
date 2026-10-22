@@ -6,47 +6,22 @@ neither is available. Every run works in its own throw-away schema."""
 
 from __future__ import annotations
 
-import os
-import secrets
 import time
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
-from ocl_api.db import connect, drop_schema, migrate, status
+from ocl_api.db import connect, migrate, status
 from ocl_api.main import create_app
 from tests.test_ingest_docx import build_docx
-
-
-@pytest.fixture(scope="session")
-def pg_url(tmp_path_factory: pytest.TempPathFactory):
-    url = os.environ.get("DATABASE_URL")
-    if url:
-        yield url
-        return
-    try:
-        import pgserver
-    except ImportError:  # pragma: no cover - dev machines without the extra
-        pytest.skip("no DATABASE_URL and no pgserver")
-    server = pgserver.get_server(str(tmp_path_factory.mktemp("pg")))
-    try:
-        yield server.get_uri()
-    finally:
-        server.cleanup()
-
-
-@pytest.fixture
-def schema(pg_url: str):
-    name = "t_" + secrets.token_hex(4)
-    yield name
-    drop_schema(pg_url, name)
 
 
 @pytest.fixture
 def client(pg_url: str, schema: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("DATA_DIR", str(tmp_path / "data"))
     monkeypatch.setenv("DATABASE_URL", pg_url)
+    monkeypatch.setenv("AUTH_SECRET", "")
     monkeypatch.setenv("DATABASE_SCHEMA", schema)
     monkeypatch.setenv("INLINE_WORKER", "true")
     monkeypatch.setenv("OLLAMA_MODEL", "gemma4:26b")
@@ -66,10 +41,11 @@ def _wait(client: TestClient, job_id: str, want: str, timeout: float = 30.0) -> 
 
 
 def test_migrate_is_idempotent(pg_url: str, schema: str) -> None:
-    assert migrate(pg_url, schema) == ["001_import_jobs"]
+    assert migrate(pg_url, schema) == ["001_import_jobs", "002_users"]
     assert migrate(pg_url, schema) == []
     st = status(pg_url, schema)
-    assert st["migrations"] == ["001_import_jobs"] and st["pending"] == [] and st["jobs"] == 0
+    assert st["migrations"] == ["001_import_jobs", "002_users"]
+    assert st["pending"] == [] and st["jobs"] == 0
 
 
 def test_import_flow_on_postgres(

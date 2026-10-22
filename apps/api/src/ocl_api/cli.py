@@ -78,6 +78,55 @@ def cmd_db(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_users(args: argparse.Namespace) -> int:
+    import getpass
+    import json
+
+    from ocl_api.auth import ROLES
+    from ocl_api.config import get_settings
+    from ocl_api.users import UserStore
+
+    s = get_settings()
+    if not s.database_url:
+        print("users need DATABASE_URL (Postgres)")
+        return 1
+    users = UserStore(s.database_url, s.database_schema)
+    if args.action == "list":
+        for u in users.list():
+            print(
+                f"{u['email']:40} {u.get('buasri_id') or '-':14} "
+                f"{','.join(u['roles']) or '-':28} {'active' if u['active'] else 'DISABLED':8} "
+                f"{u.get('name') or ''}"
+            )
+        return 0
+    if args.action == "roles":
+        print(json.dumps(ROLES, ensure_ascii=False, indent=1))
+        return 0
+    if not args.email:
+        print("--email is required")
+        return 1
+    if args.action in ("add", "set"):
+        password = args.password
+        if args.ask_password:
+            password = getpass.getpass("password: ")
+        roles = [r.strip() for r in (args.roles or "").split(",") if r.strip()]
+        u = users.upsert(
+            args.email,
+            name=args.name or "",
+            roles=roles,
+            buasri_id=args.buasri,
+            password=password,
+            unit=args.unit,
+        )
+        print(json.dumps(u, ensure_ascii=False, indent=1))
+        return 0
+    if args.action in ("disable", "enable"):
+        users.set_active(args.email, args.action == "enable")
+        print(f"{args.email}: {'active' if args.action == 'enable' else 'disabled'}")
+        return 0
+    return 1
+
+
 def cmd_api(args: argparse.Namespace) -> int:
     import uvicorn
 
@@ -127,6 +176,17 @@ def main(argv: list[str] | None = None) -> int:
     w = sub.add_parser("worker", help="process queued import jobs one at a time (ingest + extract)")
     w.add_argument("--once", action="store_true", help="drain the queue then exit")
     w.set_defaults(func=cmd_worker)
+
+    u = sub.add_parser("users", help="manage users and roles (Postgres)")
+    u.add_argument("action", choices=["add", "set", "list", "roles", "disable", "enable"])
+    u.add_argument("--email")
+    u.add_argument("--name", default="")
+    u.add_argument("--roles", help="comma list, e.g. central,curator")
+    u.add_argument("--buasri", help="Buasri ID (username for password sign-in)")
+    u.add_argument("--password", help="password for Buasri sign-in (or --ask-password)")
+    u.add_argument("--ask-password", action="store_true")
+    u.add_argument("--unit", help="คณะ/หน่วยงาน")
+    u.set_defaults(func=cmd_users)
 
     db = sub.add_parser("db", help="database: migrate (apply schema) or status")
     db.add_argument("action", choices=["migrate", "status"])

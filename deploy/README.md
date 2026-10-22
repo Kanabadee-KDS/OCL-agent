@@ -17,7 +17,7 @@
 cd /home/arsoft/ocl-agent && cp deploy/.env.example deploy/.env
 ```
 
-แก้ `deploy/.env` ตั้ง `POSTGRES_PASSWORD` เป็นรหัสยาว ๆ (service `db` ใช้ครั้งแรกตอนสร้าง volume `ocl_pg` ถ้าเปลี่ยนทีหลังต้องลบ volume หรือ ALTER USER ใน psql) · db ไม่เปิดพอร์ตออกนอก compose network (กติกาข้อ 8) · API สร้างตาราง (migration) ให้เองตอนเริ่ม
+แก้ `deploy/.env` ตั้ง `AUTH_SECRET` (openssl rand -hex 32) และ `POSTGRES_PASSWORD` เป็นรหัสยาว ๆ (service `db` ใช้ครั้งแรกตอนสร้าง volume `ocl_pg` ถ้าเปลี่ยนทีหลังต้องลบ volume หรือ ALTER USER ใน psql) · db ไม่เปิดพอร์ตออกนอก compose network (กติกาข้อ 8) · API สร้างตาราง (migration) ให้เองตอนเริ่ม
 
 ```bash
 cd /home/arsoft/ocl-agent && tmux new -s ocl-build
@@ -40,6 +40,16 @@ cd /home/arsoft/ocl-agent && docker compose -f deploy/docker-compose.yml ps && c
 ```
 
 เปิดจากเครื่องใน Tailscale: `http://100.104.172.122:8100/import`
+
+## ผู้ใช้และสิทธิ์
+
+ต้องมีผู้ใช้อย่างน้อย 1 คนก่อนจึงเข้าเว็บได้ (ไม่มี Google SSO จนกว่าจะได้ OAuth client และชื่อโดเมน) สร้างผู้ดูแลส่วนกลางคนแรกด้วยบัวศรีไอดี+รหัสผ่าน (พิมพ์รหัสผ่านตอนถาม ไม่ทิ้งไว้ใน history)
+
+```bash
+cd /home/arsoft/ocl-agent && docker compose -f deploy/docker-compose.yml exec api ocl users add --email admin@g.swu.ac.th --name "ผู้ดูแลส่วนกลาง" --roles admin,central --buasri admin --ask-password
+```
+
+เพิ่มคนอื่นด้วย `--roles` จาก `ocl users roles` (admin central curator faculty evaluator teacher advisor student exec ใส่หลายค่าคั่นด้วย ,) · ดูทั้งหมด `ocl users list` · ระงับ `ocl users disable --email …` · สิทธิ์เมนูนำเข้า: อัปโหลด/แก้/ยืนยัน = admin, central, curator · ดูอย่างเดียว = faculty · บทบาทอื่นเข้าเมนูนี้ไม่ได้
 
 ## ฐานข้อมูล
 

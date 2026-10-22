@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     data_dir: Path = Path("./data")
     database_url: str | None = None
     database_schema: str | None = None  # tests put their tables in a throw-away schema
+    # shared with the web app (Auth.js AUTH_SECRET); unset = auth disabled (anonymous admin)
+    auth_secret: str | None = None
+    auth_allowed_domain: str = "g.swu.ac.th"  # Google accounts outside it are refused
 
     api_host: str = "127.0.0.1"
     api_port: int = 8000
@@ -38,7 +41,9 @@ class Settings(BaseSettings):
     inline_worker: bool = True
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
 
-    @field_validator("ollama_keep_alive", "ollama_num_ctx", "database_url", mode="before")
+    @field_validator(
+        "ollama_keep_alive", "ollama_num_ctx", "database_url", "auth_secret", mode="before"
+    )
     @classmethod
     def _empty_is_none(cls, v: object) -> object:
         if isinstance(v, str) and v.strip() == "":

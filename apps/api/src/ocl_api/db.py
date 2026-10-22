@@ -62,6 +62,22 @@ MIGRATIONS: list[tuple[str, str]] = [
         CREATE INDEX IF NOT EXISTS curriculum_drafts_job_idx ON curriculum_drafts (job_id);
         """,
     ),
+    (
+        "002_users",
+        """
+        CREATE TABLE IF NOT EXISTS users (
+            email         text PRIMARY KEY,
+            name          text NOT NULL DEFAULT '',
+            buasri_id     text UNIQUE,
+            roles         jsonb NOT NULL DEFAULT '[]'::jsonb,
+            password_hash text,
+            active        boolean NOT NULL DEFAULT true,
+            unit          text,
+            created_at    timestamptz NOT NULL DEFAULT now(),
+            last_login_at timestamptz
+        );
+        """,
+    ),
 ]
 
 

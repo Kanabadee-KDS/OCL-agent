@@ -17,6 +17,7 @@ from tests.test_ingest_docx import build_docx
 def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
     monkeypatch.setenv("DATA_DIR", str(tmp_path / "data"))
     monkeypatch.setenv("DATABASE_URL", "")  # file mode even when .env points at Neon
+    monkeypatch.setenv("AUTH_SECRET", "")  # auth off even when .env has a secret
     monkeypatch.setenv("INLINE_WORKER", "true")
     monkeypatch.setenv("OLLAMA_MODEL", "gemma4:26b")
     monkeypatch.setenv("OLLAMA_KEEP_ALIVE", "10m")

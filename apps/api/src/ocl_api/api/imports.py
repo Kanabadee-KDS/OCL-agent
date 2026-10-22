@@ -18,6 +18,7 @@ from fastapi import (
 from fastapi.responses import FileResponse, PlainTextResponse
 from pydantic import BaseModel
 
+from ocl_api.auth import REQUIRE_IMPORT_READ, REQUIRE_IMPORT_WRITE, User
 from ocl_api.config import Settings, get_settings
 from ocl_api.jobs import ALL_PARTS, PARTS, JobStore, make_store
 from ocl_api.worker import process_job
@@ -49,7 +50,9 @@ def _job_view(job: dict[str, Any]) -> dict[str, Any]:
 
 
 @router.get("")
-def list_imports(store: JobStore = Depends(get_store)) -> list[dict[str, Any]]:
+def list_imports(
+    store: JobStore = Depends(get_store), _: User = Depends(REQUIRE_IMPORT_READ)
+) -> list[dict[str, Any]]:
     return [_job_view(j) for j in store.list()]
 
 
@@ -61,6 +64,7 @@ async def create_import(
     target: str | None = Form(None),
     store: JobStore = Depends(get_store),
     settings: Settings = Depends(get_settings),
+    _: User = Depends(REQUIRE_IMPORT_WRITE),
 ) -> dict[str, Any]:
     name = file.filename or "book"
     if Path(name).suffix.lower() not in ALLOWED:
@@ -96,7 +100,9 @@ def _run_inline(job_id: str, settings: Settings) -> None:
 
 
 @router.get("/{job_id}")
-def get_import(job_id: str, store: JobStore = Depends(get_store)) -> dict[str, Any]:
+def get_import(
+    job_id: str, store: JobStore = Depends(get_store), _: User = Depends(REQUIRE_IMPORT_READ)
+) -> dict[str, Any]:
     try:
         return _job_view(store.read(job_id))
     except KeyError as e:
@@ -104,7 +110,12 @@ def get_import(job_id: str, store: JobStore = Depends(get_store)) -> dict[str, A
 
 
 @router.get("/{job_id}/parts/{key}")
-def get_part(job_id: str, key: str, store: JobStore = Depends(get_store)) -> dict[str, Any]:
+def get_part(
+    job_id: str,
+    key: str,
+    store: JobStore = Depends(get_store),
+    _: User = Depends(REQUIRE_IMPORT_READ),
+) -> dict[str, Any]:
     try:
         part = store.read_part(job_id, key)
     except KeyError as e:
@@ -123,17 +134,27 @@ class PartUpdate(BaseModel):
 
 
 @router.put("/{job_id}/parts/{key}")
-def put_part(job_id: str, key: str, body: PartUpdate, store: JobStore = Depends(get_store)) -> dict:
+def put_part(
+    job_id: str,
+    key: str,
+    body: PartUpdate,
+    store: JobStore = Depends(get_store),
+    user: User = Depends(REQUIRE_IMPORT_WRITE),
+) -> dict:
     try:
         if store.read_part(job_id, key) is None:
             raise HTTPException(404, "ส่วนนี้ยังไม่มีข้อมูลให้แก้")
-        return store.save_part(job_id, key, body.data, confirm=body.confirm, by=body.by)
+        return store.save_part(
+            job_id, key, body.data, confirm=body.confirm, by=user.email or body.by
+        )
     except KeyError as e:
         raise HTTPException(404, "ไม่พบงานหรือส่วนที่ขอ") from e
 
 
 @router.post("/{job_id}/finalize")
-def finalize(job_id: str, store: JobStore = Depends(get_store)) -> dict[str, Any]:
+def finalize(
+    job_id: str, store: JobStore = Depends(get_store), _: User = Depends(REQUIRE_IMPORT_WRITE)
+) -> dict[str, Any]:
     try:
         job = store.read(job_id)
     except KeyError as e:
@@ -146,7 +167,9 @@ def finalize(job_id: str, store: JobStore = Depends(get_store)) -> dict[str, Any
 
 
 @router.get("/{job_id}/checks")
-def get_checks(job_id: str, store: JobStore = Depends(get_store)) -> list[dict[str, Any]]:
+def get_checks(
+    job_id: str, store: JobStore = Depends(get_store), _: User = Depends(REQUIRE_IMPORT_READ)
+) -> list[dict[str, Any]]:
     try:
         return store.checks(job_id)
     except KeyError as e:
@@ -155,7 +178,10 @@ def get_checks(job_id: str, store: JobStore = Depends(get_store)) -> list[dict[s
 
 @router.get("/{job_id}/source")
 def get_source(
-    job_id: str, page: int = Query(..., ge=1), store: JobStore = Depends(get_store)
+    job_id: str,
+    page: int = Query(..., ge=1),
+    store: JobStore = Depends(get_store),
+    _: User = Depends(REQUIRE_IMPORT_READ),
 ) -> dict[str, Any]:
     """Blocks of the ingested document on one page, for the 'ต้นฉบับ' panel."""
     try:
@@ -180,7 +206,12 @@ def get_source(
 
 
 @router.get("/{job_id}/files/{path:path}")
-def get_file(job_id: str, path: str, store: JobStore = Depends(get_store)):
+def get_file(
+    job_id: str,
+    path: str,
+    store: JobStore = Depends(get_store),
+    _: User = Depends(REQUIRE_IMPORT_READ),
+):
     """Serve ingest/extract outputs (Markdown, assets) from the job folder; path-safe."""
     try:
         root = store.dir(job_id).resolve()

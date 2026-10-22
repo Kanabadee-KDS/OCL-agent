@@ -4,6 +4,14 @@
 	request_body {
 		max_size 60MB
 	}
+	# sign-in (Auth.js) and the signed proxy to the API live in Next.js
+	handle /api/auth/* {
+		reverse_proxy web:3000
+	}
+	handle /api/ocl/* {
+		reverse_proxy web:3000
+	}
+	# direct API access: still possible, but every endpoint needs the user token
 	handle /api/* {
 		reverse_proxy api:8000
 	}

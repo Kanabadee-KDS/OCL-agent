@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from ocl_api import __version__
+from ocl_api.api.auth import router as auth_router
 from ocl_api.api.imports import router as imports_router
 from ocl_api.config import get_settings
 
@@ -20,6 +21,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.include_router(imports_router)
+    app.include_router(auth_router)
     if s.database_url:
         from ocl_api.db import migrate
 
@@ -36,6 +38,7 @@ def create_app() -> FastAPI:
             "gemini_configured": bool(s.gemini_api_key),
             "inline_worker": s.inline_worker,
             "database": "postgres" if s.database_url else "files",
+            "auth": "enabled" if s.auth_secret else "disabled",
         }
 
     return app
