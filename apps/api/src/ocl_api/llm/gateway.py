@@ -184,6 +184,8 @@ class LLMGateway:
         }
         if schema:
             gen["responseSchema"] = gemini_schema(schema)
+        if s.gemini_thinking_budget is not None:
+            gen["thinkingConfig"] = {"thinkingBudget": s.gemini_thinking_budget}
         body = {
             "systemInstruction": {"parts": [{"text": system}]},
             "contents": [{"role": "user", "parts": [{"text": user}]}],
@@ -211,7 +213,9 @@ class LLMGateway:
             provider="gemini",
             model=data.get("modelVersion") or s.gemini_model,  # alias -> the version that answered
             prompt_tokens=int(meta.get("promptTokenCount") or 0),
-            completion_tokens=int(meta.get("candidatesTokenCount") or 0),
+            # thoughts are billed as output tokens, so they belong in the cost figure
+            completion_tokens=int(meta.get("candidatesTokenCount") or 0)
+            + int(meta.get("thoughtsTokenCount") or 0),
             seconds=round(time.perf_counter() - t0, 3),
             calls=1,
         )

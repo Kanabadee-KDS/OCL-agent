@@ -171,6 +171,7 @@ def test_gemini_request_shape_key_in_header_and_usage() -> None:
     gen = body["generationConfig"]
     assert gen["temperature"] == 0 and gen["maxOutputTokens"] == 512
     assert gen["responseMimeType"] == "application/json"
+    assert gen["thinkingConfig"] == {"thinkingBudget": 0}, "thinking off by default"
     assert gen["responseSchema"] == {
         "type": "object",
         "properties": {
@@ -185,6 +186,22 @@ def test_gemini_request_shape_key_in_header_and_usage() -> None:
     }
     assert r.usage.provider == "gemini" and r.usage.model == "gemini-flash-latest"
     assert r.usage.prompt_tokens == 20 and r.usage.completion_tokens == 7 and r.usage.calls == 1
+
+
+def test_gemini_thoughts_count_as_output_and_budget_can_be_unset() -> None:
+    seen: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["gen"] = json.loads(request.content)["generationConfig"]
+        reply = _gemini_reply('{"ok": 1}', prompt=21, out=7)
+        reply["usageMetadata"]["thoughtsTokenCount"] = 189
+        return httpx.Response(200, json=reply)
+
+    r = _gateway(
+        handler, LLM_PROVIDER="gemini", GEMINI_API_KEY="k", GEMINI_THINKING_BUDGET=""
+    ).chat_json("s", "u")
+    assert "thinkingConfig" not in seen["gen"]
+    assert r.usage.completion_tokens == 7 + 189
 
 
 def test_gemini_truncated_blocked_and_http_error() -> None:

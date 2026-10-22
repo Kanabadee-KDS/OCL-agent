@@ -1,5 +1,5 @@
 {
- "started": "2026-10-22T14:13:18",
+ "started": "2026-10-22T20:51:50",
  "providers": [
   "ollama",
   "gemini"
@@ -68,14 +68,52 @@
   {
    "book": "วท.บ. วิทยาการการเปลี่ยนแปลงสภาพภูมิอากาศ.docx",
    "provider": "gemini",
+   "model": "gemini-flash-latest",
    "mode": "parser_first",
-   "status": "error"
+   "status": "ok",
+   "extract_seconds": 26.92,
+   "llm_seconds": 26.89,
+   "llm_calls": 3,
+   "llm_retries": 0,
+   "prompt_tokens": 10781,
+   "completion_tokens": 3795,
+   "cost_usd": 0.0223,
+   "info_accuracy": 1.0,
+   "plo_precision": 1.0,
+   "plo_recall": 1.0,
+   "plo_text": 1.0,
+   "structure_precision": 1.0,
+   "structure_recall": 1.0,
+   "structure_credits": 1.0,
+   "courses_precision": 1.0,
+   "courses_recall": 1.0,
+   "courses_name_th": 1.0,
+   "courses_credits": 1.0
   },
   {
    "book": "วท.บ. วิทยาการการเปลี่ยนแปลงสภาพภูมิอากาศ.docx",
    "provider": "gemini",
+   "model": "gemini-flash-latest",
    "mode": "llm_only",
-   "status": "error"
+   "status": "ok",
+   "extract_seconds": 60.03,
+   "llm_seconds": 59.99,
+   "llm_calls": 5,
+   "llm_retries": 0,
+   "prompt_tokens": 14346,
+   "completion_tokens": 7287,
+   "cost_usd": 0.0381,
+   "info_accuracy": 1.0,
+   "plo_precision": 1.0,
+   "plo_recall": 1.0,
+   "plo_text": 1.0,
+   "structure_precision": 1.0,
+   "structure_recall": 1.0,
+   "structure_credits": 1.0,
+   "courses_precision": 1.0,
+   "courses_recall": 0.754,
+   "courses_name_th": 1.0,
+   "courses_credits": 0.977
   }
  ]
 }

@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     gemini_api_key: str | None = None
     gemini_model: str = "gemini-flash-latest"  # alias that tracks Google's current Flash release
     gemini_base_url: str = "https://generativelanguage.googleapis.com"
+    # Gemini 2.5+/3.x "think" before answering and the thoughts count against maxOutputTokens
+    # (and are billed as output); extraction needs no reasoning, so thinking is off (0).
+    # None = model default.
+    gemini_thinking_budget: int | None = 0
 
     # parser_first (production) | llm_only (evaluation: LLM-capable parts skip their parsers)
     extract_mode: Literal["parser_first", "llm_only"] = "parser_first"
@@ -57,6 +61,7 @@ class Settings(BaseSettings):
         "database_url",
         "auth_secret",
         "gemini_api_key",
+        "gemini_thinking_budget",
         mode="before",
     )
     @classmethod

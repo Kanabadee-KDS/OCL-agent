@@ -19,7 +19,7 @@
 uv run python tools/bench.py --books samples/curriculum --out docs/eval/run-$(date +%F) --providers ollama,gemini --modes parser_first,llm_only
 ```
 
-ตัวเลือก: `--only <ส่วนของชื่อไฟล์>` รันบางเล่ม · `--providers parser` = leg ตรวจสอบตัวเอง (ต้องได้ 1.000 ทุกช่อง) · รันซ้ำจะข้าม leg ที่มี report.json แล้ว (ลบโฟลเดอร์ของ leg นั้นถ้าต้องการรันใหม่)
+ตัวเลือก: `--repeat 2` รันแต่ละ leg ซ้ำ (ดูความแปรปรวนของโมเดล; pilot พบ Gemini ตอบ chunk เดียวกันต่างกันระหว่างรอบ) · `--only <ส่วนของชื่อไฟล์>` รันบางเล่ม · `--providers parser` = leg ตรวจสอบตัวเอง (ต้องได้ 1.000 ทุกช่อง) · รันซ้ำจะข้าม leg ที่มี report.json แล้ว (ลบโฟลเดอร์ของ leg นั้นถ้าต้องการรันใหม่)
 
 ผลลัพธ์ใน `<out>/`: `results.csv` (แถวละ เล่ม×provider×โหมด), `results.json`, `summary.md` (ค่าเฉลี่ย), และต่อเล่ม `<book>/{ingest,ref,<provider>-<mode>}/` พร้อม `scores.json` ที่บอกรายการที่หาย/แต่งเอง (`missed`, `hallucinated`) และฟิลด์ที่ผิด (`wrong`) เพื่อให้ Admin ตรวจได้
 

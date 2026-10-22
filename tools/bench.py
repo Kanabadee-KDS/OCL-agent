@@ -49,6 +49,7 @@ def main() -> int:
     ap.add_argument("--modes", default="parser_first,llm_only")
     ap.add_argument("--parts", default=",".join(SCORED_PARTS), help="parts to extract/score")
     ap.add_argument("--only", default="", help="substring filter on book file names")
+    ap.add_argument("--repeat", type=int, default=1, help="run each LLM leg N times (variance)")
     ap.add_argument("--limit", type=int, default=0, help="only the first N books")
     args = ap.parse_args()
 
@@ -87,71 +88,82 @@ def main() -> int:
             print(f"[ref] {book.name}: parser reference written")
         for provider in providers:
             for mode in modes:
-                run_dir = bdir / f"{provider}-{mode}"
-                rep_path = run_dir / "report.json"
-                if rep_path.exists():
-                    print(f"[skip] {book.name} {provider}/{mode} (exists)")
-                else:
-                    if provider == "parser":  # sanity leg: must score 1.0 against the reference
-                        if mode != "parser_first":
-                            continue
-                        gw = None
+                for rep_i in range(1, max(1, args.repeat) + 1):
+                    suffix = "" if rep_i == 1 else f"-r{rep_i}"
+                    run_dir = bdir / f"{provider}-{mode}{suffix}"
+                    rep_path = run_dir / "report.json"
+                    if rep_path.exists():
+                        print(f"[skip] {book.name} {provider}/{mode} (exists)")
                     else:
-                        gw = LLMGateway(settings.model_copy(update={"llm_provider": provider}))
-                    t0 = time.perf_counter()
-                    try:
-                        extract(ingest_dir, parts=parts, gateway=gw, out_dir=run_dir, mode=mode)  # type: ignore[arg-type]
-                        status = "ok"
-                    except Exception as e:  # keep going with the other legs
-                        status = f"error: {e}"[:300]
-                        run_dir.mkdir(parents=True, exist_ok=True)
-                        (run_dir / "error.txt").write_text(status, encoding="utf-8")
-                        print(f"[fail] {book.name} {provider}/{mode}: {status}", file=sys.stderr)
-                    print(
-                        f"[run] {book.name} {provider}/{mode}: {status} in {time.perf_counter() - t0:.1f}s"
+                        if provider == "parser":  # sanity leg: must score 1.0 against the reference
+                            if mode != "parser_first":
+                                continue
+                            gw = None
+                        else:
+                            gw = LLMGateway(settings.model_copy(update={"llm_provider": provider}))
+                        t0 = time.perf_counter()
+                        try:
+                            extract(ingest_dir, parts=parts, gateway=gw, out_dir=run_dir, mode=mode)  # type: ignore[arg-type]
+                            status = "ok"
+                        except Exception as e:  # keep going with the other legs
+                            status = f"error: {e}"[:300]
+                            run_dir.mkdir(parents=True, exist_ok=True)
+                            (run_dir / "error.txt").write_text(status, encoding="utf-8")
+                            print(
+                                f"[fail] {book.name} {provider}/{mode}: {status}", file=sys.stderr
+                            )
+                        print(
+                            f"[run] {book.name} {provider}/{mode}: {status} in {time.perf_counter() - t0:.1f}s"
+                        )
+                    if not rep_path.exists():
+                        rows.append(
+                            {
+                                "book": book.name,
+                                "provider": provider,
+                                "mode": mode,
+                                "run": rep_i,
+                                "status": "error",
+                            }
+                        )
+                        continue
+                    report = json.loads(rep_path.read_text(encoding="utf-8"))
+                    usage = run_usage(report)
+                    scores = score_run(ref_dir, run_dir)
+                    row = {
+                        "book": book.name,
+                        "provider": provider,
+                        "model": usage["model"] or report.get("model"),
+                        "mode": mode,
+                        "run": rep_i,
+                        "status": "ok",
+                        "extract_seconds": usage["extract_seconds"],
+                        "llm_seconds": usage["seconds"],
+                        "llm_calls": usage["calls"],
+                        "llm_retries": usage["retries"],
+                        "prompt_tokens": usage["prompt_tokens"],
+                        "completion_tokens": usage["completion_tokens"],
+                        "cost_usd": cost_usd(
+                            provider, usage["prompt_tokens"], usage["completion_tokens"]
+                        ),
+                    }
+                    info, plo, st, co = (
+                        scores.get(k) or {} for k in ("info", "plo", "structure", "courses")
                     )
-                if not rep_path.exists():
-                    rows.append(
-                        {"book": book.name, "provider": provider, "mode": mode, "status": "error"}
+                    row.update(
+                        info_accuracy=info.get("accuracy"),
+                        plo_precision=plo.get("precision"), plo_recall=plo.get("recall"), plo_text=plo.get("text_accuracy"),
+                        structure_precision=st.get("precision"), structure_recall=st.get("recall"), structure_credits=st.get("credits_accuracy"),
+                        courses_precision=co.get("precision"), courses_recall=co.get("recall"),
+                        courses_name_th=co.get("name_th_accuracy"), courses_credits=co.get("credits_accuracy"),
+                    )  # fmt: skip
+                    rows.append(row)
+                    (run_dir / "scores.json").write_text(
+                        json.dumps(scores, ensure_ascii=False, indent=1), encoding="utf-8"
                     )
-                    continue
-                report = json.loads(rep_path.read_text(encoding="utf-8"))
-                usage = run_usage(report)
-                scores = score_run(ref_dir, run_dir)
-                row = {
-                    "book": book.name,
-                    "provider": provider,
-                    "model": usage["model"] or report.get("model"),
-                    "mode": mode,
-                    "status": "ok",
-                    "extract_seconds": usage["extract_seconds"],
-                    "llm_seconds": usage["seconds"],
-                    "llm_calls": usage["calls"],
-                    "llm_retries": usage["retries"],
-                    "prompt_tokens": usage["prompt_tokens"],
-                    "completion_tokens": usage["completion_tokens"],
-                    "cost_usd": cost_usd(
-                        provider, usage["prompt_tokens"], usage["completion_tokens"]
-                    ),
-                }
-                info, plo, st, co = (
-                    scores.get(k) or {} for k in ("info", "plo", "structure", "courses")
-                )
-                row.update(
-                    info_accuracy=info.get("accuracy"),
-                    plo_precision=plo.get("precision"), plo_recall=plo.get("recall"), plo_text=plo.get("text_accuracy"),
-                    structure_precision=st.get("precision"), structure_recall=st.get("recall"), structure_credits=st.get("credits_accuracy"),
-                    courses_precision=co.get("precision"), courses_recall=co.get("recall"),
-                    courses_name_th=co.get("name_th_accuracy"), courses_credits=co.get("credits_accuracy"),
-                )  # fmt: skip
-                rows.append(row)
-                (run_dir / "scores.json").write_text(
-                    json.dumps(scores, ensure_ascii=False, indent=1), encoding="utf-8"
-                )
 
     cols = sorted(
         {k for r in rows for k in r},
-        key=lambda k: (k not in ("book", "provider", "model", "mode", "status"), k),
+        key=lambda k: (k not in ("book", "provider", "model", "mode", "run", "status"), k),
     )
     with (out / "results.csv").open("w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=cols)

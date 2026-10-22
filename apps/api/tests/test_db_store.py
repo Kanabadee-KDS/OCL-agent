@@ -22,6 +22,7 @@ def client(pg_url: str, schema: str, tmp_path: Path, monkeypatch: pytest.MonkeyP
     monkeypatch.setenv("DATA_DIR", str(tmp_path / "data"))
     monkeypatch.setenv("DATABASE_URL", pg_url)
     monkeypatch.setenv("AUTH_SECRET", "")
+    monkeypatch.setenv("GEMINI_API_KEY", "")  # the developer's .env may hold a real key
     monkeypatch.setenv("DATABASE_SCHEMA", schema)
     monkeypatch.setenv("INLINE_WORKER", "true")
     monkeypatch.setenv("OLLAMA_MODEL", "gemma4:26b")

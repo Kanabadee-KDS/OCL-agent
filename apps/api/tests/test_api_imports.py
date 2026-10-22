@@ -18,6 +18,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
     monkeypatch.setenv("DATA_DIR", str(tmp_path / "data"))
     monkeypatch.setenv("DATABASE_URL", "")  # file mode even when .env points at Neon
     monkeypatch.setenv("AUTH_SECRET", "")  # auth off even when .env has a secret
+    monkeypatch.setenv("GEMINI_API_KEY", "")  # the developer's .env may hold a real key
     monkeypatch.setenv("INLINE_WORKER", "true")
     monkeypatch.setenv("OLLAMA_MODEL", "gemma4:26b")
     monkeypatch.setenv("OLLAMA_KEEP_ALIVE", "10m")

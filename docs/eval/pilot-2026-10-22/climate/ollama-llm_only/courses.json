@@ -1,0 +1,1563 @@
+{
+ "part": "courses",
+ "data": {
+  "courses": [
+   {
+    "code_th": "ศท111",
+    "code_en": "GEN111",
+    "name_th": "ศิลปะการใช้ชีวิต",
+    "name_en": "The Art of Living",
+    "credit_text": "3(3-0-6)",
+    "credits": 3,
+    "hours": {
+     "lecture": 3,
+     "lab": 0,
+     "self": 6
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "ศิลปะการใช้ชีวิต"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "ศท112",
+    "code_en": "GEN112",
+    "name_th": "พลังการสื่อสาร",
+    "name_en": "Power of Communication",
+    "credit_text": "3(3-0-6)",
+    "credits": 3,
+    "hours": {
+     "lecture": 3,
+     "lab": 0,
+     "self": 6
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "พลังการสื่อสาร"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "ศท113",
+    "code_en": "GEN113",
+    "name_th": "ถอดรหัสยุคดิจิทัล",
+    "name_en": "Decoding the Digital Age",
+    "credit_text": "3(3-0-6)",
+    "credits": 3,
+    "hours": {
+     "lecture": 3,
+     "lab": 0,
+     "self": 6
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "ถอดรหัสยุคดิจิทัล"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "ศท114",
+    "code_en": "GEN114",
+    "name_th": "วิถีนักคิด",
+    "name_en": "The Way of Thinker",
+    "credit_text": "3(3-0-6)",
+    "credits": 3,
+    "hours": {
+     "lecture": 3,
+     "lab": 0,
+     "self": 6
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "วิถีนักคิด"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "ศท121",
+    "code_en": "GEN121",
+    "name_th": "การฟังและการพูดภาษาอังกฤษเพื่อการสื่อสารอย่างมีประสิทธิภาพ",
+    "name_en": "Listening and Speaking for Effective English Communication",
+    "credit_text": "3(3-0-6)",
+    "credits": 3,
+    "hours": {
+     "lecture": 3,
+     "lab": 0,
+     "self": 6
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "การฟังและการพูดภาษาอังกฤษเพื่อการสื่อสารอย่างมีประสิทธิภาพ"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "ศท122",
+    "code_en": "GEN122",
+    "name_th": "การอ่านและการเขียนภาษาอังกฤษเพื่อการสื่อสารอย่างมีประสิทธิภาพ",
+    "name_en": "Reading and Writing for Effective English Communication",
+    "credit_text": "3(3-0-6)",
+    "credits": 3,
+    "hours": {
+     "lecture": 3,
+     "lab": 0,
+     "self": 6
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "การอ่านและการเขียนภาษาอังกฤษเพื่อการสื่อสารอย่างมีประสิทธิภาพ"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "ศท131",
+    "code_en": "GEN131",
+    "name_th": "เส้นทางผู้ประกอบการเพื่อสังคม",
+    "name_en": "Entrepreneur's Journey for Society",
+    "credit_text": "3(3-0-6)",
+    "credits": 3,
+    "hours": {
+     "lecture": 3,
+     "lab": 0,
+     "self": 6
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "เส้นทางผู้ประกอบการเพื่อสังคม"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "ศท132",
+    "code_en": "GEN132",
+    "name_th": "วิถีชีวิตเพื่อสุขภาพยุคใหม่",
+    "name_en": "Modern Health Lifestyles",
+    "credit_text": "3(3-0-6)",
+    "credits": 3,
+    "hours": {
+     "lecture": 3,
+     "lab": 0,
+     "self": 6
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "วิถีชีวิตเพื่อสุขภาพยุคใหม่"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "ศท133",
+    "code_en": "GEN133",
+    "name_th": "ศาสตร์และศิลป์เพื่อการอยู่ร่วมกันในสังคมพลวัต",
+    "name_en": "The Science and Art of Living Together in the Dynamic Society",
+    "credit_text": "3(3-0-6)",
+    "credits": 3,
+    "hours": {
+     "lecture": 3,
+     "lab": 0,
+     "self": 6
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "ศาสตร์และศิลป์เพื่อการอยู่ร่วมกันในสังคมพลวัต"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "ศท134",
+    "code_en": "GEN134",
+    "name_th": "ใช้ชีวิตแบบไม่ทิ้งโลก",
+    "name_en": "Live Sustainably",
+    "credit_text": "3(3-0-6)",
+    "credits": 3,
+    "hours": {
+     "lecture": 3,
+     "lab": 0,
+     "self": 6
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "ใช้ชีวิตแบบไม่ทิ้งโลก"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "ศท135",
+    "code_en": "GEN135",
+    "name_th": "เขียนอย่างสร้างสรรค์ด้วยพลังแนวคิด",
+    "name_en": "The Power of Concepts in Creative Writing",
+    "credit_text": "3(3-0-6)",
+    "credits": 3,
+    "hours": {
+     "lecture": 3,
+     "lab": 0,
+     "self": 6
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "เขียนอย่างสร้างสรรค์ด้วยพลังแนวคิด"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "ศท136",
+    "code_en": "GEN136",
+    "name_th": "พลังพลเมืองรุ่นใหม่",
+    "name_en": "Empowered Young Citizens",
+    "credit_text": "3(3-0-6)",
+    "credits": 3,
+    "hours": {
+     "lecture": 3,
+     "lab": 0,
+     "self": 6
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "พลังพลเมืองรุ่นใหม่"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "ศท201",
+    "code_en": "GEN201",
+    "name_th": "บูรณาการทักษะชีวิตยุคใหม่",
+    "name_en": "Integrated Modern Life Skills",
+    "credit_text": "3(3-0-6)",
+    "credits": 3,
+    "hours": {
+     "lecture": 3,
+     "lab": 0,
+     "self": 6
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "บูรณาการทักษะชีวิตยุคใหม่"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "คม100",
+    "code_en": "CH100",
+    "name_th": "เคมีทั่วไป 1",
+    "name_en": "General Chemistry I",
+    "credit_text": "3(3-0-6)",
+    "credits": 3,
+    "hours": {
+     "lecture": 3,
+     "lab": 0,
+     "self": 6
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "เคมีทั่วไป 1"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "คม190",
+    "code_en": "CH190",
+    "name_th": "ปฏิบัติการเคมีทั่วไป 1",
+    "name_en": "General Chemistry Laboratory I",
+    "credit_text": "1(0-3-0)",
+    "credits": 1,
+    "hours": {
+     "lecture": 0,
+     "lab": 3,
+     "self": 0
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "ปฏิบัติการเคมีทั่วไป 1"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "วป111",
+    "code_en": "CE111",
+    "name_th": "เคมีอินทรีย์สิ่งแวดล้อม",
+    "name_en": "Environmental Organic Chemistry",
+    "credit_text": "3(2-2-5)",
+    "credits": 3,
+    "hours": {
+     "lecture": 2,
+     "lab": 2,
+     "self": 5
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "เคมีอินทรีย์สิ่งแวดล้อม"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "คณ104",
+    "code_en": "MA104",
+    "name_th": "คณิตศาสตร์พื้นฐาน",
+    "name_en": "Basic Mathematics",
+    "credit_text": "3(3-0-6)",
+    "credits": 3,
+    "hours": {
+     "lecture": 3,
+     "lab": 0,
+     "self": 6
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "คณิตศาสตร์พื้นฐาน"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "ฟส100",
+    "code_en": "PY100",
+    "name_th": "ฟิสิกส์ทั่วไป",
+    "name_en": "General Physics",
+    "credit_text": "3(3-0-6)",
+    "credits": 3,
+    "hours": {
+     "lecture": 3,
+     "lab": 0,
+     "self": 6
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "ฟิสิกส์ทั่วไป"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "วป211",
+    "code_en": "CE211",
+    "name_th": "เคมีวิเคราะห์ทางวิทยาศาสตร์สิ่งแวดล้อม",
+    "name_en": "Analytical Chemistry in Environmental Science",
+    "credit_text": "3(2-2-5)",
+    "credits": 3,
+    "hours": {
+     "lecture": 2,
+     "lab": 2,
+     "self": 5
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "เคมีวิเคราะห์ทางวิทยาศาสตร์สิ่งแวดล้อม"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "วป212",
+    "code_en": "CE212",
+    "name_th": "ชีวเคมีสิ่งแวดล้อมพื้นฐาน",
+    "name_en": "Fundamental Environmental Biochemistry",
+    "credit_text": "3(2-2-5)",
+    "credits": 3,
+    "hours": {
+     "lecture": 2,
+     "lab": 2,
+     "self": 5
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "ชีวเคมีสิ่งแวดล้อมพื้นฐาน"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "วป213",
+    "code_en": "CE213",
+    "name_th": "ชีววิทยาและนิเวศวิทยาเพื่อสิ่งแวดล้อม",
+    "name_en": "Biology and Ecology for Environment",
+    "credit_text": "3(2-2-5)",
+    "credits": 3,
+    "hours": {
+     "lecture": 2,
+     "lab": 2,
+     "self": 5
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "ชีววิทยาและนิเวศวิทยาเพื่อสิ่งแวดล้อม"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "วป112",
+    "code_en": "CE112",
+    "name_th": "วิทยาศาสตร์สภาพภูมิอากาศและเคมีบรรยากาศ",
+    "name_en": "Climate Science and Atmospheric Chemistry",
+    "credit_text": "3(3-0-6)",
+    "credits": 3,
+    "hours": {
+     "lecture": 3,
+     "lab": 0,
+     "self": 6
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "วิทยาศาสตร์สภาพภูมิอากาศและเคมีบรรยากาศ"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "วป113",
+    "code_en": "CE113",
+    "name_th": "ปฏิบัติการด้านสภาพภูมิอากาศและเคมีบรรยากาศ",
+    "name_en": "Climate and Atmospheric Chemistry Laboratory",
+    "credit_text": "1(0-3-0)",
+    "credits": 1,
+    "hours": {
+     "lecture": 0,
+     "lab": 3,
+     "self": 0
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "ปฏิบัติการด้านสภาพภูมิอากาศและเคมีบรรยากาศ"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "วป214",
+    "code_en": "CE214",
+    "name_th": "ก๊าซเรือนกระจกและสภาพภูมิอากาศระยะยาว",
+    "name_en": "Greenhouse Gases and Long-term Climate",
+    "credit_text": "3(2-2-5)",
+    "credits": 3,
+    "hours": {
+     "lecture": 2,
+     "lab": 2,
+     "self": 5
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "ก๊าซเรือนกระจกและสภาพภูมิอากาศระยะยาว"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "วป215",
+    "code_en": "CE215",
+    "name_th": "ผลกระทบการเปลี่ยนแปลงสภาพภูมิอากาศและการแก้ไข",
+    "name_en": "Climate Change Impact and Solution",
+    "credit_text": "3(2-2-5)",
+    "credits": 3,
+    "hours": {
+     "lecture": 2,
+     "lab": 2,
+     "self": 5
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "ผลกระทบการเปลี่ยนแปลงสภาพภูมิอากาศและการแก้ไข"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "วป216",
+    "code_en": "CE216",
+    "name_th": "การปรับตัวสู่สังคมคาร์บอนต่ำ",
+    "name_en": "Adaptation to Low Carbon Sociaty",
+    "credit_text": "2(1-2-3)",
+    "credits": 2,
+    "hours": {
+     "lecture": 1,
+     "lab": 2,
+     "self": 3
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "การปรับตัวสู่สังคมคาร์บอนต่ำ"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "วป217",
+    "code_en": "CE217",
+    "name_th": "การจัดการสิ่งแวดล้อมเชิงระบบ",
+    "name_en": "System Approaches in Environment Management",
+    "credit_text": "2(2-0-4)",
+    "credits": 2,
+    "hours": {
+     "lecture": 2,
+     "lab": 0,
+     "self": 4
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "การจัดการสิ่งแวดล้อมเชิงระบบ"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "วป218",
+    "code_en": "CE218",
+    "name_th": "ระบบภูมิสารสนเทศเพื่อการจัดการสิ่งแวดล้อม",
+    "name_en": "Geographic Information Systems for Environmental Management",
+    "credit_text": "2(1-2-3)",
+    "credits": 2,
+    "hours": {
+     "lecture": 1,
+     "lab": 2,
+     "self": 3
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "ระบบภูมิสารสนเทศเพื่อการจัดการสิ่งแวดล้อม"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "วป219",
+    "code_en": "CE219",
+    "name_th": "พื้นฐานการออกแบบเพื่อการสื่อสาร",
+    "name_en": "Fundamental of Media Communication Design",
+    "credit_text": "2(2-0-4)",
+    "credits": 2,
+    "hours": {
+     "lecture": 2,
+     "lab": 0,
+     "self": 4
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "พื้นฐานการออกแบบเพื่อการสื่อสาร"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "วป221",
+    "code_en": "CE221",
+    "name_th": "การสื่อความหมายธรรมชาติและสิ่งแวดล้อม",
+    "name_en": "Nature and Environment Interpretation",
+    "credit_text": "2(1-2-3)",
+    "credits": 2,
+    "hours": {
+     "lecture": 1,
+     "lab": 2,
+     "self": 3
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "การสื่อความหมายธรรมชาติและสิ่งแวดล้อม"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "วป311",
+    "code_en": "CE311",
+    "name_th": "เศรษฐศาสตร์เพื่อการจัดการสิ่งแวดล้อม",
+    "name_en": "Economic for Environmental Management",
+    "credit_text": "2(2-0-4)",
+    "credits": 2,
+    "hours": {
+     "lecture": 2,
+     "lab": 0,
+     "self": 4
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "เศรษฐศาสตร์เพื่อการจัดการสิ่งแวดล้อม"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "วป312",
+    "code_en": "CE312",
+    "name_th": "กฎหมาย นโยบาย และอนุสัญญาสิ่งแวดล้อมระหว่างประเทศ",
+    "name_en": "Law Policy and International Environmental Conventions",
+    "credit_text": "3(3-0-6)",
+    "credits": 3,
+    "hours": {
+     "lecture": 3,
+     "lab": 0,
+     "self": 6
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "กฎหมาย นโยบาย และอนุสัญญาสิ่งแวดล้อมระหว่างประเทศ"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "วป313",
+    "code_en": "CE313",
+    "name_th": "การจัดทำบัญชีการปล่อยก๊าซเรือนกระจก",
+    "name_en": "Greenhouse Gases Inventory",
+    "credit_text": "3(2-2-5)",
+    "credits": 3,
+    "hours": {
+     "lecture": 2,
+     "lab": 2,
+     "self": 5
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "การจัดทำบัญชีการปล่อยก๊าซเรือนกระจก"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "วป314",
+    "code_en": "CE314",
+    "name_th": "การจัดการการปล่อยก๊าซเรือนกระจก",
+    "name_en": "Greenhouse Gas Emission Management",
+    "credit_text": "3(2-2-5)",
+    "credits": 3,
+    "hours": {
+     "lecture": 2,
+     "lab": 2,
+     "self": 5
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "การจัดการการปล่อยก๊าซเรือนกระจก"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "วป315",
+    "code_en": "CE315",
+    "name_th": "การประเมินวัฏจักรชีวิตและรอยเท้าคาร์บอน",
+    "name_en": "Life Cycle Assessment and Carbon Footprint",
+    "credit_text": "3(2-2-5)",
+    "credits": 3,
+    "hours": {
+     "lecture": 2,
+     "lab": 2,
+     "self": 5
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "การประเมินวัฏจักรชีวิตและรอยเท้าคาร์บอน"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "วป331",
+    "code_en": "CE331",
+    "name_th": "สัมมนา",
+    "name_en": "Seminar",
+    "credit_text": "1(0-3-0)",
+    "credits": 1,
+    "hours": {
+     "lecture": 0,
+     "lab": 3,
+     "self": 0
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "สัมมนา"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "วป332",
+    "code_en": "CE332",
+    "name_th": "ระเบียบวิธีวิจัยและสถิติสิ่งแวดล้อม",
+    "name_en": "Research Methodology and Environmental Statistics",
+    "credit_text": "3(2-2-5)",
+    "credits": 3,
+    "hours": {
+     "lecture": 2,
+     "lab": 2,
+     "self": 5
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "ระเบียบวิธีวิจัยและสถิติสิ่งแวดล้อม"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "วป333",
+    "code_en": "CE333",
+    "name_th": "ปัญญาประดิษฐ์และการวิเคราะห์ข้อมูลขนาดใหญ่ด้านสภาพภูมิอากาศ",
+    "name_en": "Artificial Intelligence and Climate Big Data Analytics",
+    "credit_text": "3(2-2-5)",
+    "credits": 3,
+    "hours": {
+     "lecture": 2,
+     "lab": 2,
+     "self": 5
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "ปัญญาประดิษฐ์และการวิเคราะห์ข้อมูลขนาดใหญ่ด้านสภาพภูมิอากาศ"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "วป431",
+    "code_en": "CE431",
+    "name_th": "ฝึกงาน",
+    "name_en": "Internship",
+    "credit_text": "2(0-6-0)",
+    "credits": 2,
+    "hours": {
+     "lecture": 0,
+     "lab": 6,
+     "self": 0
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "ฝึกงาน"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "วป432",
+    "code_en": "CE432",
+    "name_th": "โครงงานวิจัย 1",
+    "name_en": "Senior Project 1",
+    "credit_text": "1(0-2-1)",
+    "credits": 1,
+    "hours": {
+     "lecture": 0,
+     "lab": 2,
+     "self": 1
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "โครงงานวิจัย 1"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "วป433",
+    "code_en": "CE433",
+    "name_th": "โครงงานวิจัย 2",
+    "name_en": "Senior Project 2",
+    "credit_text": "1(0-2-1)",
+    "credits": 1,
+    "hours": {
+     "lecture": 0,
+     "lab": 2,
+     "self": 1
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "โครงงานวิจัย 2"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "วป434",
+    "code_en": "CE434",
+    "name_th": "สหกิจศึกษา",
+    "name_en": "Cooperative Education",
+    "credit_text": "6(0-18-0)",
+    "credits": 6,
+    "hours": {
+     "lecture": 0,
+     "lab": 18,
+     "self": 0
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "สหกิจศึกษา"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "วป435",
+    "code_en": "CE435",
+    "name_th": "การประมวลความรู้ด้านการเปลี่ยนแปลงสภาพภูมิอากาศและสิ่งแวดล้อม",
+    "name_en": "Comprehensive in Climate Change and Environment",
+    "credit_text": "2(1-2-3)",
+    "credits": 2,
+    "hours": {
+     "lecture": 1,
+     "lab": 2,
+     "self": 3
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "การประมวลความรู้ด้านการเปลี่ยนแปลงสภาพภูมิอากาศและสิ่งแวดล้อม"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "วป436",
+    "code_en": "CE436",
+    "name_th": "สัมมนาสหกิจศึกษา",
+    "name_en": "Seminar for Cooperative Education",
+    "credit_text": "1(0-2-1)",
+    "credits": 1,
+    "hours": {
+     "lecture": 0,
+     "lab": 2,
+     "self": 1
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "สัมมนาสหกิจศึกษา"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "วป437",
+    "code_en": "CE437",
+    "name_th": "เตรียมสหกิจศึกษา",
+    "name_en": "Pre-Cooperative Education",
+    "credit_text": "1(0-2-1)",
+    "credits": 1,
+    "hours": {
+     "lecture": 0,
+     "lab": 2,
+     "self": 1
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "เตรียมสหกิจศึกษา"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "วป441",
+    "code_en": "CE441",
+    "name_th": "การเปลี่ยนแปลงสภาพภูมิอากาศและสุขภาพ",
+    "name_en": "Climate Change and Health",
+    "credit_text": "3(2-2-5)",
+    "credits": 3,
+    "hours": {
+     "lecture": 2,
+     "lab": 2,
+     "self": 5
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "การเปลี่ยนแปลงสภาพภูมิอากาศและสุขภาพ"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "วป442",
+    "code_en": "CE442",
+    "name_th": "ความปลอดภัยและความมั่นคงทางอาหาร",
+    "name_en": "Food Safety and Food Security",
+    "credit_text": "3(2-2-5)",
+    "credits": 3,
+    "hours": {
+     "lecture": 2,
+     "lab": 2,
+     "self": 5
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "ความปลอดภัยและความมั่นคงทางอาหาร"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "วป443",
+    "code_en": "CE443",
+    "name_th": "หลักการเกษตรกรรมเพื่อการจำกัดปริมาณคาร์บอนในโลก",
+    "name_en": "Principle of Agriculture for Carbon-Constrained World",
+    "credit_text": "3(2-2-5)",
+    "credits": 3,
+    "hours": {
+     "lecture": 2,
+     "lab": 2,
+     "self": 5
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "หลักการเกษตรกรรมเพื่อการจำกัดปริมาณคาร์บอนในโลก"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "วป444",
+    "code_en": "CE444",
+    "name_th": "การจัดการป่าคาร์บอนเพื่อความยั่งยืน",
+    "name_en": "Forest Carbon Management for Sustainability",
+    "credit_text": "3(2-2-5)",
+    "credits": 3,
+    "hours": {
+     "lecture": 2,
+     "lab": 2,
+     "self": 5
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "การจัดการป่าคาร์บอนเพื่อความยั่งยืน"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "วป445",
+    "code_en": "CE445",
+    "name_th": "พลังงานทางเลือก",
+    "name_en": "Alternative Energy",
+    "credit_text": "3(2-2-5)",
+    "credits": 3,
+    "hours": {
+     "lecture": 2,
+     "lab": 2,
+     "self": 5
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "พลังงานทางเลือก"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "วป446",
+    "code_en": "CE446",
+    "name_th": "พลังงานสะอาดและพลังงานยุคใหม่ของโลก",
+    "name_en": "Clean Energy and Modern Energy in the World",
+    "credit_text": "3(2-2-5)",
+    "credits": 3,
+    "hours": {
+     "lecture": 2,
+     "lab": 2,
+     "self": 5
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "พลังงานสะอาดและพลังงานยุคใหม่ของโลก"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "วป447",
+    "code_en": "CE447",
+    "name_th": "การจัดการของเสียและการคำนวนคาร์บอน",
+    "name_en": "Waste Management and Carbon Calculation",
+    "credit_text": "3(2-2-5)",
+    "credits": 3,
+    "hours": {
+     "lecture": 2,
+     "lab": 2,
+     "self": 5
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "การจัดการของเสียและการคำนวนคาร์บอน"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "วป448",
+    "code_en": "CE448",
+    "name_th": "การจัดการขยะและการแปรรูปผลิตภัณฑ์เพื่อใช้ประโยชน์",
+    "name_en": "Solid Waste Management and Processing Products for Utilization",
+    "credit_text": "3(2-2-5)",
+    "credits": 3,
+    "hours": {
+     "lecture": 2,
+     "lab": 2,
+     "self": 5
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "การจัดการขยะและการแปรรูปผลิตภัณฑ์เพื่อใช้ประโยชน์"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "วป451",
+    "code_en": "CE451",
+    "name_th": "นวัตกรรมสิ่งแวดล้อมและวิสาหกิจเริ่มต้น",
+    "name_en": "Environmental Innovation and Startup",
+    "credit_text": "3(2-2-5)",
+    "credits": 3,
+    "hours": {
+     "lecture": 2,
+     "lab": 2,
+     "self": 5
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "นวัตกรรมสิ่งแวดล้อมและวิสาหกิจเริ่มต้น"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "วป452",
+    "code_en": "CE452",
+    "name_th": "การเป็นผู้ประกอบการและการบริหารคาร์บอนองค์กร",
+    "name_en": "Entrepreneurship and Carbon Organization Management",
+    "credit_text": "3(2-2-5)",
+    "credits": 3,
+    "hours": {
+     "lecture": 2,
+     "lab": 2,
+     "self": 5
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "การเป็นผู้ประกอบการและการบริหารคาร์บอนองค์กร"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "วป453",
+    "code_en": "CE453",
+    "name_th": "การจัดการการท่องเที่ยวคาร์บอนต่ำ",
+    "name_en": "Low Carbon Tourism Management",
+    "credit_text": "3(2-2-5)",
+    "credits": 3,
+    "hours": {
+     "lecture": 2,
+     "lab": 2,
+     "self": 5
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "การจัดการการท่องเที่ยวคาร์บอนต่ำ"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   },
+   {
+    "code_th": "วป454",
+    "code_en": "CE454",
+    "name_th": "การพัฒนาธุรกิจการท่องเที่ยวคาร์บอนต่ำ",
+    "name_en": "Low Carbon Tourism Business Development",
+    "credit_text": "3(2-2-5)",
+    "credits": 3,
+    "hours": {
+     "lecture": 2,
+     "lab": 2,
+     "self": 5
+    },
+    "description_th": null,
+    "description_en": null,
+    "prerequisite": null,
+    "group": null,
+    "module": null,
+    "meta": {
+     "confidence": "medium",
+     "source": {
+      "page": null,
+      "snippet": "การพัฒนาธุรกิจการท่องเที่ยวคาร์บอนต่ำ"
+     },
+     "by": "llm",
+     "inferred": false
+    }
+   }
+  ],
+  "meta": {},
+  "parser_count": 0,
+  "llm_count": 57,
+  "count": 57
+ },
+ "notes": [
+  "llm chunk 1: 42 items, 42 verified",
+  "llm chunk 2: 15 items, 15 verified"
+ ],
+ "llm": {
+  "provider": "ollama",
+  "model": "gemma4:26b",
+  "prompt_tokens": 9924,
+  "completion_tokens": 4681,
+  "seconds": 45.016999999999996,
+  "calls": 2,
+  "retries": 0
+ }
+}

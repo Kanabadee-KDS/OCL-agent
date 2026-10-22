@@ -1,5 +1,5 @@
 book,mode,model,provider,status,completion_tokens,cost_usd,courses_credits,courses_name_th,courses_precision,courses_recall,extract_seconds,info_accuracy,llm_calls,llm_retries,llm_seconds,plo_precision,plo_recall,plo_text,prompt_tokens,structure_credits,structure_precision,structure_recall
 วท.บ. วิทยาการการเปลี่ยนแปลงสภาพภูมิอากาศ.docx,parser_first,gemma4:26b,ollama,ok,4891,0.0,1.0,1.0,1.0,1.0,57.51,1.0,3,0,57.46,1.0,1.0,1.0,10832,1.0,1.0,1.0
 วท.บ. วิทยาการการเปลี่ยนแปลงสภาพภูมิอากาศ.docx,llm_only,gemma4:26b,ollama,ok,7633,0.0,1.0,1.0,1.0,1.0,75.35,0.6,5,0,75.3,1.0,1.0,1.0,14431,1.0,1.0,1.0
-วท.บ. วิทยาการการเปลี่ยนแปลงสภาพภูมิอากาศ.docx,parser_first,,gemini,error,,,,,,,,,,,,,,,,,,
-วท.บ. วิทยาการการเปลี่ยนแปลงสภาพภูมิอากาศ.docx,llm_only,,gemini,error,,,,,,,,,,,,,,,,,,
+วท.บ. วิทยาการการเปลี่ยนแปลงสภาพภูมิอากาศ.docx,parser_first,gemini-flash-latest,gemini,ok,3795,0.0223,1.0,1.0,1.0,1.0,26.92,1.0,3,0,26.89,1.0,1.0,1.0,10781,1.0,1.0,1.0
+วท.บ. วิทยาการการเปลี่ยนแปลงสภาพภูมิอากาศ.docx,llm_only,gemini-flash-latest,gemini,ok,7287,0.0381,0.977,1.0,1.0,0.754,60.03,1.0,5,0,59.99,1.0,1.0,1.0,14346,1.0,1.0,1.0
