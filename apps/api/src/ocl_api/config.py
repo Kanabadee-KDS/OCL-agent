@@ -26,7 +26,10 @@ class Settings(BaseSettings):
     ollama_keep_alive: str | None = "10m"
     ollama_think: bool = False
 
+    # Cloud AI: Gemini via the REST generateContent API (key sent as a header, never in the URL)
     gemini_api_key: str | None = None
+    gemini_model: str = "gemini-flash-latest"  # alias that tracks Google's current Flash release
+    gemini_base_url: str = "https://generativelanguage.googleapis.com"
 
     data_dir: Path = Path("./data")
     database_url: str | None = None
@@ -42,7 +45,12 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
 
     @field_validator(
-        "ollama_keep_alive", "ollama_num_ctx", "database_url", "auth_secret", mode="before"
+        "ollama_keep_alive",
+        "ollama_num_ctx",
+        "database_url",
+        "auth_secret",
+        "gemini_api_key",
+        mode="before",
     )
     @classmethod
     def _empty_is_none(cls, v: object) -> object:

@@ -38,6 +38,7 @@ def create_app() -> FastAPI:
             "llm_provider": s.llm_provider,
             "ollama_model": s.ollama_model if s.llm_provider == "ollama" else None,
             "gemini_configured": bool(s.gemini_api_key),
+            "gemini_model": s.gemini_model,
             "inline_worker": s.inline_worker,
             "database": "postgres" if s.database_url else "files",
             "auth": "enabled" if s.auth_secret else "disabled",

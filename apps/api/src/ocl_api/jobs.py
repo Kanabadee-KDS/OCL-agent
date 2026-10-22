@@ -43,7 +43,8 @@ _SAFE = re.compile(r"[^0-9A-Za-zก-๙._ -]+")
 
 
 def now_iso() -> str:
-    return datetime.now().isoformat(timespec="seconds")
+    # zone-aware so the web shows it in Asia/Bangkok wherever the container runs (UTC in Docker)
+    return datetime.now().astimezone().isoformat(timespec="seconds")
 
 
 def safe_filename(name: str) -> str:

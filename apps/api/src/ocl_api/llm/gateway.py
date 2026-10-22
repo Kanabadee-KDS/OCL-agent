@@ -87,7 +87,9 @@ class LLMGateway:
 
     @property
     def model(self) -> str:
-        return self.settings.ollama_model if self.provider == "ollama" else "gemini"
+        return (
+            self.settings.ollama_model if self.provider == "ollama" else self.settings.gemini_model
+        )
 
     def chat_json(
         self,
@@ -98,13 +100,14 @@ class LLMGateway:
         max_tokens: int = 4096,
         retries: int = 1,
     ) -> LLMResult:
-        if self.provider == "gemini":
-            raise LLMError("Gemini provider is not configured yet (interface reserved)")
+        if self.provider == "gemini" and not self.settings.gemini_api_key:
+            raise LLMError("Gemini provider needs GEMINI_API_KEY")
+        chat = self._gemini_chat if self.provider == "gemini" else self._ollama_chat
         usage = LLMUsage(self.provider, self.model)
         last_err: Exception | None = None
         prompt_user = user
         for _attempt in range(retries + 1):
-            raw, u, done_reason = self._ollama_chat(system, prompt_user, schema, max_tokens)
+            raw, u, done_reason = chat(system, prompt_user, schema, max_tokens)
             usage.add(u)
             if done_reason == "length":
                 # Retrying the same prompt cannot help; the caller must send less text.
@@ -159,3 +162,91 @@ class LLMGateway:
         )
         content = (data.get("message") or {}).get("content") or ""
         return content, usage, data.get("done_reason")
+
+    def _gemini_chat(
+        self, system: str, user: str, schema: dict[str, Any] | None, max_tokens: int
+    ) -> tuple[str, LLMUsage, str | None]:
+        """Gemini `generateContent` (REST, v1beta). JSON mode via responseMimeType and, when a
+        schema is given, responseSchema (OpenAPI subset, see `gemini_schema`). The API key goes in
+        the `x-goog-api-key` header so it never lands in URLs or logs."""
+        s = self.settings
+        gen: dict[str, Any] = {
+            "temperature": 0,
+            "maxOutputTokens": max_tokens,
+            "responseMimeType": "application/json",
+        }
+        if schema:
+            gen["responseSchema"] = gemini_schema(schema)
+        body = {
+            "systemInstruction": {"parts": [{"text": system}]},
+            "contents": [{"role": "user", "parts": [{"text": user}]}],
+            "generationConfig": gen,
+        }
+        url = f"{s.gemini_base_url.rstrip('/')}/v1beta/models/{s.gemini_model}:generateContent"
+        t0 = time.perf_counter()
+        try:
+            r = self._client.post(
+                url, json=body, headers={"x-goog-api-key": s.gemini_api_key or ""}
+            )
+            r.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            detail = ""
+            try:
+                detail = (e.response.json().get("error") or {}).get("message") or ""
+            except ValueError:
+                detail = e.response.text[:200]
+            raise LLMError(f"gemini request failed: {e.response.status_code} {detail}") from e
+        except httpx.HTTPError as e:
+            raise LLMError(f"gemini request failed: {e}") from e
+        data = r.json()
+        meta = data.get("usageMetadata") or {}
+        usage = LLMUsage(
+            provider="gemini",
+            model=s.gemini_model,
+            prompt_tokens=int(meta.get("promptTokenCount") or 0),
+            completion_tokens=int(meta.get("candidatesTokenCount") or 0),
+            seconds=round(time.perf_counter() - t0, 3),
+            calls=1,
+        )
+        cands = data.get("candidates") or []
+        if not cands:
+            block = (data.get("promptFeedback") or {}).get("blockReason")
+            raise LLMError(f"gemini returned no candidates (blockReason={block})")
+        cand = cands[0]
+        parts = (cand.get("content") or {}).get("parts") or []
+        text = "".join(p.get("text") or "" for p in parts)
+        finish = cand.get("finishReason")
+        done_reason = "length" if finish == "MAX_TOKENS" else finish
+        if finish not in (None, "STOP", "MAX_TOKENS"):
+            raise LLMError(f"gemini stopped with finishReason={finish}")
+        return text, usage, done_reason
+
+
+_GEMINI_SCHEMA_KEYS = {
+    "type", "format", "description", "nullable", "enum", "maxItems", "minItems",
+    "properties", "required", "propertyOrdering", "items", "anyOf", "minimum", "maximum",
+}  # fmt: skip
+
+
+def gemini_schema(schema: dict[str, Any]) -> dict[str, Any]:
+    """Reduce a JSON Schema to the OpenAPI subset Gemini's responseSchema accepts
+    (unknown keys such as additionalProperties, $schema, title, default make the API return 400)."""
+    out: dict[str, Any] = {}
+    for k, v in schema.items():
+        if k not in _GEMINI_SCHEMA_KEYS:
+            continue
+        if k == "properties" and isinstance(v, dict):
+            out[k] = {name: gemini_schema(sub) for name, sub in v.items()}
+        elif k == "items" and isinstance(v, dict):
+            out[k] = gemini_schema(v)
+        elif k == "anyOf" and isinstance(v, list):
+            out[k] = [gemini_schema(sub) for sub in v if isinstance(sub, dict)]
+        elif k == "type" and isinstance(v, list):
+            # JSON Schema ["string", "null"] -> Gemini type + nullable
+            non_null = [t for t in v if t != "null"]
+            out["type"] = non_null[0] if non_null else "string"
+            if "null" in v:
+                out["nullable"] = True
+        else:
+            out[k] = v
+    return out

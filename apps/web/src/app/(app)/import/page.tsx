@@ -169,7 +169,7 @@ export default function ImportPage() {
             <br />ชี้จุดที่เล่มขัดแย้งกันเอง — รายชื่อวิชากับคำอธิบายไม่ตรงกัน ระบบระบุหน้าทั้งสองจุด
           </Note>
           <div className="small faint">
-            API: {health ? `${String(health.llm_provider)} · ${String(health.ollama_model)}` : "ติดต่อไม่ได้"}
+            API: {health ? `${String(health.llm_provider)} · ${String(health.ollama_model)}${health.gemini_configured ? ` · Cloud AI: ${String(health.gemini_model ?? "gemini")}` : ""}` : "ติดต่อไม่ได้"}
           </div>
         </section>
       </div>
