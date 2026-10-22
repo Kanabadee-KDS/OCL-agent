@@ -1,0 +1,278 @@
+"""คู่มือหลักสูตร workflow over `curriculum_drafts` (BRD 01 §2 state machine).
+
+    import ──submit──▶ review ──verify──▶ verified ──publish──▶ published
+      ▲                  │ return                                  │ unpublish
+      └──────────────────┘                                         ▼ (back to verified)
+
+* submit     ส่งให้คณะตรวจสอบ      admin/central/curator · sets a 5-business-day due date
+* check      ติ๊ก "ตรวจสอบหมวดนี้แล้ว" faculty, sections 3 and 4 only, while in review
+* return     ส่งคืนส่วนกลาง/เป็นร่าง  faculty or central, while in review
+* verify     ตรวจสอบสำเร็จ          faculty, both sections checked
+* publish    เปิดเผยแพร่             admin/central, from verified; unpublish goes back
+After "verified" the data is locked: edits only through สมอ.08 (BR-06), not in this POC.
+Every transition is a row in `curriculum_events` and refreshes the draft's snapshot
+from the import job's parts (with the reviewer's edits applied).
+"""
+
+from __future__ import annotations
+
+from datetime import date, datetime, timedelta
+from typing import Any
+
+from fastapi import HTTPException
+
+from ocl_api.auth import User
+from ocl_api.db import Jsonb, connect
+from ocl_api.jobs import PARTS
+
+STATUSES: dict[str, str] = {
+    "import": "ร่างนำเข้าหลักสูตร",
+    "review": "คณะตรวจสอบ",
+    "verified": "ตรวจสอบสำเร็จ",
+    "published": "เผยแพร่แล้ว",
+}
+REVIEW_BUSINESS_DAYS = 5
+FACULTY_SECTIONS = ("3", "4")  # หมวด 3 PLO/KSEC · หมวด 4 Curriculum Mapping
+FACULTY_EDITABLE_PARTS = {"plo", "ksec", "mapping"}
+ACTIONS = {
+    "submit": "ส่งให้คณะตรวจสอบ",
+    "return": "ส่งคืนเป็นร่าง",
+    "check": "ตรวจสอบหมวดนี้แล้ว",
+    "verify": "ตรวจสอบสำเร็จ",
+    "publish": "เปิดเผยแพร่",
+    "unpublish": "ปิดการเผยแพร่",
+}
+
+
+def business_days_after(start: date, days: int) -> date:
+    d = start
+    left = days
+    while left > 0:
+        d += timedelta(days=1)
+        if d.weekday() < 5:
+            left -= 1
+    return d
+
+
+def _iso(v: Any) -> Any:
+    if isinstance(v, datetime):
+        return v.isoformat(timespec="seconds")
+    return v.isoformat() if isinstance(v, date) else v
+
+
+class CurriculumStore:
+    def __init__(self, url: str, schema: str | None, job_store):
+        self.url = url
+        self.schema = schema
+        self.jobs = job_store  # PgJobStore, for the parts snapshot
+
+    def _conn(self):
+        return connect(self.url, self.schema)
+
+    # ---------- queries ----------
+
+    def list(self) -> dict[str, Any]:
+        with self._conn() as conn:
+            rows = conn.execute(
+                """
+                SELECT d.id, d.job_id, d.program_code, d.name_th, d.level, d.start_year, d.status,
+                       d.faculty_checked, d.review_due_at, d.finalized_at, d.updated_at,
+                       d.data->'parts'->'info'->'data'->'values'->>'faculty' AS faculty,
+                       d.data->'parts'->'info'->'data'->'values'->>'revision_type' AS revision_type,
+                       (SELECT jsonb_build_object('ts', e.ts, 'by', e.by,
+                                                  'action', e.action, 'note', e.note)
+                          FROM curriculum_events e WHERE e.draft_id = d.id
+                          ORDER BY e.ts DESC LIMIT 1) AS last_event
+                FROM curriculum_drafts d ORDER BY d.updated_at DESC
+                """
+            ).fetchall()
+        items = [self._row(r) for r in rows]
+        counts = {s: sum(1 for i in items if i["status"] == s) for s in STATUSES}
+        return {"counts": counts, "items": items}
+
+    def get(self, draft_id: int) -> dict[str, Any]:
+        with self._conn() as conn:
+            r = conn.execute(
+                "SELECT *, data->'parts'->'info'->'data'->'values'->>'faculty' AS faculty, "
+                "data->'parts'->'info'->'data'->'values'->>'revision_type' AS revision_type "
+                "FROM curriculum_drafts WHERE id = %s",
+                (draft_id,),
+            ).fetchone()
+            if r is None:
+                raise HTTPException(404, "ไม่พบคู่มือหลักสูตร")
+            events = conn.execute(
+                "SELECT ts, by, action, from_status, to_status, note FROM curriculum_events "
+                "WHERE draft_id = %s ORDER BY ts, id",
+                (draft_id,),
+            ).fetchall()
+        out = self._row(r)
+        data = r["data"] or {}
+        parts = data.get("parts") or {}
+        out["parts"] = {
+            k: {
+                "count": _count(parts.get(k, {}).get("data") or {}),
+                "confirmed_at": parts.get(k, {}).get("confirmed_at"),
+                "edited": parts.get(k, {}).get("edited"),
+            }
+            for k in PARTS
+            if k in parts
+        }
+        checks = data.get("checks") or []
+        out["checks"] = {
+            "pass": sum(c["status"] == "pass" for c in checks),
+            "warn": sum(c["status"] == "warn" for c in checks),
+            "fail": sum(c["status"] == "fail" for c in checks),
+        }
+        out["events"] = [{k: _iso(v) for k, v in e.items()} for e in events]
+        return out
+
+    def by_job(self, job_id: str) -> dict[str, Any] | None:
+        with self._conn() as conn:
+            r = conn.execute(
+                "SELECT id, status, faculty_checked FROM curriculum_drafts WHERE job_id = %s",
+                (job_id,),
+            ).fetchone()
+        return dict(r) if r else None
+
+    @staticmethod
+    def _row(r: dict[str, Any]) -> dict[str, Any]:
+        keys = (
+            "id", "job_id", "program_code", "name_th", "level", "start_year", "status",
+            "faculty_checked", "review_due_at", "finalized_at", "updated_at", "faculty",
+            "revision_type", "last_event", "submitted_at", "verified_at", "published_at",
+        )  # fmt: skip
+        out = {k: _iso(r[k]) for k in keys if k in r}
+        out["status_th"] = STATUSES.get(out.get("status", ""), out.get("status"))
+        if out.get("last_event") and isinstance(out["last_event"], dict):
+            out["last_event"] = {k: _iso(v) for k, v in out["last_event"].items()}
+        return out
+
+    # ---------- transitions ----------
+
+    def transition(
+        self,
+        draft_id: int,
+        action: str,
+        user: User,
+        *,
+        note: str | None = None,
+        section: str | None = None,
+        checked: bool = True,
+    ) -> dict[str, Any]:
+        if action not in ACTIONS:
+            raise HTTPException(400, f"action ต้องเป็น {', '.join(ACTIONS)}")
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT id, job_id, status, faculty_checked FROM curriculum_drafts WHERE id = %s",
+                (draft_id,),
+            ).fetchone()
+        if row is None:
+            raise HTTPException(404, "ไม่พบคู่มือหลักสูตร")
+        status: str = row["status"]
+        checked_map: dict[str, Any] = dict(row["faculty_checked"] or {})
+        new_status = status
+        extra_sql = ""
+        if action == "submit":
+            _need(user, "curriculum_submit")
+            _from(status, "import", action)
+            new_status = "review"
+            checked_map = {}
+            due = business_days_after(date.today(), REVIEW_BUSINESS_DAYS).isoformat()
+            extra_sql = f", submitted_at = now(), review_due_at = '{due}'"
+        elif action == "check":
+            _need(user, "curriculum_verify")
+            _from(status, "review", action)
+            if section not in FACULTY_SECTIONS:
+                raise HTTPException(400, "section ต้องเป็น 3 หรือ 4")
+            checked_map[section] = bool(checked)
+            note = note or f"หมวด {section}: {'ตรวจแล้ว' if checked else 'ยกเลิกการติ๊ก'}"
+        elif action == "return":
+            if not (user.can("curriculum_verify") or user.can("curriculum_submit")):
+                raise HTTPException(403, "ส่งคืนได้เฉพาะคณะหรือส่วนกลาง")
+            _from(status, "review", action)
+            new_status = "import"
+            extra_sql = ", review_due_at = NULL"
+        elif action == "verify":
+            _need(user, "curriculum_verify")
+            _from(status, "review", action)
+            missing = [s for s in FACULTY_SECTIONS if not checked_map.get(s)]
+            if missing:
+                raise HTTPException(
+                    409,
+                    "ต้องติ๊ก 'ตรวจสอบหมวดนี้แล้ว' ให้ครบหมวด 3 และ 4 ก่อน (ยังขาดหมวด "
+                    + ", ".join(missing)
+                    + ")",
+                )
+            new_status = "verified"
+            extra_sql = ", verified_at = now()"
+        elif action == "publish":
+            _need(user, "curriculum_publish")
+            _from(status, "verified", action)
+            new_status = "published"
+            extra_sql = ", published_at = now()"
+        elif action == "unpublish":
+            _need(user, "curriculum_publish")
+            _from(status, "published", action)
+            new_status = "verified"
+            extra_sql = ", published_at = NULL"
+        snapshot = (
+            self._snapshot(row["job_id"]) if action in ("submit", "verify", "return") else None
+        )
+        with self._conn() as conn:
+            with conn.transaction():
+                conn.execute(
+                    f"UPDATE curriculum_drafts SET status = %s, faculty_checked = %s, "
+                    f"updated_at = now(){extra_sql}"
+                    + (", data = %s" if snapshot is not None else "")
+                    + " WHERE id = %s",
+                    (new_status, Jsonb(checked_map))
+                    + ((Jsonb(snapshot),) if snapshot is not None else ())
+                    + (draft_id,),
+                )
+                conn.execute(
+                    "INSERT INTO curriculum_events "
+                    "(draft_id, by, action, from_status, to_status, note) "
+                    "VALUES (%s, %s, %s, %s, %s, %s)",
+                    (draft_id, user.email, action, status, new_status, note),
+                )
+        return self.get(draft_id)
+
+    def _snapshot(self, job_id: str) -> dict[str, Any] | None:
+        """Current parts (edits applied) + checks of the import job, like finalize does."""
+        try:
+            job = self.jobs.read(job_id)
+        except KeyError:
+            return None
+        parts = {}
+        for key in job.get("parts", PARTS):
+            p = self.jobs.read_part(job_id, key)
+            if p:
+                parts[key] = {
+                    "data": p["data"],
+                    "confirmed_at": p["confirmed_at"],
+                    "edited": p["edited"],
+                }
+        return {"job": job, "parts": parts, "checks": self.jobs.checks(job_id)}
+
+
+def _need(user: User, perm: str) -> None:
+    if not user.can(perm):
+        raise HTTPException(403, "บทบาทของคุณทำขั้นตอนนี้ไม่ได้")
+
+
+def _from(status: str, expected: str, action: str) -> None:
+    if status != expected:
+        raise HTTPException(
+            409,
+            f"ทำ '{ACTIONS[action]}' ได้เฉพาะเมื่อสถานะเป็น '{STATUSES[expected]}' "
+            f"(ตอนนี้ '{STATUSES.get(status, status)}')",
+        )
+
+
+def _count(data: dict[str, Any]) -> int | None:
+    """Item count of a part: its own `count`, else the longest list it holds."""
+    for k in ("count", "node_count"):
+        if isinstance(data.get(k), int):
+            return data[k]
+    lists = [len(v) for v in data.values() if isinstance(v, list)]
+    return max(lists) if lists else None

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { can } from "@/lib/perm";
-import { api, fmtTime, PART_LABELS, type Check, type Job, type Meta, type Part } from "@/lib/api";
+import { api, curricula, fmtTime, PART_LABELS, type Check, type Job, type Meta, type Part } from "@/lib/api";
 import { ConfPill, Ic, Markdown, Note, PageHead, Pill, Steps } from "@/components/ui";
 
 const ORDER = ["info", "teachers", "plan", "plo", "ksec", "structure", "modules", "courses", "mapping", "appr"];
@@ -59,6 +59,13 @@ export default function ReviewClient() {
   const [hit, setHit] = useState<string>("");
   const [preview, setPreview] = useState<Record<string, string>>({});
   const [openDesc, setOpenDesc] = useState<Record<string, boolean>>({});
+  // workflow state of the curriculum draft made from this job (after "บันทึกเข้าระบบ")
+  const [draft, setDraft] = useState<{ id: number; status: string } | null>(null);
+  const done = job?.status === "done";
+  useEffect(() => {
+    if (!done) return;
+    curricula.byJob(id).then(setDraft).catch(() => setDraft(null));
+  }, [id, done]);
 
   // poll the job while it is running
   useEffect(() => {
@@ -211,6 +218,12 @@ export default function ReviewClient() {
       />
       <Steps current={job.status === "done" ? 4 : 2} />
       {err && <Note kind="warn">{err}</Note>}
+      {draft && (draft.status === "verified" || draft.status === "published") && (
+        <Note kind="info">คู่มือหลักสูตรนี้ “ตรวจสอบสำเร็จ” แล้ว ข้อมูลถูกล็อก (แก้ได้ผ่าน สมอ.08) · <Link href={`/curricula/${draft.id}`}>เปิดคู่มือหลักสูตร</Link></Note>
+      )}
+      {draft && draft.status === "review" && (
+        <Note kind="warn">อยู่ระหว่างคณะตรวจสอบ · ผู้ตรวจสอบระดับส่วนงานแก้ได้เฉพาะหมวด 3–4 (PLO, KSEC, Curriculum Mapping) แล้วติ๊ก “ตรวจสอบหมวดนี้แล้ว” ที่ <Link href={`/curricula/${draft.id}`}>คู่มือหลักสูตร</Link></Note>
+      )}
       <div className="doc">
         <nav className="card doc-nav" aria-label="ส่วนที่นำเข้า">
           {ORDER.map(navBtn)}

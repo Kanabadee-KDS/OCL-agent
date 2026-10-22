@@ -49,7 +49,7 @@ cd /home/arsoft/ocl-agent && docker compose -f deploy/docker-compose.yml ps && c
 cd /home/arsoft/ocl-agent && docker compose -f deploy/docker-compose.yml exec api ocl users add --email admin@g.swu.ac.th --name "ผู้ดูแลส่วนกลาง" --roles admin,central --buasri admin --ask-password
 ```
 
-เพิ่มคนอื่นด้วย `--roles` จาก `ocl users roles` (admin central curator faculty evaluator teacher advisor student exec ใส่หลายค่าคั่นด้วย ,) · ดูทั้งหมด `ocl users list` · ระงับ `ocl users disable --email …` · สิทธิ์เมนูนำเข้า: อัปโหลด/แก้/ยืนยัน = admin, central, curator · ดูอย่างเดียว = faculty · บทบาทอื่นเข้าเมนูนี้ไม่ได้
+เพิ่มคนอื่นด้วย `--roles` จาก `ocl users roles` (admin central curator faculty evaluator teacher advisor student exec ใส่หลายค่าคั่นด้วย ,) · ดูทั้งหมด `ocl users list` · ระงับ `ocl users disable --email …` · สิทธิ์เมนูนำเข้า: อัปโหลด/แก้/ยืนยัน = admin, central, curator · ดูอย่างเดียว = faculty · บทบาทอื่นเข้าเมนูนี้ไม่ได้ · workflow คู่มือหลักสูตร: ส่งให้คณะตรวจสอบ = admin, central, curator · ติ๊กหมวด 3–4 / ตรวจสอบสำเร็จ / ส่งคืน = faculty (admin ทำแทนได้) · เปิด/ปิดเผยแพร่ = admin, central · ทดสอบให้ครบต้องมีบัญชี faculty อย่างน้อย 1 คน (`--roles faculty`)
 
 ## ฐานข้อมูล
 

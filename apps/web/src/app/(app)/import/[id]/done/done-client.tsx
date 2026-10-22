@@ -3,11 +3,13 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { api, fmtTime, PART_LABELS, type Job } from "@/lib/api";
+import { api, curricula, fmtTime, PART_LABELS, type Job } from "@/lib/api";
 import { Ic, Note, Pill, Steps } from "@/components/ui";
 
 export default function DoneClient() {
   const { id } = useParams<{ id: string }>();
+  const [draftId, setDraftId] = useState<number | null>(null);
+  useEffect(() => { curricula.byJob(id).then((d) => setDraftId(d.id)).catch(() => setDraftId(null)); }, [id]);
   const [job, setJob] = useState<Job | null>(null);
   useEffect(() => { api.get(id).then(setJob).catch(() => setJob(null)); }, [id]);
   if (!job) return <div className="card pad">กำลังโหลด…</div>;
@@ -54,7 +56,7 @@ export default function DoneClient() {
             </tbody>
           </table>
         </div>
-        <Note kind="info">ใน R1 ข้อมูลที่ยืนยันจะถูกเขียนลงคู่มือหลักสูตร (หมวด 3–4) และเปิดให้ &ldquo;ส่งให้คณะตรวจสอบ&rdquo; ตาม workflow ของลูกค้า · POC นี้เก็บเป็นไฟล์ JSON + Markdown ต่อ job</Note>
+        <Note kind="ok">บันทึกเป็นคู่มือหลักสูตรสถานะ &ldquo;1. ร่างนำเข้าหลักสูตร&rdquo; แล้ว · ขั้นต่อไปคือส่งให้คณะตรวจสอบหมวด 3–4 ที่หน้าคู่มือหลักสูตร <Link href={draftId ? `/curricula/${draftId}` : "/curricula"} className="btn sm primary" style={{ marginLeft: 8 }}>เปิดคู่มือหลักสูตร</Link></Note>
       </section>
     </>
   );

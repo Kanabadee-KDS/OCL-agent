@@ -78,6 +78,33 @@ MIGRATIONS: list[tuple[str, str]] = [
         );
         """,
     ),
+    (
+        "003_curriculum_workflow",
+        """
+        DELETE FROM curriculum_drafts a USING curriculum_drafts b
+            WHERE a.job_id = b.job_id AND a.id < b.id;
+        CREATE UNIQUE INDEX IF NOT EXISTS curriculum_drafts_job_uidx ON curriculum_drafts (job_id);
+        ALTER TABLE curriculum_drafts
+            ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'import',
+            ADD COLUMN IF NOT EXISTS faculty_checked jsonb NOT NULL DEFAULT '{}'::jsonb,
+            ADD COLUMN IF NOT EXISTS review_due_at date,
+            ADD COLUMN IF NOT EXISTS submitted_at timestamptz,
+            ADD COLUMN IF NOT EXISTS verified_at timestamptz,
+            ADD COLUMN IF NOT EXISTS published_at timestamptz,
+            ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
+        CREATE TABLE IF NOT EXISTS curriculum_events (
+            id          bigserial PRIMARY KEY,
+            draft_id    bigint NOT NULL REFERENCES curriculum_drafts (id) ON DELETE CASCADE,
+            ts          timestamptz NOT NULL DEFAULT now(),
+            by          text,
+            action      text NOT NULL,
+            from_status text,
+            to_status   text,
+            note        text
+        );
+        CREATE INDEX IF NOT EXISTS curriculum_events_draft_idx ON curriculum_events (draft_id, ts);
+        """,
+    ),
 ]
 
 

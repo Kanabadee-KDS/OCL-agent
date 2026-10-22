@@ -17,3 +17,6 @@ export const PERMISSIONS: Record<string, string[]> = {
 };
 export const can = (roles: string[] | undefined, perm: string) => (roles ?? []).some((r) => PERMISSIONS[perm]?.includes(r));
 export const roleLabel = (roles: string[] | undefined) => (roles ?? []).map((r) => ROLES[r] ?? r).join(" · ") || "ยังไม่มีสิทธิ์";
+PERMISSIONS.curriculum_submit = ["admin", "central", "curator"];
+PERMISSIONS.curriculum_verify = ["admin", "faculty"];
+PERMISSIONS.curriculum_publish = ["admin", "central"];

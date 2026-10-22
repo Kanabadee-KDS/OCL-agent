@@ -122,6 +122,10 @@ class JobStore:
     def sync_parts_from_files(self, job_id: str, parts: list[str] | None = None) -> None:
         """File mode reads extract/<part>.json directly; nothing to copy."""
 
+    def draft_state(self, job_id: str) -> dict[str, Any] | None:
+        """File mode has no workflow."""
+        return None
+
     def list(self) -> list[dict[str, Any]]:
         out = []
         for p in self.root.glob("*/job.json"):

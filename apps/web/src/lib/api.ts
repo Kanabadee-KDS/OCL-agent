@@ -95,4 +95,35 @@ export const PART_LABELS: Record<string, [string, string]> = {
 };
 
 export const fmtBytes = (n: number) => (n > 1e6 ? `${(n / 1e6).toFixed(1)} MB` : `${Math.round(n / 1e3)} KB`);
-export const fmtTime = (iso: string | null) => (iso ? iso.replace("T", " ").slice(0, 16) : "–");
+/** "YYYY-MM-DD HH:MM" in Asia/Bangkok when the stamp carries a zone (Postgres timestamptz); naive stamps are shown as-is. */
+export const fmtTime = (iso: string | null | undefined) => {
+  if (!iso) return "–";
+  if (!/[+-]\d\d:\d\d$|Z$/.test(iso)) return iso.replace("T", " ").slice(0, 16);
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso.replace("T", " ").slice(0, 16);
+  const p = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
+  return p.replace("T", " ").slice(0, 16);
+};
+
+// ---------- คู่มือหลักสูตร workflow ----------
+export type CurriculumRow = {
+  id: number; job_id: string; program_code: string | null; name_th: string | null; level: string | null; start_year: number | null;
+  status: "import" | "review" | "verified" | "published"; status_th: string; faculty_checked: Record<string, boolean>;
+  review_due_at: string | null; finalized_at: string | null; updated_at: string | null; faculty: string | null; revision_type: string | null;
+  last_event: { ts: string; by: string; action: string; note: string | null } | null;
+  submitted_at?: string | null; verified_at?: string | null; published_at?: string | null;
+};
+export type CurriculumDetail = CurriculumRow & {
+  parts: Record<string, { count: number | null; confirmed_at: string | null; edited: boolean }>;
+  checks: { pass: number; warn: number; fail: number };
+  events: { ts: string; by: string; action: string; from_status: string; to_status: string; note: string | null }[];
+};
+export type CurriculumList = { counts: Record<string, number>; items: CurriculumRow[]; statuses: Record<string, string>; actions: Record<string, string> };
+export const curricula = {
+  list: () => fetch(`${API_BASE}/api/curricula`, { cache: "no-store" }).then(j<CurriculumList>),
+  get: (id: number | string) => fetch(`${API_BASE}/api/curricula/${id}`, { cache: "no-store" }).then(j<CurriculumDetail>),
+  byJob: (jobId: string) => fetch(`${API_BASE}/api/curricula/by-job/${jobId}`, { cache: "no-store" }).then(j<{ id: number; status: string }>),
+  transition: (id: number | string, body: { action: string; note?: string; section?: string; checked?: boolean }) =>
+    fetch(`${API_BASE}/api/curricula/${id}/transition`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then(j<CurriculumDetail>),
+};
+export const STATUS_KIND: Record<string, "grey" | "warn" | "info" | "ok"> = { import: "grey", review: "warn", verified: "info", published: "ok" };

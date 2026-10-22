@@ -39,6 +39,10 @@ PERMISSIONS: dict[str, set[str]] = {
     "import_read": {"admin", "central", "curator", "faculty"},
     "import_write": {"admin", "central", "curator"},
     "users_manage": {"admin", "central"},
+    # คู่มือหลักสูตร workflow (BRD 01 §2)
+    "curriculum_submit": {"admin", "central", "curator"},
+    "curriculum_verify": {"admin", "faculty"},
+    "curriculum_publish": {"admin", "central"},
 }
 SERVICE_ROLE = "service"
 TOKEN_TTL = 300  # seconds; the web signs a fresh token per request

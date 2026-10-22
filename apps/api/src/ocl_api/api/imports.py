@@ -18,8 +18,9 @@ from fastapi import (
 from fastapi.responses import FileResponse, PlainTextResponse
 from pydantic import BaseModel
 
-from ocl_api.auth import REQUIRE_IMPORT_READ, REQUIRE_IMPORT_WRITE, User
+from ocl_api.auth import REQUIRE_IMPORT_READ, REQUIRE_IMPORT_WRITE, User, current_user
 from ocl_api.config import Settings, get_settings
+from ocl_api.curricula import FACULTY_EDITABLE_PARTS
 from ocl_api.jobs import ALL_PARTS, PARTS, JobStore, make_store
 from ocl_api.worker import process_job
 
@@ -139,16 +140,31 @@ def put_part(
     key: str,
     body: PartUpdate,
     store: JobStore = Depends(get_store),
-    user: User = Depends(REQUIRE_IMPORT_WRITE),
+    user: User = Depends(current_user),
 ) -> dict:
     try:
         if store.read_part(job_id, key) is None:
             raise HTTPException(404, "ส่วนนี้ยังไม่มีข้อมูลให้แก้")
+        _check_edit_allowed(store, job_id, key, user)
         return store.save_part(
             job_id, key, body.data, confirm=body.confirm, by=user.email or body.by
         )
     except KeyError as e:
         raise HTTPException(404, "ไม่พบงานหรือส่วนที่ขอ") from e
+
+
+def _check_edit_allowed(store: JobStore, job_id: str, key: str, user: User) -> None:
+    """BRD 01 §2: after 'ตรวจสอบสำเร็จ' the data is locked (edits only via สมอ.08); while
+    the faculty reviews, its reviewer may edit หมวด 3–4 (PLO, KSEC, Mapping) only."""
+    state = store.draft_state(job_id)
+    status = state["status"] if state else None
+    if status in ("verified", "published"):
+        raise HTTPException(409, "คู่มือหลักสูตรนี้ตรวจสอบสำเร็จแล้ว ถูกล็อก แก้ได้ผ่าน สมอ.08 เท่านั้น")
+    if user.can("import_write"):
+        return
+    if status == "review" and user.can("curriculum_verify") and key in FACULTY_EDITABLE_PARTS:
+        return
+    raise HTTPException(403, "บัญชีนี้ไม่มีสิทธิ์แก้ไขส่วนนี้")
 
 
 @router.post("/{job_id}/finalize")

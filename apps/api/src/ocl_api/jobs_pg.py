@@ -223,6 +223,14 @@ class PgJobStore(JobStore):
             return []
         return row["recomputed"] if row["recomputed"] is not None else row["extracted"]
 
+    def draft_state(self, job_id: str) -> dict[str, Any] | None:
+        """Workflow status of the curriculum draft made from this job (None before finalize)."""
+        with self._conn() as conn:
+            r = conn.execute(
+                "SELECT id, status FROM curriculum_drafts WHERE job_id = %s", (job_id,)
+            ).fetchone()
+        return dict(r) if r else None
+
     # ---------- finalize ----------
 
     def finalize(self, job_id: str) -> dict[str, Any]:
@@ -243,6 +251,10 @@ class PgJobStore(JobStore):
                 INSERT INTO curriculum_drafts
                     (job_id, program_code, name_th, level, start_year, data)
                 VALUES (%s, %s, %s, %s, %s, %s)
+                ON CONFLICT (job_id) DO UPDATE SET
+                    program_code = EXCLUDED.program_code, name_th = EXCLUDED.name_th,
+                    level = EXCLUDED.level, start_year = EXCLUDED.start_year,
+                    data = EXCLUDED.data, updated_at = now()
                 """,
                 (
                     job_id,

@@ -41,10 +41,10 @@ def _wait(client: TestClient, job_id: str, want: str, timeout: float = 30.0) -> 
 
 
 def test_migrate_is_idempotent(pg_url: str, schema: str) -> None:
-    assert migrate(pg_url, schema) == ["001_import_jobs", "002_users"]
+    assert migrate(pg_url, schema) == ["001_import_jobs", "002_users", "003_curriculum_workflow"]
     assert migrate(pg_url, schema) == []
     st = status(pg_url, schema)
-    assert st["migrations"] == ["001_import_jobs", "002_users"]
+    assert st["migrations"] == ["001_import_jobs", "002_users", "003_curriculum_workflow"]
     assert st["pending"] == [] and st["jobs"] == 0
 
 
