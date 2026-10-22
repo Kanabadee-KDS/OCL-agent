@@ -51,6 +51,10 @@ cd /home/arsoft/ocl-agent && docker compose -f deploy/docker-compose.yml exec ap
 
 เพิ่มคนอื่นด้วย `--roles` จาก `ocl users roles` (admin central curator faculty evaluator teacher advisor student exec ใส่หลายค่าคั่นด้วย ,) · ดูทั้งหมด `ocl users list` · ระงับ `ocl users disable --email …` · สิทธิ์เมนูนำเข้า: อัปโหลด/แก้/ยืนยัน = admin, central, curator · ดูอย่างเดียว = faculty · บทบาทอื่นเข้าเมนูนี้ไม่ได้ · workflow คู่มือหลักสูตร: ส่งให้คณะตรวจสอบ = admin, central, curator · ติ๊กหมวด 3–4 / ตรวจสอบสำเร็จ / ส่งคืน = faculty (admin ทำแทนได้) · เปิด/ปิดเผยแพร่ = admin, central · ทดสอบให้ครบต้องมีบัญชี faculty อย่างน้อย 1 คน (`--roles faculty`)
 
+## OCR หน้าสแกน
+
+image `ocl-api` ติดตั้ง `tesseract-ocr-tha` และ `tesseract-ocr-eng` ไว้แล้ว (ตัว OCR ฝังอยู่ใน PyMuPDF ใช้แค่ไฟล์ภาษา) ไม่ต้องตั้งค่าเพิ่ม · ตรวจได้จาก `/health` ฟิลด์ `"ocr":"tha+eng"` (เป็น `null` = หาไฟล์ภาษาไม่เจอ ตรวจ `TESSDATA_PREFIX` ใน Dockerfile) · ปิด OCR ได้ด้วย `OCR=false` ใน `deploy/.env` · OCR ใช้ CPU ราว 3 วินาที/หน้า ไม่แตะ GPU
+
 ## ฐานข้อมูล
 
 สถานะ/migration (API ทำให้เองตอน start แต่สั่งเองได้)

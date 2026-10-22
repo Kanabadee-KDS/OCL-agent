@@ -32,6 +32,7 @@ class Paragraph:
     bold: bool = False
     align: str | None = None
     list_item: bool = False
+    ocr: bool = False  # text came from OCR of a scanned page (lower trust)
     kind: BlockKind = "paragraph"
 
 
@@ -79,6 +80,8 @@ class Document:
     pages: int | None = None  # counted from rendered page breaks
     pages_declared: int | None = None  # docProps/app.xml <Pages>, if present
     notes: list[str] = field(default_factory=list)
+    scanned_pages: list[int] = field(default_factory=list)  # no text layer
+    ocr_pages: list[int] = field(default_factory=list)  # scanned pages that were OCR'd
 
     def sections(self) -> list[Section]:
         """Split blocks at level-1 headings into front matter / chapters / appendices.
@@ -140,6 +143,8 @@ class Document:
             "images": len(images),
             "pages": self.pages,
             "pages_declared": self.pages_declared,
+            "scanned_pages": len(self.scanned_pages),
+            "ocr_pages": len(self.ocr_pages),
             "chapters": [s.number for s in secs if s.kind == "chapter"],
             "appendices": [s.number for s in secs if s.kind == "appendix"],
         }
@@ -151,6 +156,8 @@ class Document:
             "pages": self.pages,
             "pages_declared": self.pages_declared,
             "notes": self.notes,
+            "scanned_pages": self.scanned_pages,
+            "ocr_pages": self.ocr_pages,
             "stats": self.stats(),
             "sections": [
                 {

@@ -27,7 +27,9 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install
-        run: uv sync --all-groups
+        run: |
+          sudo apt-get update -q && sudo apt-get install -y -q tesseract-ocr-tha tesseract-ocr-eng
+          uv sync --all-groups
       - name: Lint
         run: uv run ruff check .
       - name: Test

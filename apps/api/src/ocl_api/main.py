@@ -10,6 +10,7 @@ from ocl_api.api.auth import router as auth_router
 from ocl_api.api.curricula import router as curricula_router
 from ocl_api.api.imports import router as imports_router
 from ocl_api.config import get_settings
+from ocl_api.ingest.pdf_reader import find_tessdata
 
 
 def create_app() -> FastAPI:
@@ -41,6 +42,7 @@ def create_app() -> FastAPI:
             "gemini_model": s.gemini_model,
             "inline_worker": s.inline_worker,
             "database": "postgres" if s.database_url else "files",
+            "ocr": s.ocr_language if (s.ocr and find_tessdata(s.ocr_language)) else None,
             "auth": "enabled" if s.auth_secret else "disabled",
         }
 

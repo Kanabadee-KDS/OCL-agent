@@ -20,7 +20,7 @@ export type Job = {
   confirmed_count: number;
   parts_total: number;
   all_parts: string[];
-  counts: { ingest?: { pages: number; tables: number; images: number; chapters: string[]; appendices: string[] }; parts?: Record<string, number> };
+  counts: { ingest?: { pages: number; tables: number; images: number; chapters: string[]; appendices: string[]; scanned_pages?: number; ocr_pages?: number }; parts?: Record<string, number> };
   llm: { calls: number; prompt_tokens: number; completion_tokens: number; seconds: number; model?: string } | null;
   checks_recomputed_at?: string | null;
   edited_parts?: string[];

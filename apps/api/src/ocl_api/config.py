@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     gemini_model: str = "gemini-flash-latest"  # alias that tracks Google's current Flash release
     gemini_base_url: str = "https://generativelanguage.googleapis.com"
 
+    # OCR of scanned PDF pages (MuPDF's built-in Tesseract; needs tessdata for these languages)
+    ocr: bool = True
+    ocr_language: str = "tha+eng"
+
     data_dir: Path = Path("./data")
     database_url: str | None = None
     database_schema: str | None = None  # tests put their tables in a throw-away schema

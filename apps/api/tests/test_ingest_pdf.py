@@ -10,7 +10,14 @@ import pymupdf
 import pytest
 
 from ocl_api.ingest.model import Image, Paragraph, Table
-from ocl_api.ingest.pdf_reader import PdfReader, join_lines
+from ocl_api.ingest.pdf_reader import (
+    PdfReader,
+    _Line,
+    _looks_like_text,
+    find_tessdata,
+    join_lines,
+    regroup_ocr_lines,
+)
 from ocl_api.ingest.pipeline import ingest
 
 PNG = base64.b64decode(
@@ -92,3 +99,78 @@ def test_pdf_pipeline(pdf_file: Path, tmp_path: Path) -> None:
     assert "| Course | PLO1 | PLO2 |" in md
     assert "![image](assets/img-001.png)" in md
     assert (out / "assets" / "page-003.png").exists()
+
+
+# ---------- OCR of scanned pages ----------
+
+HAS_TESSDATA = find_tessdata("tha+eng") is not None
+
+
+def build_scanned_pdf(path: Path) -> None:
+    """Page 1 is an image of rendered text (no text layer), like a scanned book."""
+    src = pymupdf.open()
+    p = src.new_page(width=595, height=842)
+    p.insert_text((72, 90), "1. Program code and name", fontsize=16, fontname="hebo")
+    p.insert_text((72, 130), "Bachelor of Science Program in Food Science", fontsize=14)
+    p.insert_text((72, 160), "Total credits not less than 130 credits", fontsize=14)
+    pix = p.get_pixmap(dpi=200)
+    scan = pymupdf.open()
+    sp = scan.new_page(width=595, height=842)
+    sp.insert_image(sp.rect, pixmap=pix)
+    scan.save(path)
+
+
+def test_regroup_ocr_lines_joins_thai_fragments_on_one_row() -> None:
+    r = pymupdf.Rect
+    frags = [
+        _Line("ตร25290091100204", r(120, 100, 300, 118), False),  # later piece, listed first
+        _Line("รหัสหลักสู", r(72, 102, 118, 116), False),
+        _Line("Next line", r(72, 130, 150, 144), False),
+    ]
+    out = regroup_ocr_lines(frags)
+    assert [ln.text for ln in out] == ["รหัสหลักสูตร25290091100204", "Next line"]
+    assert out[0].rect.y0 == 100 and out[0].rect.x1 == 300
+
+
+def test_scanned_page_without_ocr_keeps_placeholder(tmp_path: Path) -> None:
+    pdf = tmp_path / "scan.pdf"
+    build_scanned_pdf(pdf)
+    doc = PdfReader(pdf, tmp_path / "assets", ocr=False).read()
+    assert doc.scanned_pages == [1] and doc.ocr_pages == []
+    texts = [b.text for b in doc.blocks if b.kind == "paragraph"]
+    assert texts == ["[หน้าสแกน 1: ไม่มีข้อความ ต้อง OCR]"]
+    assert doc.stats()["scanned_pages"] == 1 and doc.stats()["ocr_pages"] == 0
+
+
+@pytest.mark.skipif(not HAS_TESSDATA, reason="tesseract tha+eng language data not installed")
+def test_scanned_page_is_ocrd(tmp_path: Path) -> None:
+    pdf = tmp_path / "scan.pdf"
+    build_scanned_pdf(pdf)
+    doc = PdfReader(pdf, tmp_path / "assets").read()
+    assert doc.ocr_pages == [1]
+    paras = [b for b in doc.blocks if b.kind == "paragraph"]
+    assert paras and all(p.ocr for p in paras)
+    text = " ".join(p.text for p in paras)
+    assert "Program code and name" in text and "130 credits" in text
+    assert any("OCR (tha+eng) applied to pages: [1]" in n for n in doc.notes)
+    # the rendered page image is still there for the reviewer's side-by-side view
+    assert any(b.kind == "image" and b.path == "assets/page-001.png" for b in doc.blocks)
+    # document.json carries the flag so the web can mark OCR text as lower-trust
+    d = doc.to_dict()
+    assert d["ocr_pages"] == [1] and d["stats"]["ocr_pages"] == 1
+    assert any(b.get("ocr") for s in d["sections"] for b in s["blocks"] if b["kind"] == "paragraph")
+
+
+def test_find_tessdata_prefers_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    (tmp_path / "tha.traineddata").write_bytes(b"x")
+    (tmp_path / "eng.traineddata").write_bytes(b"x")
+    monkeypatch.setenv("TESSDATA_PREFIX", str(tmp_path))
+    assert find_tessdata("tha+eng") == str(tmp_path)
+    assert find_tessdata("tha+eng+jpn") != str(tmp_path)  # jpn missing there
+
+
+def test_ocr_noise_filter() -> None:
+    assert not _looks_like_text("a y a")
+    assert not _looks_like_text("| .")
+    assert _looks_like_text("ไม่น้อยกว่า130 หน่วยกิต")
+    assert _looks_like_text("B.Sc. (Food Science)")

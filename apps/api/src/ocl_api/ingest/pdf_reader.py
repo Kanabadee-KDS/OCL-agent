@@ -5,6 +5,13 @@ a few embedded images; appendices may contain scanned pages without text. This
 reader keeps the same guarantees as the .docx reader: symbol glyphs survive,
 tables come out as rows, every block knows its page, and split tables merge.
 
+A page with (almost) no text layer is treated as scanned: it is rendered to PNG
+for the reviewer and, when Tesseract language data is available, OCR'd with
+MuPDF's built-in Tesseract (``tha+eng``). OCR lines come back fragmented (Thai
+vowel/tone marks make Tesseract split one printed line into several), so they
+are regrouped by row before the normal paragraph logic runs. OCR paragraphs
+carry ``ocr=True`` so downstream consumers can show them as lower-trust.
+
 Thai text needs two special cases. Lines wrap without spaces, so a wrapped line
 joins its predecessor without inserting one. And combining marks (vowels above
 and below, tone marks) are separate glyphs, so any extraction that re-sorts
@@ -14,6 +21,7 @@ the content-stream lines that fall inside each cell, never from a position sort.
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
@@ -28,6 +36,29 @@ _PAGE_NO = re.compile(r"^[\d๐-๙]{1,4}$|^[ก-ฮ]$")
 # "1. ", "2.1 ", "(ก) ", "- ", "• " at the start of a line begin a new paragraph
 _STARTS_ITEM = re.compile(r"^\s*(\d+(\.\d+)*\.?\s|\([ก-ฮa-z\d]+\)\s|[-–•●]\s|หมวดที่\s|ภาคผนวก\s)")
 SCANNED_TEXT_THRESHOLD = 30  # chars of text below which a page counts as scanned
+OCR_LANGUAGE = "tha+eng"
+# OCR drops vowel/tone marks: "หมวดที่ 1" comes back as "หมวดที1" or "หมวดท 2"
+_RE_CHAPTER_LOOSE = re.compile(r"^\s*หมวดท[ี่]*\s*(\d+)\b")
+_LETTERS = re.compile(r"[A-Za-zก-๙]")
+OCR_DPI = 200  # 200 vs 300 dpi: same accuracy on curriculum pages, 15% faster
+_TESSDATA_CANDIDATES = (
+    "/usr/share/tesseract-ocr/5/tessdata",  # Debian/Ubuntu tesseract-ocr-* packages
+    "/usr/share/tesseract-ocr/4.00/tessdata",
+    "/usr/share/tessdata",  # Alpine
+    "/opt/homebrew/share/tessdata",  # macOS brew (arm64)
+    "/usr/local/share/tessdata",  # macOS brew (x86)
+)
+
+
+def find_tessdata(language: str = OCR_LANGUAGE) -> str | None:
+    """Directory holding <lang>.traineddata for every language in `language`, or None.
+    `TESSDATA_PREFIX` wins; otherwise the usual package locations are probed."""
+    langs = [x for x in language.split("+") if x]
+    cands = [os.environ.get("TESSDATA_PREFIX") or ""] + list(_TESSDATA_CANDIDATES)
+    for c in cands:
+        if c and all(Path(c, f"{lang}.traineddata").exists() for lang in langs):
+            return c
+    return None
 
 
 class _Line:
@@ -96,14 +127,28 @@ def _span_bold(span: dict) -> bool:
 
 
 class PdfReader:
-    def __init__(self, path: str | Path, assets_dir: str | Path, *, render_scanned: bool = True):
+    def __init__(
+        self,
+        path: str | Path,
+        assets_dir: str | Path,
+        *,
+        render_scanned: bool = True,
+        ocr: bool = True,
+        ocr_language: str = OCR_LANGUAGE,
+        ocr_dpi: int = OCR_DPI,
+    ):
         self.path = Path(path)
         self.assets_dir = Path(assets_dir)
         self.render_scanned = render_scanned
+        self.ocr = ocr
+        self.ocr_language = ocr_language
+        self.ocr_dpi = ocr_dpi
         self.unknown_symbols: dict[str, int] = {}
         self.notes: list[str] = []
         self._asset_by_xref: dict[int, str] = {}
         self.scanned_pages: list[int] = []
+        self.ocr_pages: list[int] = []
+        self._tessdata: str | None | bool = False  # False = not probed yet
 
     def read(self) -> Document:
         blocks: list[Block] = []
@@ -119,10 +164,14 @@ class PdfReader:
             pages=n_pages,
             pages_declared=n_pages,
         )
+        out.scanned_pages = list(self.scanned_pages)
+        out.ocr_pages = list(self.ocr_pages)
         if self.unknown_symbols:
             out.notes.append(f"unknown symbol glyphs: {self.unknown_symbols}")
         if self.scanned_pages:
             out.notes.append(f"scanned pages (no text layer): {self.scanned_pages}")
+        if self.ocr_pages:
+            out.notes.append(f"OCR ({self.ocr_language}) applied to pages: {self.ocr_pages}")
         out.notes.extend(self.notes)
         return out
 
@@ -145,16 +194,27 @@ class PdfReader:
             items.append((y0, order, para))
             order += 1
 
-        for y0, img in self._images(doc, page, pno):
+        page_images = self._images(doc, page, pno)
+        scanned = text_len < SCANNED_TEXT_THRESHOLD and not tables
+        for y0, img, rect in page_images:
+            if scanned and self.render_scanned and rect.get_area() >= 0.8 * page.rect.get_area():
+                continue  # the scan itself; the rendered page PNG below stands in for it
             items.append((y0, order, img))
             order += 1
 
-        if text_len < SCANNED_TEXT_THRESHOLD and not tables:
+        if scanned:
             self.scanned_pages.append(pno)
             if self.render_scanned:
                 rel = self._render_page(page, pno)
                 items.append((0.0, order, Image(path=rel, page=pno, alt=f"scanned page {pno}")))
                 order += 1
+            ocr_paras = self._ocr_paragraphs(page, pno) if self.ocr else []
+            if ocr_paras:
+                self.ocr_pages.append(pno)
+                for y0, para in ocr_paras:
+                    items.append((0.1 + y0, order, para))
+                    order += 1
+            else:
                 items.append(
                     (0.1, order, Paragraph(text=f"[หน้าสแกน {pno}: ไม่มีข้อความ ต้อง OCR]", page=pno))
                 )
@@ -162,10 +222,52 @@ class PdfReader:
         items.sort(key=lambda t: (t[0], t[1]))
         return [b for _, _, b in items]
 
-    def _lines(self, page: pymupdf.Page) -> list[_Line]:
+    # ---------- OCR of scanned pages ----------
+
+    def tessdata(self) -> str | None:
+        if self._tessdata is False:
+            self._tessdata = find_tessdata(self.ocr_language)
+            if self._tessdata is None:
+                self.notes.append(
+                    f"OCR unavailable: no tessdata for {self.ocr_language} "
+                    "(install tesseract language packs or set TESSDATA_PREFIX)"
+                )
+        return self._tessdata  # type: ignore[return-value]
+
+    def _ocr_paragraphs(self, page: pymupdf.Page, pno: int) -> list[tuple[float, Paragraph]]:
+        tessdata = self.tessdata()
+        if tessdata is None:
+            return []
+        try:
+            tp = page.get_textpage_ocr(
+                language=self.ocr_language, dpi=self.ocr_dpi, full=True, tessdata=tessdata
+            )
+            lines = self._lines(page, textpage=tp)
+        except Exception as e:  # pragma: no cover - tesseract runtime failure
+            self.notes.append(f"page {pno}: OCR failed: {e}")
+            return []
+        lines = regroup_ocr_lines(lines)
+        out = []
+        for y0, para in self._paragraphs(page, pno, lines, []):
+            if not _looks_like_text(para.text):
+                continue  # stray marks Tesseract read as letters ("a y a")
+            para.ocr = True
+            m = _RE_CHAPTER_LOOSE.match(para.text)
+            if m:
+                # a real chapter heading is centred on its own line; a table-of-contents
+                # entry is left-aligned with (garbled) leader dots after it
+                if para.align == "center" and para.level == 0:
+                    para.text = f"หมวดที่ {m.group(1)} {para.text[m.end() :].strip()}".strip()
+                    para.level = 1
+                elif para.align != "center":
+                    para.level = 0
+            out.append((y0, para))
+        return out
+
+    def _lines(self, page: pymupdf.Page, textpage: pymupdf.TextPage | None = None) -> list[_Line]:
         """Text lines in content-stream order (keeps Thai combining marks intact)."""
         out: list[_Line] = []
-        for block in page.get_text("dict").get("blocks", []):
+        for block in page.get_text("dict", textpage=textpage).get("blocks", []):
             if block.get("type") != 0:
                 continue
             for line in block.get("lines", []):
@@ -300,8 +402,8 @@ class PdfReader:
 
     def _images(
         self, doc: pymupdf.Document, page: pymupdf.Page, pno: int
-    ) -> list[tuple[float, Image]]:
-        out: list[tuple[float, Image]] = []
+    ) -> list[tuple[float, Image, pymupdf.Rect]]:
+        out: list[tuple[float, Image, pymupdf.Rect]] = []
         for info in page.get_image_info(xrefs=True):
             xref = info.get("xref", 0)
             if not xref:
@@ -324,7 +426,7 @@ class PdfReader:
                 self.assets_dir.mkdir(parents=True, exist_ok=True)
                 (self.assets_dir / f"img-{n:03d}.{ext}").write_bytes(img["image"])
                 self._asset_by_xref[xref] = rel
-            out.append((rect.y0, Image(path=rel, page=pno)))
+            out.append((rect.y0, Image(path=rel, page=pno), rect))
         return out
 
     def _render_page(self, page: pymupdf.Page, pno: int) -> str:
@@ -332,3 +434,59 @@ class PdfReader:
         name = f"page-{pno:03d}.png"
         page.get_pixmap(dpi=150).save(str(self.assets_dir / name))
         return f"assets/{name}"
+
+
+def _looks_like_text(text: str) -> bool:
+    """False for OCR noise: fewer than 3 letters, or only 1–2-letter tokens with no number."""
+    letters = len(_LETTERS.findall(text))
+    if letters < 3:
+        return False
+    tokens = text.split()
+    if (
+        len(tokens) >= 2
+        and all(len(t) <= 2 for t in tokens)
+        and not any(t.isdigit() for t in tokens)
+    ):
+        return False
+    return True
+
+
+def regroup_ocr_lines(lines: list[_Line]) -> list[_Line]:
+    """Merge OCR fragments that sit on the same printed row.
+
+    Tesseract splits a Thai line wherever the glyph height changes (vowels above,
+    tone marks), giving pieces like "หลักสู" + "ตร25290091100204" with overlapping
+    vertical extents. Pieces whose vertical centres fall inside each other's box
+    are one row; they are sorted by x and joined (Thai→Thai without a space, a
+    space otherwise)."""
+    rows: list[list[_Line]] = []
+    for ln in sorted(lines, key=lambda x: (x.rect.y0, x.rect.x0)):
+        cy = (ln.rect.y0 + ln.rect.y1) / 2
+        for row in rows:
+            r0 = min(x.rect.y0 for x in row)
+            r1 = max(x.rect.y1 for x in row)
+            rc = (r0 + r1) / 2
+            if r0 <= cy <= r1 and ln.rect.y0 <= rc <= ln.rect.y1:
+                row.append(ln)
+                break
+        else:
+            rows.append([ln])
+    out: list[_Line] = []
+    for row in rows:
+        row.sort(key=lambda x: x.rect.x0)
+        text = row[0].text
+        for prev, ln in zip(row, row[1:], strict=False):
+            gap = ln.rect.x0 - prev.rect.x1
+            glue = (
+                gap < 0.6 * max(prev.rect.height, 1.0)
+                and _is_thai(text[-1])
+                and _is_thai(ln.text[0])
+            )
+            text += ln.text if glue else " " + ln.text
+        rect = pymupdf.Rect(
+            min(x.rect.x0 for x in row), min(x.rect.y0 for x in row),
+            max(x.rect.x1 for x in row), max(x.rect.y1 for x in row),
+        )  # fmt: skip
+        out.append(_Line(_WS.sub(" ", text).strip(), rect, all(x.bold for x in row)))
+    out.sort(key=lambda x: (x.rect.y0, x.rect.x0))
+    return out

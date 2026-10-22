@@ -13,14 +13,18 @@ from ocl_api.ingest.markdown import render_book, render_section
 from ocl_api.ingest.model import Document
 
 
-def read_document(path: Path, assets_dir: Path) -> Document:
+def read_document(
+    path: Path, assets_dir: Path, *, ocr: bool = True, ocr_language: str | None = None
+) -> Document:
     suffix = path.suffix.lower()
     if suffix == ".docx":
         return DocxReader(path, assets_dir).read()
     if suffix == ".pdf":
-        from ocl_api.ingest.pdf_reader import PdfReader
+        from ocl_api.ingest.pdf_reader import OCR_LANGUAGE, PdfReader
 
-        return PdfReader(path, assets_dir).read()
+        return PdfReader(
+            path, assets_dir, ocr=ocr, ocr_language=ocr_language or OCR_LANGUAGE
+        ).read()
     raise ValueError(f"unsupported file type: {path.suffix}")
 
 
@@ -28,12 +32,14 @@ def _safe_slug(s: str) -> str:
     return re.sub(r"[^0-9A-Za-zก-๙]+", "-", s).strip("-")[:60] or "section"
 
 
-def ingest(file: str | Path, out_dir: str | Path) -> dict[str, Any]:
+def ingest(
+    file: str | Path, out_dir: str | Path, *, ocr: bool = True, ocr_language: str | None = None
+) -> dict[str, Any]:
     path = Path(file)
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     t0 = time.perf_counter()
-    doc = read_document(path, out / "assets")
+    doc = read_document(path, out / "assets", ocr=ocr, ocr_language=ocr_language)
 
     (out / "book.md").write_text(render_book(doc), encoding="utf-8")
     sec_dir = out / "sections"

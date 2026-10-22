@@ -32,6 +32,7 @@ samples/       เล่มตัวอย่างและ UI mock (ไม่�
 uv sync --all-groups        # สร้าง .venv และติดตั้งทุกอย่าง
 cp .env.example .env        # แก้ค่า OLLAMA_BASE_URL ฯลฯ · DATABASE_URL ว่าง = เก็บงานเป็นไฟล์ใน data/ · ใส่ URL ของ Neon = เก็บใน Postgres (ใช้ *direct* URL ไม่ใช่ `-pooler` · ตารางสร้างให้เองตอน start · ดูด้วย `uv run ocl db status`)
 uv run pytest -q            # ต้องผ่านก่อนเปิด PR
+# OCR หน้าสแกน (ไม่บังคับ): brew install tesseract tesseract-lang · test OCR จะ skip ถ้าไม่มี tessdata
 # login: ใส่ AUTH_SECRET เดียวกันใน .env และ apps/web/.env.local แล้วสร้างผู้ใช้ `uv run ocl users add --email you@g.swu.ac.th --roles admin --buasri you --ask-password` (ต้องมี DATABASE_URL) · ไม่ใส่ AUTH_SECRET = ไม่มีหน้า login (ทุกคำขอเป็น admin)
 uv run uvicorn ocl_api.main:app --reload --port 8000
 curl -s http://127.0.0.1:8000/health

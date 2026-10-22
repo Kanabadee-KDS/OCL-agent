@@ -59,11 +59,25 @@ def process_job(store: JobStore, job_id: str, settings: Settings | None = None) 
         store.set_status(job_id, "ingesting", PROGRESS["ingest"], started_at=now_iso())
         try:
             t0 = time.perf_counter()
-            rep = ingest(d / job["source"], d / "ingest")
+            rep = ingest(
+                d / job["source"],
+                d / "ingest",
+                ocr=settings.ocr,
+                ocr_language=settings.ocr_language,
+            )
             job = store.read(job_id)
             job["timings"]["ingest"] = round(time.perf_counter() - t0, 2)
             job["counts"]["ingest"] = {
-                k: rep[k] for k in ("pages", "tables", "images", "chapters", "appendices")
+                k: rep[k]
+                for k in (
+                    "pages",
+                    "tables",
+                    "images",
+                    "chapters",
+                    "appendices",
+                    "scanned_pages",
+                    "ocr_pages",
+                )
             }
             store.write(job)
 

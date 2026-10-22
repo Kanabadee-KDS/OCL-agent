@@ -6,8 +6,11 @@ ENV PYTHONUNBUFFERED=1 \
     UV_COMPILE_BYTECODE=1 \
     UV_PROJECT_ENVIRONMENT=/opt/venv
 
+# tesseract-ocr-{tha,eng}: language data for OCR of scanned pages (MuPDF links its own Tesseract)
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
+        tesseract-ocr-tha tesseract-ocr-eng \
     && rm -rf /var/lib/apt/lists/*
+ENV TESSDATA_PREFIX=/usr/share/tesseract-ocr/5/tessdata
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 WORKDIR /app
