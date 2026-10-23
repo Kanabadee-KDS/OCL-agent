@@ -12,6 +12,7 @@ from ocl_api.config import Settings
 from ocl_api.evaluate import score_plo
 from ocl_api.extract.plo import extract_plo, split_llm_code
 from ocl_api.extract.render import render_plo
+from ocl_api.extract.validators import run_checks
 from ocl_api.fewshot import FEWSHOT_MODE, book_key, fewshot_examples, fewshot_kw, source_keys
 from ocl_api.ingest.model import Document, Paragraph, Table
 from ocl_api.llm.gateway import LLMGateway
@@ -60,6 +61,60 @@ def test_single_plo_set_ignores_later_plan_headings() -> None:
     r = extract_plo(doc)
     assert [(p["plan"], p["code"]) for p in r.data["plos"]] == [(None, "PLO1"), (None, "PLO2")]
     assert r.data["plans"] == []
+
+
+def test_list_and_table_wording_mismatch_is_flagged_not_dropped() -> None:
+    # ปร.ด. p.22: the PLO list and the K/S/E/C table word PLO2 differently
+    doc = _doc([
+        Paragraph(text="PLO1: สังเคราะห์แนวคิดทฤษฎี", page=22),
+        Paragraph(text="PLO2: ให้ข้อเสนอแนะเชิงนโยบาย", page=22),
+        Table(rows=[["ผลลัพธ์การเรียนรู้", "ด้านความรู้ (K)"],
+                    ["PLO1: สังเคราะห์แนวคิดทฤษฎี\nทางเศรษฐศาสตร์", "K1-1"],
+                    ["PLO2: สามารถออกแบบงานวิจัยดั้งเดิมระดับนานาชาติ", "K2-1"]], page=23),
+    ])  # fmt: skip
+    r = extract_plo(doc)
+    p1, p2 = r.data["plos"]
+    assert p1["text"] == "สังเคราะห์แนวคิดทฤษฎี" and "alternatives" not in p1["meta"], (
+        "a table cell that wraps is the same wording, not a conflict"
+    )
+    assert p2["text"] == "ให้ข้อเสนอแนะเชิงนโยบาย", "list wording kept even though the table is longer"
+    assert p2["meta"]["alternatives"] == [
+        {"text": "สามารถออกแบบงานวิจัยดั้งเดิมระดับนานาชาติ", "page": 23, "from": "table"}
+    ]
+    assert p2["meta"]["confidence"] == "low" and "หน้า 22, 23" in p2["meta"]["note"]
+    assert r.data["text_conflicts"] == ["PLO2"]
+    checks = {c.key: c for c in run_checks({"plo": r.data})}
+    assert (
+        checks["plo_text_conflict"].status == "warn"
+        and "PLO2" in checks["plo_text_conflict"].message
+    )
+
+
+def test_table_before_list_still_keeps_list_wording() -> None:
+    doc = _doc([
+        Table(rows=[["PLO1: ออกแบบงานวิจัย", "K1"]], page=21),
+        Paragraph(text="PLO1: ให้ข้อเสนอแนะเชิงนโยบาย", page=22),
+    ])  # fmt: skip
+    (p,) = extract_plo(doc).data["plos"]
+    assert p["text"] == "ให้ข้อเสนอแนะเชิงนโยบาย" and p["meta"]["source"]["page"] == 22
+    assert p["meta"]["alternatives"] == [{"text": "ออกแบบงานวิจัย", "page": 21, "from": "table"}]
+
+
+def test_later_note_lines_are_not_conflicts() -> None:
+    # ศศ.บ. p.17: "หมายเหตุ" lines re-mention PLO codes after the list
+    doc = _doc([
+        Paragraph(text="PLO2: วิเคราะห์บริบททางสังคม", page=17),
+        Paragraph(text="PLO6: ผลลัพธ์การเรียนรู้ของวิชาเอก ดังนี้", page=17),
+        Paragraph(text="PLO 2-5 เป็นผลลัพธ์การเรียนรู้ของหลักสูตร", page=17),
+        Paragraph(text="PLO6 เป็นผลลัพธ์การเรียนรู้ของวิชาเอก", page=17),
+    ])  # fmt: skip
+    r = extract_plo(doc)
+    assert [p["text"] for p in r.data["plos"]] == [
+        "วิเคราะห์บริบททางสังคม",
+        "ผลลัพธ์การเรียนรู้ของวิชาเอก ดังนี้",
+    ]
+    assert r.data["text_conflicts"] == []
+    assert "plo_text_conflict" not in {c.key for c in run_checks({"plo": r.data})}
 
 
 def test_split_llm_code_and_plan_scoring() -> None:

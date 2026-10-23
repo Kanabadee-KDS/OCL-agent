@@ -633,6 +633,21 @@ def run_checks(parts: dict[str, dict[str, Any]]) -> list[Check]:
             "plo",
         )
     )
+    conflicts = [
+        p["code"] + (f" ({p['plan']})" if p.get("plan") else "")
+        for p in plos
+        if (p.get("meta") or {}).get("alternatives")
+    ]
+    if conflicts:
+        checks.append(
+            Check(
+                "plo_text_conflict",
+                "warn",
+                f"ข้อความ PLO ในรายการกับในตารางไม่ตรงกัน: {', '.join(conflicts)} "
+                "(ระบบใช้ข้อความจากรายการ ให้ Admin ยืนยันฉบับทางการ)",
+                "plo",
+            )
+        )
 
     courses = crs.get("courses") or []
     mp = parts.get("mapping") or {}

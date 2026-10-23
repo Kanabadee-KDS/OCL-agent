@@ -26,7 +26,7 @@ export type Job = {
   edited_parts?: string[];
 };
 
-export type Meta = { confidence: "high" | "medium" | "low"; source: { page: number | null; snippet: string }; by: string; inferred?: boolean; note?: string };
+export type Meta = { confidence: "high" | "medium" | "low"; source: { page: number | null; snippet: string }; by: string; inferred?: boolean; note?: string; alternatives?: { text: string; page: number | null; from: string | null }[] };
 
 export type Part = {
   part: string;

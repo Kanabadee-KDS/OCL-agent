@@ -504,6 +504,12 @@ function flatten(tree: Node[], path: number[] = [], depth = 0): { node: Node; pa
 
 function PloEditor({ data, onChange, pick }: { data: { plos: Plo[] }; onChange: (d: Record<string, unknown>) => void; pick: (m?: Meta | null) => void }) {
   const set = (i: number, f: "code" | "text", v: string) => { const c = structuredClone(data); c.plos[i][f] = v; onChange(c); };
+  // swap the PLO text with the other wording the book gives (list vs K/S/E/C table)
+  const pickAlt = (i: number, a: number) => {
+    const c = structuredClone(data); const m = c.plos[i].meta!; const alt = m.alternatives![a];
+    m.alternatives![a] = { text: c.plos[i].text, page: m.source?.page ?? null, from: alt.from === "table" ? "list" : "table" };
+    c.plos[i].text = alt.text; onChange(c);
+  };
   return (
     <div className="stack" style={{ gap: 10 }}>
       {(data.plos ?? []).map((p, i) => (
@@ -515,6 +521,14 @@ function PloEditor({ data, onChange, pick }: { data: { plos: Plo[] }; onChange: 
             <div className="field" style={{ flex: 1 }}><label>ข้อความ PLO</label><textarea className="inp" rows={2} style={{ height: "auto", padding: 8 }} value={p.text} onChange={(e) => set(i, "text", e.target.value)} onClick={(e) => e.stopPropagation()} /></div>
             <div style={{ paddingTop: 22 }}><ConfPill meta={p.meta} /> <span className="small faint">หน้า {p.meta?.source?.page ?? "–"}</span></div>
           </div>
+          {p.meta?.note && <div className="note warn small"><b>ต้องตรวจ:</b> {p.meta.note}</div>}
+          {p.meta?.alternatives?.map((a, ai) => (
+            <div key={ai} className="row small" style={{ flexWrap: "nowrap", alignItems: "flex-start", gap: 8 }}>
+              <span className="faint" style={{ flexShrink: 0 }}>อีกฉบับ ({a.from === "table" ? "ตาราง" : "รายการ"} หน้า {a.page ?? "–"})</span>
+              <span style={{ flex: 1 }}>{a.text}</span>
+              <button className="btn xs ghost" onClick={(e) => { e.stopPropagation(); pickAlt(i, ai); }}>ใช้ข้อความนี้</button>
+            </div>
+          ))}
           {p.sub_plos?.length > 0 && <div className="small">{p.sub_plos.map((s) => <div key={s.code}>　<b>{s.code}</b> {s.text}</div>)}</div>}
         </div>
         </Fragment>

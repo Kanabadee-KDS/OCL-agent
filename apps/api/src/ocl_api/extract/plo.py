@@ -52,6 +52,16 @@ def _norm(code: str) -> str:
     return re.sub(r"\s+", "", code.upper())
 
 
+def _squash(text: str) -> str:
+    return re.sub(r"\s+", "", text)
+
+
+def same_wording(a: str, b: str) -> bool:
+    """One text is the other cut short (table cells wrap mid-sentence), not a different PLO."""
+    a, b = _squash(a), _squash(b)
+    return a in b or b in a
+
+
 def _plan_label(text: str) -> str | None:
     """'1.1 เมื่อนิสิตจบการศึกษาแผน 1 แบบวิชาการ จะสามารถ' -> 'แผน 1 แบบวิชาการ' (short lines only)."""
     if len(text) >= 160 or RE_PLO.match(text) or RE_SUB.match(text):
@@ -90,7 +100,14 @@ def extract_plo(doc: Document, gateway=None) -> PartResult:
     order: list[tuple[str | None, str]] = []
 
     def add(
-        code: str, text: str, page: int | None, snippet: str, conf: str, sub: bool, plan: str | None
+        code: str,
+        text: str,
+        page: int | None,
+        snippet: str,
+        conf: str,
+        sub: bool,
+        plan: str | None,
+        table: bool = False,
     ) -> None:
         code = _norm(code)
         text = text.strip(" :")
@@ -104,16 +121,44 @@ def extract_plo(doc: Document, gateway=None) -> PartResult:
             return
         key = (plan, code)
         if key in plos:
-            # keep the longest text (tables sometimes truncate), never overwrite with shorter
-            if len(text) > len(plos[key]["text"]):
-                plos[key]["text"] = text
+            cur = plos[key]
+            if same_wording(text, cur["text"]):
+                # keep the longest text (tables sometimes truncate), never overwrite with shorter
+                if len(text) > len(cur["text"]):
+                    cur["text"] = text
+                return
+            if table == (cur["meta"].get("from") == "table"):
+                # A later line of the same kind re-mentions the code ("หมายเหตุ: PLO6 เป็น...",
+                # "PLO 2-5 เป็น..."); the first definition stands.
+                return
+            # The book words this PLO differently in the list and in the K/S/E/C table.
+            # Keep the list wording (the PLO statement itself), offer the table one, and
+            # let the reviewer pick: neither text is silently dropped.
+            alts = cur["meta"].setdefault("alternatives", [])
+            if table:
+                if all(not same_wording(text, a["text"]) for a in alts):
+                    alts.append({"text": text, "page": page, "from": "table"})
+            else:
+                alts.append({"text": cur["text"], "page": cur["meta"]["source"]["page"],
+                             "from": cur["meta"].get("from")})  # fmt: skip
+                cur["text"] = text
+                cur["meta"]["source"] = {"page": page, "snippet": snippet[:160]}
+                cur["meta"]["from"] = "list"
+            cur["meta"]["confidence"] = "low"
+            seen = [cur["meta"]["source"]["page"], *(a["page"] for a in alts)]
+            pages = sorted({p_ for p_ in seen if p_})
+            cur["meta"]["note"] = (
+                "ข้อความ PLO ในรายการกับในตารางไม่ตรงกัน"
+                + (f" (หน้า {', '.join(map(str, pages))})" if pages else "")
+                + " ระบบใช้ข้อความจากรายการ ให้ Admin ยืนยันฉบับทางการ"
+            )
             return
         plos[key] = {
             "code": code,
             "plan": plan,
             "text": text,
             "sub_plos": [],
-            "meta": meta(conf, page, snippet),  # type: ignore[arg-type]
+            "meta": {**meta(conf, page, snippet), "from": "table" if table else "list"},  # type: ignore[arg-type]
         }
         order.append(key)
 
@@ -149,7 +194,8 @@ def extract_plo(doc: Document, gateway=None) -> PartResult:
                                 continue
                             m = RE_PLO.match(line)
                             if m:
-                                add(m.group(1), m.group(2), b.page, line, "medium", False, plan)
+                                add(m.group(1), m.group(2), b.page, line, "medium", False, plan,
+                                    table=True)  # fmt: skip
 
     if not plos and gateway is not None:
         text = blocks_text(ch3.blocks, max_chars=30000)
@@ -187,4 +233,8 @@ def extract_plo(doc: Document, gateway=None) -> PartResult:
         res.notes.append("no PLO lines matched in chapter 3")
     elif res.data["plans"]:
         res.notes.append(f"PLO แยกตามแผน: {', '.join(res.data['plans'])}")
+    conflicts = [plos[k]["code"] for k in order if plos[k]["meta"].get("alternatives")]
+    res.data["text_conflicts"] = conflicts
+    if conflicts:
+        res.notes.append("ข้อความ PLO ในรายการกับตารางไม่ตรงกัน: " + ", ".join(conflicts))
     return res
