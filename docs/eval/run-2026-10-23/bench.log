@@ -1,0 +1,62 @@
+[ingest] 4.1.4 วท.บ.วิทยาศาสตร์การอาหารและโภชนาการ ปรั.pdf: 186 pages, ocr 1 in 70.3s
+[ref] 4.1.4 วท.บ.วิทยาศาสตร์การอาหารและโภชนาการ ปรั.pdf: parser reference written
+[run] 4.1.4 วท.บ.วิทยาศาสตร์การอาหารและโภชนาการ ปรั.pdf ollama/parser_first: ok in 73.6s
+[run] 4.1.4 วท.บ.วิทยาศาสตร์การอาหารและโภชนาการ ปรั.pdf ollama/parser_first: ok in 63.5s
+[run] 4.1.4 วท.บ.วิทยาศาสตร์การอาหารและโภชนาการ ปรั.pdf ollama/llm_only: ok in 100.4s
+[run] 4.1.4 วท.บ.วิทยาศาสตร์การอาหารและโภชนาการ ปรั.pdf ollama/llm_only: ok in 97.6s
+[run] 4.1.4 วท.บ.วิทยาศาสตร์การอาหารและโภชนาการ ปรั.pdf gemini/parser_first: ok in 35.0s
+[run] 4.1.4 วท.บ.วิทยาศาสตร์การอาหารและโภชนาการ ปรั.pdf gemini/parser_first: ok in 47.8s
+[run] 4.1.4 วท.บ.วิทยาศาสตร์การอาหารและโภชนาการ ปรั.pdf gemini/llm_only: ok in 62.9s
+[run] 4.1.4 วท.บ.วิทยาศาสตร์การอาหารและโภชนาการ ปรั.pdf gemini/llm_only: ok in 59.4s
+[ingest] ปร.ด. เศรษฐศาสตร์เพื่อการพัฒนาอย่างยั่งยื.docx: 78 pages, ocr 0 in 0.6s
+[ref] ปร.ด. เศรษฐศาสตร์เพื่อการพัฒนาอย่างยั่งยื.docx: parser reference written
+[run] ปร.ด. เศรษฐศาสตร์เพื่อการพัฒนาอย่างยั่งยื.docx ollama/parser_first: ok in 10.6s
+[run] ปร.ด. เศรษฐศาสตร์เพื่อการพัฒนาอย่างยั่งยื.docx ollama/parser_first: ok in 9.1s
+[run] ปร.ด. เศรษฐศาสตร์เพื่อการพัฒนาอย่างยั่งยื.docx ollama/llm_only: ok in 31.1s
+[run] ปร.ด. เศรษฐศาสตร์เพื่อการพัฒนาอย่างยั่งยื.docx ollama/llm_only: ok in 30.5s
+[run] ปร.ด. เศรษฐศาสตร์เพื่อการพัฒนาอย่างยั่งยื.docx gemini/parser_first: ok in 5.9s
+[run] ปร.ด. เศรษฐศาสตร์เพื่อการพัฒนาอย่างยั่งยื.docx gemini/parser_first: ok in 3.0s
+[run] ปร.ด. เศรษฐศาสตร์เพื่อการพัฒนาอย่างยั่งยื.docx gemini/llm_only: ok in 26.2s
+[run] ปร.ด. เศรษฐศาสตร์เพื่อการพัฒนาอย่างยั่งยื.docx gemini/llm_only: ok in 19.0s
+[ingest] วท.บ. วิทยาการการเปลี่ยนแปลงสภาพภูมิอากาศ.docx: 82 pages, ocr 0 in 0.5s
+[ref] วท.บ. วิทยาการการเปลี่ยนแปลงสภาพภูมิอากาศ.docx: parser reference written
+[run] วท.บ. วิทยาการการเปลี่ยนแปลงสภาพภูมิอากาศ.docx ollama/parser_first: ok in 52.2s
+[run] วท.บ. วิทยาการการเปลี่ยนแปลงสภาพภูมิอากาศ.docx ollama/parser_first: ok in 48.1s
+[run] วท.บ. วิทยาการการเปลี่ยนแปลงสภาพภูมิอากาศ.docx ollama/llm_only: ok in 75.8s
+[run] วท.บ. วิทยาการการเปลี่ยนแปลงสภาพภูมิอากาศ.docx ollama/llm_only: ok in 78.3s
+[run] วท.บ. วิทยาการการเปลี่ยนแปลงสภาพภูมิอากาศ.docx gemini/parser_first: ok in 32.0s
+[run] วท.บ. วิทยาการการเปลี่ยนแปลงสภาพภูมิอากาศ.docx gemini/parser_first: ok in 34.1s
+[run] วท.บ. วิทยาการการเปลี่ยนแปลงสภาพภูมิอากาศ.docx gemini/llm_only: ok in 48.7s
+[run] วท.บ. วิทยาการการเปลี่ยนแปลงสภาพภูมิอากาศ.docx gemini/llm_only: ok in 75.1s
+[ingest] วท.บ. อาหาร (สแกน 14 หน้า).pdf: 14 pages, ocr 14 in 38.5s
+[ref] วท.บ. อาหาร (สแกน 14 หน้า).pdf: parser reference written
+[run] วท.บ. อาหาร (สแกน 14 หน้า).pdf ollama/parser_first: ok in 5.0s
+[run] วท.บ. อาหาร (สแกน 14 หน้า).pdf ollama/parser_first: ok in 3.0s
+[run] วท.บ. อาหาร (สแกน 14 หน้า).pdf ollama/llm_only: ok in 3.0s
+[run] วท.บ. อาหาร (สแกน 14 หน้า).pdf ollama/llm_only: ok in 3.0s
+[run] วท.บ. อาหาร (สแกน 14 หน้า).pdf gemini/parser_first: ok in 3.4s
+[run] วท.บ. อาหาร (สแกน 14 หน้า).pdf gemini/parser_first: ok in 4.2s
+[run] วท.บ. อาหาร (สแกน 14 หน้า).pdf gemini/llm_only: ok in 3.3s
+[run] วท.บ. อาหาร (สแกน 14 หน้า).pdf gemini/llm_only: ok in 3.4s
+[ingest] ศศ.บ. การจัดการภูมิสังคมและวัฒนธรรม (ปป.69).docx: 214 pages, ocr 0 in 0.8s
+[ref] ศศ.บ. การจัดการภูมิสังคมและวัฒนธรรม (ปป.69).docx: parser reference written
+[run] ศศ.บ. การจัดการภูมิสังคมและวัฒนธรรม (ปป.69).docx ollama/parser_first: ok in 77.7s
+[run] ศศ.บ. การจัดการภูมิสังคมและวัฒนธรรม (ปป.69).docx ollama/parser_first: ok in 73.2s
+[run] ศศ.บ. การจัดการภูมิสังคมและวัฒนธรรม (ปป.69).docx ollama/llm_only: ok in 86.4s
+[run] ศศ.บ. การจัดการภูมิสังคมและวัฒนธรรม (ปป.69).docx ollama/llm_only: ok in 84.4s
+[run] ศศ.บ. การจัดการภูมิสังคมและวัฒนธรรม (ปป.69).docx gemini/parser_first: ok in 49.0s
+[run] ศศ.บ. การจัดการภูมิสังคมและวัฒนธรรม (ปป.69).docx gemini/parser_first: ok in 105.2s
+[run] ศศ.บ. การจัดการภูมิสังคมและวัฒนธรรม (ปป.69).docx gemini/llm_only: ok in 56.5s
+[run] ศศ.บ. การจัดการภูมิสังคมและวัฒนธรรม (ปป.69).docx gemini/llm_only: ok in 93.7s
+[ingest] ศศ.ม. เศรษฐศาสตร์ธุรกิจและการจัดการ (ปป.69).docx: 56 pages, ocr 0 in 0.3s
+[ref] ศศ.ม. เศรษฐศาสตร์ธุรกิจและการจัดการ (ปป.69).docx: parser reference written
+[run] ศศ.ม. เศรษฐศาสตร์ธุรกิจและการจัดการ (ปป.69).docx ollama/parser_first: ok in 3.2s
+[run] ศศ.ม. เศรษฐศาสตร์ธุรกิจและการจัดการ (ปป.69).docx ollama/parser_first: ok in 2.3s
+[run] ศศ.ม. เศรษฐศาสตร์ธุรกิจและการจัดการ (ปป.69).docx ollama/llm_only: ok in 22.3s
+[run] ศศ.ม. เศรษฐศาสตร์ธุรกิจและการจัดการ (ปป.69).docx ollama/llm_only: ok in 22.4s
+[run] ศศ.ม. เศรษฐศาสตร์ธุรกิจและการจัดการ (ปป.69).docx gemini/parser_first: ok in 2.8s
+[run] ศศ.ม. เศรษฐศาสตร์ธุรกิจและการจัดการ (ปป.69).docx gemini/parser_first: ok in 4.2s
+[run] ศศ.ม. เศรษฐศาสตร์ธุรกิจและการจัดการ (ปป.69).docx gemini/llm_only: ok in 21.8s
+[run] ศศ.ม. เศรษฐศาสตร์ธุรกิจและการจัดการ (ปป.69).docx gemini/llm_only: ok in 22.9s
+wrote docs/eval/run-2026-10-23/results.csv, results.json, summary.md (48 rows)
+exit done 00:41

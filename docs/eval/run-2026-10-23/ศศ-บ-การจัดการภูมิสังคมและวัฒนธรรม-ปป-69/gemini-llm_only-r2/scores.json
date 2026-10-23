@@ -1,0 +1,63 @@
+{
+ "info": {
+  "fields": 11,
+  "correct": 11,
+  "accuracy": 1.0,
+  "wrong": [],
+  "unscored_extra": []
+ },
+ "structure": {
+  "ref": 9,
+  "cand": 9,
+  "matched": 9,
+  "precision": 1.0,
+  "recall": 1.0,
+  "hallucinated": [],
+  "missed": [],
+  "credits_accuracy": 1.0,
+  "total_credits_match": true
+ },
+ "plo": {
+  "ref": 6,
+  "cand": 6,
+  "matched": 6,
+  "precision": 1.0,
+  "recall": 1.0,
+  "hallucinated": [],
+  "missed": [],
+  "text_accuracy": 0.833
+ },
+ "courses": {
+  "ref": 90,
+  "cand": 56,
+  "matched": 56,
+  "precision": 1.0,
+  "recall": 0.622,
+  "hallucinated": [],
+  "missed": [
+   "กจว132",
+   "กจว133",
+   "กจว211",
+   "กจว212",
+   "กจว213",
+   "กจว214",
+   "กจว221",
+   "กจว222",
+   "กจว223",
+   "กจว321",
+   "กจว322",
+   "กจว323",
+   "กจว331",
+   "กจว411",
+   "กจว412",
+   "กจว413",
+   "กจส331",
+   "กจส332",
+   "กจส333",
+   "กจส341"
+  ],
+  "name_th_accuracy": 0.982,
+  "name_en_accuracy": 0.857,
+  "credits_accuracy": 0.982
+ }
+}

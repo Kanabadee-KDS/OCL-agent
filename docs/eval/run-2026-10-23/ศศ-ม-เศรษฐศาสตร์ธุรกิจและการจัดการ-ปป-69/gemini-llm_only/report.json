@@ -1,0 +1,146 @@
+{
+ "source": "ศศ.ม. เศรษฐศาสตร์ธุรกิจและการจัดการ (ปป.69).docx",
+ "out_dir": "docs/eval/run-2026-10-23/ศศ-ม-เศรษฐศาสตร์ธุรกิจและการจัดการ-ปป-69/gemini-llm_only",
+ "provider": "gemini",
+ "model": "gemini-flash-latest",
+ "mode": "llm_only",
+ "parts": {
+  "info": {
+   "seconds": 3.05,
+   "count": 33,
+   "llm": {
+    "provider": "gemini",
+    "model": "gemini-flash-latest",
+    "prompt_tokens": 935,
+    "completion_tokens": 164,
+    "seconds": 3.048,
+    "calls": 1,
+    "retries": 0
+   },
+   "notes": []
+  },
+  "structure": {
+   "seconds": 2.48,
+   "count": 3,
+   "llm": {
+    "provider": "gemini",
+    "model": "gemini-flash-latest",
+    "prompt_tokens": 239,
+    "completion_tokens": 78,
+    "seconds": 2.483,
+    "calls": 1,
+    "retries": 0
+   },
+   "notes": []
+  },
+  "plo": {
+   "seconds": 13.65,
+   "count": 6,
+   "llm": {
+    "provider": "gemini",
+    "model": "gemini-flash-latest",
+    "prompt_tokens": 3101,
+    "completion_tokens": 2148,
+    "seconds": 13.647,
+    "calls": 1,
+    "retries": 0
+   },
+   "notes": []
+  },
+  "courses": {
+   "seconds": 2.57,
+   "count": 1,
+   "llm": {
+    "provider": "gemini",
+    "model": "gemini-flash-latest",
+    "prompt_tokens": 3446,
+    "completion_tokens": 111,
+    "seconds": 2.564,
+    "calls": 1,
+    "retries": 0
+   },
+   "notes": [
+    "llm chunk 1: 1 items, 1 verified"
+   ]
+  }
+ },
+ "checks": {
+  "pass": 7,
+  "warn": 1,
+  "fail": 1,
+  "items": [
+   {
+    "key": "info_required",
+    "status": "pass",
+    "message": "ฟิลด์บังคับของข้อมูลหลักครบ (ชื่อ ระดับ ปริญญา หน่วยกิต ปีที่เริ่มใช้)",
+    "part": "info"
+   },
+   {
+    "key": "program_code_format",
+    "status": "pass",
+    "message": "รหัสหลักสูตร สกอ. 25530091100335 ครบ 14 หลัก",
+    "part": "info"
+   },
+   {
+    "key": "info_credits_match",
+    "status": "pass",
+    "message": "หน่วยกิตหมวดที่ 1 ข้อ 4 (36) = โครงสร้างหมวดที่ 4 (36)",
+    "part": "info"
+   },
+   {
+    "key": "name_consistent",
+    "status": "pass",
+    "message": "สาขาวิชาในชื่อหลักสูตรตรงกับชื่อปริญญา (ไทย/อังกฤษ)",
+    "part": "info"
+   },
+   {
+    "key": "next_revision",
+    "status": "info",
+    "message": "เริ่มใช้ปีการศึกษา 2569 → ครบรอบปรับปรุงหลักสูตร พ.ศ. 2574",
+    "part": "info"
+   },
+   {
+    "key": "info_inferred",
+    "status": "info",
+    "message": "ระบบอนุมานเอง 7 ฟิลด์ ต้องให้คนยืนยัน: ภาคการศึกษาที่นับ, ระดับการศึกษา, กลุ่มการศึกษา, หลักสูตรนานาชาติ, ประเภทการรับสมัคร, เกณฑ์มาตรฐานหลักสูตร, หลักสูตรฝึกปฏิบัติ CWIE",
+    "part": "info"
+   },
+   {
+    "key": "credits_total",
+    "status": "fail",
+    "message": "ผลรวมหมวดวิชา 18 ≠ หน่วยกิตตลอดหลักสูตร 36 (เล่มอาจระบุ 'ไม่น้อยกว่า')",
+    "part": "structure"
+   },
+   {
+    "key": "credits_sub",
+    "status": "pass",
+    "message": "หน่วยกิตกลุ่มย่อยรวมตรงกับหมวดทุกหมวด",
+    "part": "structure"
+   },
+   {
+    "key": "plo_present",
+    "status": "pass",
+    "message": "พบ PLO 6 ข้อ",
+    "part": "plo"
+   },
+   {
+    "key": "course_code_unique",
+    "status": "pass",
+    "message": "รหัสรายวิชาไม่ซ้ำ (1 วิชา)",
+    "part": "courses"
+   },
+   {
+    "key": "course_fields",
+    "status": "warn",
+    "message": "ไม่มีหน่วยกิต 1 วิชา · ไม่มีคำอธิบาย 1 วิชา (เช่น สพท682, สพท682)",
+    "part": "courses"
+   },
+   {
+    "key": "courses_vs_structure",
+    "status": "info",
+    "message": "รายวิชา 1 วิชา · หน่วยกิตรวมของรายวิชาที่พบ 0",
+    "part": "courses"
+   }
+  ]
+ }
+}

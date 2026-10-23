@@ -34,3 +34,7 @@ tsconfig.tsbuildinfo
 
 # bench runs: keep scores/reports, not the per-book ingest copies (book text + page images)
 docs/eval/run-*/*/ingest/
+# keep only scores/report per leg (extracted book content stays local; rerun bench to regenerate)
+docs/eval/run-*/*/*/*
+!docs/eval/run-*/*/*/scores.json
+!docs/eval/run-*/*/*/report.json

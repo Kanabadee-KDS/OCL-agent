@@ -1,0 +1,76 @@
+{
+ "info": {
+  "fields": 11,
+  "correct": 11,
+  "accuracy": 1.0,
+  "wrong": [],
+  "unscored_extra": []
+ },
+ "structure": {
+  "ref": 5,
+  "cand": 3,
+  "matched": 2,
+  "precision": 0.667,
+  "recall": 0.4,
+  "hallucinated": [
+   "หมวดวิชาเลือก"
+  ],
+  "missed": [
+   "หมวดวิชาเลือกไม่น้อยกว่า",
+   "แผน1แบบวิชาการ",
+   "แผน2แบบวิชาชีพ"
+  ],
+  "credits_accuracy": 0.5,
+  "total_credits_match": true
+ },
+ "plo": {
+  "ref": 3,
+  "cand": 6,
+  "matched": 0,
+  "precision": 0.0,
+  "recall": 0.0,
+  "hallucinated": [
+   "plo1แผน1แบบวิชาการ",
+   "plo1แผน2แบบวิชาชีพ",
+   "plo2แผน1แบบวิชาการ",
+   "plo2แผน2แบบวิชาชีพ",
+   "plo3แผน1แบบวิชาการ",
+   "plo3แผน2แบบวิชาชีพ"
+  ],
+  "missed": [
+   "plo1",
+   "plo2",
+   "plo3"
+  ],
+  "text_accuracy": null
+ },
+ "courses": {
+  "ref": 17,
+  "cand": 1,
+  "matched": 1,
+  "precision": 1.0,
+  "recall": 0.059,
+  "hallucinated": [],
+  "missed": [
+   "ปพท691",
+   "ศฐ510",
+   "ศฐ511",
+   "ศฐ512",
+   "ศฐ513",
+   "ศฐ514",
+   "ศฐ521",
+   "ศฐ522",
+   "ศฐ631",
+   "ศฐ632",
+   "ศฐ633",
+   "ศฐ634",
+   "ศฐ635",
+   "ศฐ636",
+   "ศฐ637",
+   "ศฐ638"
+  ],
+  "name_th_accuracy": 1.0,
+  "name_en_accuracy": 0.0,
+  "credits_accuracy": 0.0
+ }
+}
