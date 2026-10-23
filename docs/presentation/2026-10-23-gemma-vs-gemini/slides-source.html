@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="th"><head><meta charset="utf-8"><title>Gemma vs Gemini</title>
+<style>
+@font-face{font-family:"PlexThai";src:url(fonts/IBMPlexSansThai-ExtraLight.ttf);font-weight:200}
+@font-face{font-family:"PlexThai";src:url(fonts/IBMPlexSansThai-Light.ttf);font-weight:300}
+@font-face{font-family:"PlexThai";src:url(fonts/IBMPlexSansThai-Regular.ttf);font-weight:400}
+@font-face{font-family:"PlexThai";src:url(fonts/IBMPlexSansThai-Medium.ttf);font-weight:500}
+@font-face{font-family:"PlexThai";src:url(fonts/IBMPlexSansThai-SemiBold.ttf);font-weight:600}
+@font-face{font-family:"InstrSerif";src:url(fonts/InstrumentSerif-Regular.ttf)}
+@font-face{font-family:"InstrSerif";src:url(fonts/InstrumentSerif-Italic.ttf);font-style:italic}
+@font-face{font-family:"PlexMono";src:url(fonts/IBMPlexMono-Regular.ttf)}
+:root{--paper:#F4F1EA;--ink:#1D1B18;--ink2:#625D55;--ink3:#9C958A;--rule:#D8D2C6;--gemma:#2D6A4F;--gemini:#2B579E;--mark:#8E1E2D;--soft:#ECE8DF}
+@page{size:1920px 1080px;margin:0}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--paper);color:var(--ink);font-family:"PlexThai",sans-serif;font-weight:300;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.slide{width:1920px;height:1080px;position:relative;overflow:hidden;page-break-after:always;break-after:page;background:var(--paper)}
+.slide:last-child{page-break-after:auto;break-after:auto}
+.top,.foot{position:absolute;left:120px;right:120px;display:flex;justify-content:space-between;font-family:"PlexMono","PlexThai";font-size:15px;letter-spacing:.06em;color:var(--ink3);text-transform:uppercase}
+.top{top:64px;padding-bottom:14px;border-bottom:1px solid var(--rule)}
+.foot{bottom:56px;font-size:15px;letter-spacing:0;text-transform:none;font-family:"PlexThai";font-weight:300}
+.top b{color:var(--mark);font-weight:400}
+.body{position:absolute;left:120px;right:120px;top:150px;bottom:120px}
+.kick{font-family:"PlexMono","PlexThai";font-size:18px;letter-spacing:.02em;color:var(--mark);text-transform:uppercase}
+h1{font-weight:300;font-size:54px;line-height:1.28;letter-spacing:-.005em;margin-top:18px;max-width:1680px}
+h2{font-weight:400;font-size:26px;line-height:1.4}
+.cap{font-size:21px;line-height:1.55;color:var(--ink2);font-weight:300}
+.small{font-size:17px;line-height:1.5;color:var(--ink2)}
+.mono{font-family:"PlexMono","PlexThai";letter-spacing:.02em}
+.num{font-family:"InstrSerif","PlexThai";font-weight:400;letter-spacing:-.01em;line-height:.9}
+.gm{color:var(--gemma)} .gn{color:var(--gemini)} .mk{color:var(--mark)}
+.sq{display:inline-block;width:14px;height:14px;vertical-align:1px;margin-right:10px}
+.sq.gm{background:var(--gemma)} .sq.gn{background:var(--gemini)}
+.hr{height:1px;background:var(--rule)}
+.note{position:absolute;left:120px;right:120px;bottom:96px;font-size:16px;color:var(--ink3);line-height:1.5}
+</style></head><body>
+
+<!-- 01 cover -->
+<section class="slide">
+  <div class="top"><span>OCL Agent · <b>R1-E</b> · ผลการประเมิน</span><span>01 / 12</span></div>
+  <div style="position:absolute;left:120px;top:250px;width:900px">
+    <div class="kick">รายงานผลการประเมิน · 23 ตุลาคม 2569</div>
+    <h1 style="font-size:58px;line-height:1.3;margin-top:28px">การประเมินแบบจำลองภาษาขนาดใหญ่<br>สำหรับการสกัดข้อมูลเล่มหลักสูตร</h1>
+    <div style="font-size:34px;line-height:1.5;font-weight:300;margin-top:26px"><span class="gm">Gemma 4 · 26B</span> ประมวลผลภายใน มศว (On-premise)<br><span style="color:var(--ink3)">เปรียบเทียบกับ</span> <span class="gn">Gemini 3.8 Flash</span> (Cloud)</div>
+    <div class="small" style="margin-top:50px;max-width:700px">OCL Agent · ระบบนำเข้าข้อมูลเล่มหลักสูตรด้วยปัญญาประดิษฐ์<br>ระบบบริหารจัดการหลักสูตรและการรับรองสมรรถนะดิจิทัล (Skill Transcript) มหาวิทยาลัยศรีนครินทรวิโรฒ</div>
+  </div>
+  <div style="position:absolute;left:1112px;top:262px;width:690px">
+    <div style="display:flex;margin-left:232px;gap:40px" class="mono">
+      <div style="width:218px;font-size:14px;color:var(--gemma);letter-spacing:.12em">GEMMA</div>
+      <div style="width:218px;font-size:14px;color:var(--gemini);letter-spacing:.12em">GEMINI</div>
+    </div>
+    <div id="grid48" style="margin-top:18px"></div>
+    <div style="display:flex;margin-left:232px;gap:40px;margin-top:14px" class="mono">
+      <div style="width:218px;font-size:13px;color:var(--ink3);display:flex;justify-content:space-between;white-space:nowrap;gap:8px"><span>ระดับระบบ ×2</span><span>ระดับแบบจำลอง ×2</span></div>
+      <div style="width:218px;font-size:13px;color:var(--ink3);display:flex;justify-content:space-between;white-space:nowrap;gap:8px"><span>ระดับระบบ ×2</span><span>ระดับแบบจำลอง ×2</span></div>
+    </div>
+    <div style="display:flex;align-items:baseline;gap:22px;margin-top:64px;margin-left:232px">
+      <span class="num" style="font-size:120px">48</span><span class="cap">การทดลอง<br>ประมวลผลสำเร็จครบทุกการทดลอง</span>
+    </div>
+  </div>
+  <div class="foot"><span>6 เล่ม × 2 แบบจำลอง × 2 ระดับการประเมิน × 2 รอบ</span><span>คณะผู้พัฒนา OCL Agent</span></div>
+</section>
+
+<!-- 02 question -->
+<section class="slide">
+  <div class="top"><span>OCL Agent · <b>R1-E</b> · วัตถุประสงค์</span><span>02 / 12</span></div>
+  <div class="body">
+    <div class="kick">วัตถุประสงค์การประเมิน</div>
+    <h1>การคัดเลือกแบบจำลองต้องพิจารณาสี่มิติร่วมกัน</h1>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:96px;margin-top:84px">
+      <div style="border-top:3px solid var(--gemma);padding-top:26px">
+        <h2 class="gm" style="font-size:46px;font-weight:300">Gemma 4 · 26B</h2>
+        <div class="cap" style="margin-top:16px;font-size:24px">ประมวลผลบนเครื่องแม่ข่ายของมหาวิทยาลัย (On-premise)<br>ใช้หน่วยประมวลผลกราฟิก (GPU) ร่วมกับระบบ HRIS</div>
+      </div>
+      <div style="border-top:3px solid var(--gemini);padding-top:26px">
+        <h2 class="gn" style="font-size:46px;font-weight:300">Gemini 3.8 Flash</h2>
+        <div class="cap" style="margin-top:16px;font-size:24px">ประมวลผลบนบริการคลาวด์ของ Google<br>รับส่งข้อมูลผ่านเครือข่ายอินเทอร์เน็ต คิดค่าบริการตามปริมาณการใช้งาน</div>
+      </div>
+    </div>
+    <div style="position:absolute;left:0;right:0;bottom:30px;display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--rule)">
+      <div style="padding:30px 30px 0 0"><div style="font-size:36px;font-weight:300">การคุ้มครองข้อมูล</div><div class="small" style="margin-top:8px">ตำแหน่งที่ข้อมูลถูกประมวลผล</div></div>
+      <div style="padding:30px 30px 0 30px;border-left:1px solid var(--rule)"><div style="font-size:36px;font-weight:300">ความถูกต้อง</div><div class="small" style="margin-top:8px">ความถูกต้อง ครบถ้วน และไม่สร้างข้อมูลเกิน</div></div>
+      <div style="padding:30px 30px 0 30px;border-left:1px solid var(--rule)"><div style="font-size:36px;font-weight:300">ต้นทุนการประมวลผล</div><div class="small" style="margin-top:8px">ต้นทุนต่อเล่มและต้นทุนแฝง</div></div>
+      <div style="padding:30px 0 0 30px;border-left:1px solid var(--rule)"><div style="font-size:36px;font-weight:300">เวลาประมวลผล</div><div class="small" style="margin-top:8px">เวลาประมวลผลของแบบจำลองต่อเล่ม</div></div>
+    </div>
+  </div>
+  <div class="foot"><span>มิติการประเมินตามความต้องการของมหาวิทยาลัย</span><span></span></div>
+</section>
+
+<!-- 03 method -->
+<section class="slide">
+  <div class="top"><span>OCL Agent · <b>R1-E</b> · ระเบียบวิธี</span><span>03 / 12</span></div>
+  <div class="body">
+    <div class="kick">ระเบียบวิธีการประเมิน</div>
+    <h1>การประเมินสองระดับ: ระดับระบบและระดับแบบจำลอง</h1>
+    <div id="pipe" style="margin-top:62px"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:96px;margin-top:58px">
+      <div><h2>ระดับระบบ (Parser-first)</h2><div class="cap" style="margin-top:8px">กระบวนการที่ใช้งานจริง การสกัดด้วยกฎดำเนินการก่อน แบบจำลองเติมฟิลด์ที่กฎอ่านไม่ได้ และตรวจทาน/เพิ่มรายวิชาที่กฎไม่พบ<br><span style="color:var(--ink)">วัดผลกระทบของแบบจำลองต่อข้อมูลที่ผู้ใช้ได้รับ</span></div></div>
+      <div><h2>ระดับแบบจำลอง (LLM-only)</h2><div class="cap" style="margin-top:8px">ปิดการสกัดด้วยกฎใน 4 ส่วน (ข้อมูลหลัก โครงสร้างหลักสูตร PLO รายวิชา) ให้แบบจำลองสกัดข้อมูลทั้งหมด<br><span style="color:var(--ink)">วัดขีดความสามารถของแบบจำลองโดยตรง</span></div></div>
+    </div>
+    <div style="position:absolute;left:0;right:0;bottom:24px;display:flex;align-items:baseline;gap:30px;border-top:1px solid var(--rule);padding-top:28px">
+      <span class="num" style="font-size:76px">6</span><span class="cap">เล่ม</span><span class="num" style="font-size:46px;color:var(--ink3)">×</span>
+      <span class="num" style="font-size:76px">2</span><span class="cap">แบบจำลอง</span><span class="num" style="font-size:46px;color:var(--ink3)">×</span>
+      <span class="num" style="font-size:76px">2</span><span class="cap">ระดับ</span><span class="num" style="font-size:46px;color:var(--ink3)">×</span>
+      <span class="num" style="font-size:76px">2</span><span class="cap">รอบ</span><span class="num" style="font-size:46px;color:var(--ink3)">=</span>
+      <span class="num" style="font-size:76px">48</span><span class="cap">การทดลอง</span>
+      <span class="small" style="margin-left:auto;max-width:520px;text-align:right">ไฟล์ Word 4 · PDF 1 · PDF ภาพสแกน 1<br>ระดับปริญญาตรี 3 · โท 1 · เอก 1 · ภาพสแกน 1</span>
+    </div>
+  </div>
+  <div class="foot"><span>ค่าอ้างอิง (Reference) = ผลการสกัดด้วยกฎ ซึ่งผ่านการตรวจสอบเบื้องต้นโดยคณะผู้พัฒนา · อยู่ระหว่างรอการยืนยันกับต้นฉบับโดยผู้ดูแลระบบของมหาวิทยาลัย</span><span>23.10.2569</span></div>
+</section>
+
+<!-- 04 system mode -->
+<section class="slide">
+  <div class="top"><span>OCL Agent · <b>R1-E</b> · ผลการประเมิน · ระดับระบบ</span><span>04 / 12</span></div>
+  <div class="body">
+    <div class="kick">ผลการประเมินที่ 1 · ระดับระบบ</div>
+    <h1>ในระดับระบบ ผลการสกัดของทั้งสองแบบจำลองสอดคล้องกันครบ 6 เล่ม</h1>
+    <div style="display:grid;grid-template-columns:560px 1fr;gap:110px;margin-top:66px">
+      <div>
+        <div style="display:flex;align-items:baseline;gap:18px"><span class="num" style="font-size:210px">6</span><span class="num" style="font-size:96px;color:var(--ink3)">/ 6</span></div>
+        <div class="cap" style="margin-top:6px">เล่มที่ผลการสกัดในส่วนที่ใช้แบบจำลองตรงกัน<br>และสอดคล้องกับค่าอ้างอิง · อีก 6 ส่วนสกัดด้วยกฎทั้งหมด</div>
+        <div class="hr" style="margin:44px 0 34px"></div>
+        <div style="display:flex;align-items:baseline;gap:22px"><span class="num" style="font-size:120px">0</span><span class="cap">รหัสวิชาหรือ PLO ที่ไม่ปรากฏในต้นฉบับ<br>(Hallucination) จาก 48 การทดลอง</span></div>
+      </div>
+      <div id="sysrows"></div>
+    </div>
+  </div>
+  <div class="note">Gemini ปรับถ้อยคำชื่อรายวิชา 4 รายการในเล่ม ศศ.บ. (เช่น ตัดคำว่า "ทาง") กลไกตรวจสอบกับต้นฉบับตรวจพบครบทุกรายการ คงชื่อตามต้นฉบับ และแจ้งให้ผู้ตรวจพิจารณา</div>
+  <div class="foot"><span>n = 24 การทดลอง (6 เล่ม × 2 แบบจำลอง × 2 รอบ) · เปรียบเทียบกับค่าอ้างอิงจากการสกัดด้วยกฎ</span><span>23.10.2569</span></div>
+</section>
+
+<!-- 05 model-only -->
+<section class="slide">
+  <div class="top"><span>OCL Agent · <b>R1-E</b> · ผลการประเมิน · ระดับแบบจำลอง</span><span>05 / 12</span></div>
+  <div class="body">
+    <div class="kick">ผลการประเมินที่ 2 · ระดับแบบจำลอง</div>
+    <h1>ในระดับแบบจำลอง ข้อจำกัดของแต่ละแบบจำลองแตกต่างกัน</h1>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:120px;margin-top:64px">
+      <div>
+        <h2>ข้อมูลหลักของหลักสูตร 11 ฟิลด์</h2>
+        <div class="small">ชื่อหลักสูตร ชื่อปริญญา หน่วยกิตรวม ระยะเวลาการศึกษา ปีที่เริ่มใช้ ฯลฯ</div>
+        <div id="info11" style="margin-top:40px"></div>
+        <div class="cap" style="margin-top:34px"><span class="gm" style="font-weight:400">Gemma ไม่ส่งค่าในฟิลด์เชิงตัวเลข 4 ฟิลด์ ทุกเล่มและทุกรอบ</span><br>หน่วยกิตรวม · ระยะเวลาการศึกษา · ภาคการศึกษาที่เริ่ม · ปีที่เริ่มใช้<br>ไม่ส่งผลต่อระดับระบบ เนื่องจากการสกัดด้วยกฎอ่านค่าดังกล่าวได้ครบ</div>
+      </div>
+      <div>
+        <h2>รายวิชา 3 หลักสูตรระดับปริญญาตรี · 225 รายวิชา</h2>
+        <div class="small">อาหาร 78 · ภูมิอากาศ 57 · ศศ.บ. 90</div>
+        <div id="courses" style="margin-top:40px"></div>
+        <div class="cap" style="margin-top:34px"><span class="gn" style="font-weight:400">Gemini สูญหาย 34 รายวิชาในการทดลองรอบที่ 2</span><br>ช่วงข้อความหนึ่งของเล่ม ศศ.บ. ส่งกลับเพียง 1 จาก 35 รายวิชา<br>ไม่มีรายการที่สร้างขึ้นเอง จึงไม่เกิดสัญญาณแจ้งเตือนในระบบ</div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>หลักสูตรระดับปริญญาโทและเอกไม่นำมาเปรียบเทียบส่วนรายวิชา เนื่องจากรายวิชาอยู่ในรูปแบบตาราง ซึ่งอยู่นอกขอบเขตข้อมูลนำเข้าของระดับแบบจำลอง</span><span>23.10.2569</span></div>
+</section>
+
+<!-- 06 stability -->
+<section class="slide">
+  <div class="top"><span>OCL Agent · <b>R1-E</b> · ผลการประเมิน · ความคงที่</span><span>06 / 12</span></div>
+  <div class="body">
+    <div class="kick">ผลการประเมินที่ 3 · ความคงที่ของผลลัพธ์ (Reproducibility)</div>
+    <h1>Gemma ให้ผลลัพธ์คงที่ในการทดลองซ้ำทุกกรณี</h1>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:120px;margin-top:104px">
+      <div>
+        <div style="display:flex;align-items:baseline;gap:16px"><span class="num gm" style="font-size:170px">12</span><span class="num" style="font-size:80px;color:var(--ink3)">/ 12</span></div>
+        <div class="cap" style="margin-top:4px"><span class="gm" style="font-weight:400">Gemma</span> · คู่การทดลองซ้ำที่ให้คะแนนเท่าเดิม</div>
+        <div id="stab-gm" style="margin-top:42px"></div>
+      </div>
+      <div>
+        <div style="display:flex;align-items:baseline;gap:16px"><span class="num gn" style="font-size:170px">9</span><span class="num" style="font-size:80px;color:var(--ink3)">/ 12</span></div>
+        <div class="cap" style="margin-top:4px"><span class="gn" style="font-weight:400">Gemini</span> · คู่การทดลองซ้ำที่ให้คะแนนเท่าเดิม</div>
+        <div id="stab-gn" style="margin-top:42px"></div>
+      </div>
+    </div>
+  </div>
+  <div class="note">คู่การทดลองซ้ำ = เล่ม ระดับการประเมิน และการตั้งค่าเดียวกัน ประมวลผล 2 ครั้ง · กำหนด temperature = 0 ทั้งสองแบบจำลอง · Gemini ให้ข้อความตอบกลับแตกต่างกัน 8 จาก 12 คู่ และคะแนนเปลี่ยน 3 คู่ (อาหาร ศศ.บ. ศศ.ม.)</div>
+  <div class="foot"><span>n = 12 คู่การทดลองซ้ำต่อแบบจำลอง</span><span>23.10.2569</span></div>
+</section>
+
+<!-- 07 speed -->
+<section class="slide">
+  <div class="top"><span>OCL Agent · <b>R1-E</b> · เวลาประมวลผล</span><span>07 / 12</span></div>
+  <div class="body">
+    <div class="kick">เวลาประมวลผล · ระดับระบบ</div>
+    <h1>Gemini ใช้เวลาประมวลผลน้อยกว่า แต่มีความแปรปรวนในเล่มขนาดใหญ่</h1>
+    <div style="display:grid;grid-template-columns:470px 1fr;gap:110px;margin-top:64px">
+      <div>
+        <div class="mono small" style="letter-spacing:.12em;color:var(--ink3)">เวลาประมวลผลของแบบจำลองเฉลี่ยต่อเล่ม</div>
+        <div style="display:flex;align-items:baseline;gap:16px;margin-top:22px"><span class="num gn" style="font-size:150px">27</span><span class="cap">วินาที · Gemini</span></div>
+        <div style="display:flex;align-items:baseline;gap:16px;margin-top:20px"><span class="num gm" style="font-size:150px">35</span><span class="cap">วินาที · Gemma</span></div>
+        <div class="small" style="margin-top:40px">ไม่รวมเวลาแปลงไฟล์ (Word ไม่ถึง 1 วินาที · PDF 186 หน้า 70 วินาที · ภาพสแกน 14 หน้า 39 วินาที) ซึ่งเท่ากันทั้งสองแบบจำลอง</div>
+      </div>
+      <div id="speed"></div>
+    </div>
+  </div>
+  <div class="foot"><span>ค่าเฉลี่ยจาก 2 รอบต่อเล่ม · เล่ม ศศ.บ. Gemini ใช้เวลา 49 และ 105 วินาที เนื่องจากรอบที่ 2 คำตอบยาวเกินขีดจำกัด ระบบจึงแบ่งช่วงข้อความและประมวลผลซ้ำ</span><span>23.10.2569</span></div>
+</section>
+
+<!-- 08 cost -->
+<section class="slide">
+  <div class="top"><span>OCL Agent · <b>R1-E</b> · ต้นทุนการประมวลผล</span><span>08 / 12</span></div>
+  <div class="body">
+    <div class="kick">ต้นทุนการประมวลผล</div>
+    <h1>ต้นทุนทางตรงต่ำทั้งสองแนวทาง ปัจจัยที่แตกต่างคือต้นทุนแฝง</h1>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:120px;margin-top:70px">
+      <div style="border-top:3px solid var(--gemini);padding-top:30px">
+        <div class="mono small gn" style="letter-spacing:.12em">GEMINI · ต่อเล่ม</div>
+        <div style="display:flex;align-items:baseline;gap:18px;margin-top:16px"><span class="num" style="font-size:150px">0.021</span><span class="cap">USD</span></div>
+        <div class="cap" style="margin-top:8px">ประมาณ 0.75 บาท · ช่วง 0.001–0.079 USD ตามขนาดเล่ม</div>
+        <div class="hr" style="margin:34px 0 26px"></div>
+        <div class="cap" style="color:var(--ink)">100 เล่ม ≈ 2.1 USD (ประมาณ 75 บาท)</div>
+        <div class="small" style="margin-top:12px">ชำระแบบเติมเครดิตล่วงหน้า (Prepay) · อัตราส่งเสริมการขายถึง 31 ธ.ค. 2569 หลังจากนั้นประมาณ 2 เท่า</div>
+      </div>
+      <div style="border-top:3px solid var(--gemma);padding-top:30px">
+        <div class="mono small gm" style="letter-spacing:.12em">GEMMA · ต่อเล่ม</div>
+        <div style="display:flex;align-items:baseline;gap:18px;margin-top:16px"><span class="num" style="font-size:150px">0</span><span class="cap">บาท (ค่าใช้จ่ายทางตรง)</span></div>
+        <div class="cap" style="margin-top:8px">ใช้ทรัพยากรเครื่องแม่ข่ายที่มหาวิทยาลัยมีอยู่</div>
+        <div class="hr" style="margin:34px 0 26px"></div>
+        <div class="cap" style="color:var(--ink)">ต้นทุนแฝง: ใช้ GPU ร่วมกับระบบ HRIS</div>
+        <div class="small" style="margin-top:12px">ระบบ HRIS ตอบสนองช้าลงชั่วคราวระหว่างการสกัด ประมาณ 1 นาทีต่อเล่ม · งดประมวลผลช่วง 02:30–04:00 · ประมวลผลได้ครั้งละ 1 งาน</div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>สมมติอัตราแลกเปลี่ยน 36 บาท/USD · อัตราค่าบริการ Gemini 3.8 Flash 0.75 / 3.75 USD ต่อ 1 ล้าน tokens (ขาเข้า/ขาออก) ณ วันที่ประเมิน · ค่าใช้จ่ายรวมของการทดลอง Gemini 24 ครั้ง 0.61 USD</span><span>23.10.2569</span></div>
+</section>
+
+<!-- 09 privacy -->
+<section class="slide">
+  <div class="top"><span>OCL Agent · <b>R1-E</b> · การคุ้มครองข้อมูล</span><span>09 / 12</span></div>
+  <div class="body">
+    <div class="kick">การคุ้มครองข้อมูล</div>
+    <h1>การคุ้มครองข้อมูลเป็นมิติที่แตกต่างกันมากที่สุด</h1>
+    <div id="privacy" style="margin-top:56px"></div>
+  </div>
+  <div class="foot"><span>ข้อมูลที่ส่งไปยัง Gemini คือเฉพาะเนื้อหาหมวด 1 และหมวด 4 ส่วนที่การสกัดด้วยกฎอ่านไม่ได้ ประมาณ 1,000–27,000 tokens ต่อเล่ม (ส่วนใหญ่ 3,500–17,000) · ไม่ส่งไฟล์ทั้งเล่ม</span><span>23.10.2569</span></div>
+</section>
+
+<!-- 10 summary -->
+<section class="slide">
+  <div class="top"><span>OCL Agent · <b>R1-E</b> · สรุปรายมิติ</span><span>10 / 12</span></div>
+  <div class="body">
+    <div class="kick">สรุปเชิงสถาปัตยกรรม</div>
+    <h1 style="font-size:52px">สรุปผลการเปรียบเทียบรายมิติ</h1>
+    <div id="matrix" style="margin-top:40px"></div>
+  </div>
+  <div class="foot"><span>ระดับคะแนนเป็นการเปรียบเทียบเชิงสัมพัทธ์ ไม่ใช่คะแนนสัมบูรณ์ · มิติความคงที่ของผลลัพธ์พบเพิ่มเติมระหว่างการทดลอง</span><span>23.10.2569</span></div>
+</section>
+
+<!-- 11 recommendation -->
+<section class="slide">
+  <div class="top"><span>OCL Agent · <b>R1-E</b> · ข้อเสนอ</span><span>11 / 12</span></div>
+  <div class="body">
+    <div class="kick">ข้อเสนอแนะเชิงสถาปัตยกรรม</div>
+    <h1><span class="gm">Gemma</span> เป็นแบบจำลองหลัก<br><span class="gn">Gemini</span> เป็นแบบจำลองสำรอง</h1>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:120px;margin-top:62px">
+      <div>
+        <h2>เหตุผลประกอบ</h2>
+        <div class="cap" style="margin-top:14px;color:var(--ink)">ผลการสกัดข้อมูลในระดับระบบเทียบเท่ากัน</div>
+        <div class="small">จึงพิจารณาจากการคุ้มครองข้อมูลและความคงที่ของผลลัพธ์ ซึ่ง Gemma เหนือกว่า</div>
+        <div class="cap" style="margin-top:22px;color:var(--ink)">เงื่อนไขการใช้ Gemini</div>
+        <div class="small">เมื่อหน่วยประมวลผลกราฟิกไม่ว่างหรือมีงานเร่งด่วนหลายเล่ม และเฉพาะเอกสารที่นโยบายของมหาวิทยาลัยอนุญาต</div>
+        <div class="cap" style="margin-top:22px;color:var(--ink)">การเลือกแบบจำลองรายเล่ม</div>
+        <div class="small">ผู้ใช้เลือกได้ที่หน้าจอนำเข้า ระบบบันทึกแบบจำลอง เวลา และค่าใช้จ่ายของทุกงาน</div>
+      </div>
+      <div>
+        <h2>แผนการปรับปรุงก่อนใช้งานจริง</h2>
+        <div id="fixes" style="margin-top:14px"></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>ข้อเสนอแนะนี้อ้างอิงผลก่อนการตรวจสอบโดยผู้ดูแลระบบ · จะยืนยันอีกครั้งภายหลังการทดสอบร่วม</span><span>23.10.2569</span></div>
+</section>
+
+<!-- 12 asks -->
+<section class="slide">
+  <div class="top"><span>OCL Agent · <b>R1-E</b> · ขั้นถัดไป</span><span>12 / 12</span></div>
+  <div class="body">
+    <div class="kick">ขั้นตอนถัดไป</div>
+    <h1>ข้อมูลที่ต้องการจากมหาวิทยาลัยเพื่อยืนยันผลการประเมิน</h1>
+    <div id="asks" style="margin-top:110px"></div>
+  </div>
+  <div class="foot"><span>ลำดับถัดไป: การทดสอบร่วม → รายงานฉบับยืนยันผล → พัฒนาแบบฟอร์มคู่มือหลักสูตรหมวด 0–4</span><span>ขอบคุณ</span></div>
+</section>
+
+<script>
+const GM='#2D6A4F',GN='#2B579E',MK='#8E1E2D',INK='#1D1B18',INK2='#625D55',INK3='#9C958A',RULE='#D8D2C6',SOFT='#ECE8DF';
+const $=id=>document.getElementById(id);
+const svg=(w,h,inner)=>`<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">${inner}</svg>`;
+const T=(x,y,s,o={})=>`<text x="${x}" y="${y}" font-family="${o.f||'PlexThai'}" font-size="${o.size||18}" font-weight="${o.w||300}" fill="${o.c||INK2}" text-anchor="${o.a||'start'}" letter-spacing="${o.ls||0}">${s}</text>`;
+
+/* 01 · 48 grid */
+(()=>{const books=['อาหาร · PDF','ภูมิอากาศ','ศศ.บ. ภูมิสังคม','ศศ.ม. เศรษฐศาสตร์','ปร.ด. เศรษฐศาสตร์','อาหาร · สแกน'];
+ const s=44,g=14,G=40,x0=232,rowH=s+18;let o='';
+ books.forEach((b,r)=>{const y=r*rowH;o+=T(0,y+s/2+7,b,{size:19,c:INK2});
+  for(let m=0;m<2;m++)for(let i=0;i<4;i++){const x=x0+m*(4*s+3*g+G)+i*(s+g);const c=m?GN:GM;
+   o+= i<2?`<rect x="${x}" y="${y}" width="${s}" height="${s}" fill="${c}"/>`:`<rect x="${x+1}" y="${y+1}" width="${s-2}" height="${s-2}" fill="none" stroke="${c}" stroke-width="2"/>`;}});
+ $('grid48').innerHTML=svg(x0+2*(4*s+3*g)+G+2,books.length*rowH,o);})();
+
+/* 03 · pipeline */
+(()=>{const nodes=[['เล่มหลักสูตร','Word · PDF · ภาพสแกน'],['สกัดด้วยกฎ','Rule-based · 10 ส่วน'],['แบบจำลองเติมข้อมูล','เฉพาะส่วนที่กฎอ่านไม่ได้'],['ตรวจสอบกับต้นฉบับ','ค่าต้องปรากฏในเล่ม'],['ผู้ใช้ยืนยันข้อมูล','ก่อนบันทึกเข้าระบบ']];
+ const W=1680,n=nodes.length,bw=268,gap=(W-n*bw)/(n-1),h=104;let o='';
+ nodes.forEach((d,i)=>{const x=i*(bw+gap);const ai=i===2;
+  o+=`<rect x="${x+.5}" y=".5" width="${bw-1}" height="${h-1}" fill="${ai?SOFT:'none'}" stroke="${ai?INK2:RULE}" stroke-width="1"/>`;
+  if(ai){o+=`<rect x="${x}" y="${h-6}" width="${bw/2}" height="6" fill="${GM}"/><rect x="${x+bw/2}" y="${h-6}" width="${bw/2}" height="6" fill="${GN}"/>`;}
+  o+=T(x+bw/2,44,d[0],{size:25,w:400,c:INK,a:'middle'})+T(x+bw/2,76,d[1],{size:17,c:INK2,a:'middle'});
+  if(i<n-1){const x1=x+bw+14,x2=x+bw+gap-14;o+=`<line x1="${x1}" y1="${h/2}" x2="${x2}" y2="${h/2}" stroke="${INK3}" stroke-width="1.2"/><path d="M${x2-9} ${h/2-6} L${x2} ${h/2} L${x2-9} ${h/2+6}" fill="none" stroke="${INK3}" stroke-width="1.2"/>`;}});
+ $('pipe').innerHTML=svg(W,h,o);})();
+
+/* 04 · system rows */
+(()=>{const rows=[['อาหาร · PDF','รายวิชา 78 · PLO 4 · โครงสร้าง 7'],['ภูมิอากาศ','รายวิชา 57 · PLO 5 · โครงสร้าง 5'],['ศศ.บ. ภูมิสังคม','รายวิชา 90 · PLO 6 · โครงสร้าง 11'],['ศศ.ม. เศรษฐศาสตร์','รายวิชา 17 · PLO 3 · โครงสร้าง 7'],['ปร.ด. เศรษฐศาสตร์','รายวิชา 24 · PLO 3 · โครงสร้าง 6'],['อาหาร · สแกน','ข้อมูลหลัก 10 จาก 11 ฟิลด์ (เทียบกับต้นฉบับดิจิทัล)']];
+ const W=1010,rh=84;let o='';
+ o+=T(0,18,'เล่ม',{f:'PlexMono, PlexThai',size:14,c:INK3,ls:2})+T(560,18,'GEMMA',{f:'PlexMono, PlexThai',size:14,c:GM,ls:2})+T(720,18,'GEMINI',{f:'PlexMono, PlexThai',size:14,c:GN,ls:2});
+ rows.forEach((r,i)=>{const y=44+i*rh;o+=`<line x1="0" y1="${y}" x2="${W}" y2="${y}" stroke="${RULE}"/>`;
+  o+=T(0,y+36,r[0],{size:24,w:400,c:INK})+T(0,y+64,r[1],{size:16.5,c:INK3});
+  [[560,GM],[720,GN]].forEach(([x,c])=>{o+=`<rect x="${x}" y="${y+24}" width="28" height="28" fill="${c}"/><path d="M${x+7} ${y+38} l6 6 l10 -12" fill="none" stroke="#F4F1EA" stroke-width="2.4"/>`;});
+  o+=T(880,y+44,'สอดคล้อง',{size:19,c:INK2});});
+ o+=`<line x1="0" y1="${44+rows.length*rh}" x2="${W}" y2="${44+rows.length*rh}" stroke="${RULE}"/>`;
+ $('sysrows').innerHTML=svg(W,48+rows.length*rh,o);})();
+
+/* 05 · info 11 + courses */
+(()=>{const s=40,g=12;let o='';const lab=[['Gemini',GN,11],['Gemma',GM,7]];
+ lab.forEach(([n,c,k],r)=>{const y=r*(s+40);o+=T(0,y+s/2+7,n,{size:20,w:400,c});
+  for(let i=0;i<11;i++){const x=110+i*(s+g);o+= i<k?`<rect x="${x}" y="${y}" width="${s}" height="${s}" fill="${c}"/>`:`<rect x="${x+1}" y="${y+1}" width="${s-2}" height="${s-2}" fill="none" stroke="${MK}" stroke-width="1.6" stroke-dasharray="4 3"/>`;}
+  o+=T(110+11*(s+g)+14,y+s/2+9,`${k} / 11`,{size:27,w:300,c:INK});});
+ $('info11').innerHTML=svg(780,2*(s+40)-40,o);
+ const W=720,bh=34;let p='';const bars=[['Gemma · รอบ 1',GM,225],['Gemma · รอบ 2',GM,225],['Gemini · รอบ 1',GN,225],['Gemini · รอบ 2',GN,191]];
+ bars.forEach(([n,c,v],i)=>{const y=i*(bh+26);const wv=W*v/225;
+  p+=T(0,y+bh/2+7,n,{size:18,c:INK2});const x0=170,ww=W-170-90;const fw=ww*v/225;
+  p+=`<rect x="${x0}" y="${y}" width="${fw}" height="${bh}" fill="${c}"/>`;
+  if(v<225)p+=`<rect x="${x0+fw+1}" y="${y+1}" width="${ww-fw-2}" height="${bh-2}" fill="none" stroke="${MK}" stroke-width="1.6" stroke-dasharray="4 3"/>`;
+  p+=T(W-76,y+bh/2+9,String(v),{size:27,w:300,c:INK});});
+ $('courses').innerHTML=svg(W,4*(bh+26)-26,p);})();
+
+/* 06 · stability marks */
+(()=>{const mk=(id,c,bad)=>{const s=52,g=12;let o='';
+  for(let i=0;i<12;i++){const x=i*(s+g);const b=bad.includes(i);
+   o+= b?`<rect x="${x+1}" y="1" width="${s-2}" height="${s-2}" fill="none" stroke="${MK}" stroke-width="2"/><line x1="${x+12}" y1="${s/2}" x2="${x+s-12}" y2="${s/2}" stroke="${MK}" stroke-width="2"/>`:`<rect x="${x}" y="0" width="${s}" height="${s}" fill="${c}"/>`;}
+  o+=T(0,s+40,'แต่ละช่อง = 1 คู่การทดลองซ้ำ · เรียงตามเล่ม เล่มละ 2 ช่อง (ระดับระบบ, ระดับแบบจำลอง)',{size:16,c:INK3});
+  if(bad.length)o+=T(0,s+70,'ช่องสีแดง = คะแนนรอบที่ 2 แตกต่างจากรอบที่ 1',{size:16,c:MK});
+  $(id).innerHTML=svg(12*(s+g),s+80,o);};
+ mk('stab-gm',GM,[]);mk('stab-gn',GN,[1,5,7]);})();
+
+/* 07 · speed bars */
+(()=>{const d=[['ศศ.บ. ภูมิสังคม',75.4,77.0],['อาหาร · PDF',68.5,41.3],['ภูมิอากาศ',50.1,33.0],['ปร.ด. เศรษฐศาสตร์',9.8,4.4],['อาหาร · สแกน',4.0,3.8],['ศศ.ม. เศรษฐศาสตร์',2.7,3.5]];
+ const W=1100,lw=250,max=80,bw=W-lw-90,bh=20;let o='';
+ [0,20,40,60,80].forEach(t=>{const x=lw+bw*t/max;o+=`<line x1="${x}" y1="0" x2="${x}" y2="${d.length*84}" stroke="${RULE}" stroke-width="1"/>`+T(x,d.length*84+30,`${t} s`,{f:'PlexMono, PlexThai',size:14,c:INK3,a:'middle'});});
+ d.forEach(([n,gm,gn],i)=>{const y=i*84+14;o+=T(0,y+bh+8,n,{size:21,c:INK});
+  o+=`<rect x="${lw}" y="${y}" width="${bw*gm/max}" height="${bh}" fill="${GM}"/>`+T(lw+bw*gm/max+12,y+16,gm.toFixed(1),{f:'PlexMono, PlexThai',size:15,c:INK2});
+  o+=`<rect x="${lw}" y="${y+bh+6}" width="${bw*gn/max}" height="${bh}" fill="${GN}"/>`+T(lw+bw*gn/max+12,y+bh+22,gn.toFixed(1),{f:'PlexMono, PlexThai',size:15,c:INK2});});
+ o+=`<rect x="${lw}" y="${d.length*84+50}" width="14" height="14" fill="${GM}"/>`+T(lw+24,d.length*84+63,'Gemma',{size:17,c:INK2})+`<rect x="${lw+130}" y="${d.length*84+50}" width="14" height="14" fill="${GN}"/>`+T(lw+154,d.length*84+63,'Gemini',{size:17,c:INK2});
+ $('speed').innerHTML=svg(W,d.length*84+72,o);})();
+
+/* 09 · privacy diagram */
+(()=>{const W=1680,H=430;let o='';
+ o+=`<rect x="1" y="20" width="1060" height="${H-40}" fill="none" stroke="${INK2}" stroke-width="1.2" stroke-dasharray="7 6"/>`;
+ o+=`<rect x="24" y="0" width="230" height="40" fill="#F4F1EA"/>`+T(36,28,'เครือข่ายมหาวิทยาลัย',{size:19,w:400,c:INK2});
+ const box=(x,y,w,h,t1,t2,c)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${c?SOFT:'none'}" stroke="${c||RULE}" stroke-width="${c?1.6:1}"/>`+T(x+w/2,y+h/2-4,t1,{size:25,w:400,c:INK,a:'middle'})+T(x+w/2,y+h/2+28,t2,{size:17,c:INK2,a:'middle'});
+ o+=box(70,150,300,130,'เล่มหลักสูตร','นำเข้าผ่านระบบ');
+ o+=box(560,110,440,210,'เครื่องแม่ข่าย มศว','ประมวลผลด้วย Gemma 4 · 26B',GM);
+ o+=`<line x1="384" y1="215" x2="546" y2="215" stroke="${INK3}" stroke-width="1.4"/><path d="M536 208 L546 215 L536 222" fill="none" stroke="${INK3}" stroke-width="1.4"/>`;
+ o+=box(1300,110,380,210,'Google Cloud','Gemini 3.8 Flash',GN);
+ o+=`<line x1="1014" y1="215" x2="1286" y2="215" stroke="${GN}" stroke-width="1.6" stroke-dasharray="8 6"/><path d="M1276 207 L1286 215 L1276 223" fill="none" stroke="${GN}" stroke-width="1.6"/>`;
+ o+=T(1174,252,'ส่งออกเมื่อเลือก Gemini',{size:17,c:GN,a:'middle'});
+ $('privacy').innerHTML=svg(W,H,o)+`<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:70px;margin-top:40px">
+  <div><div class="cap gm" style="font-weight:400">Gemma</div><div class="cap" style="font-size:20px">ข้อมูลเล่มหลักสูตรไม่ถูกส่งออกนอกเครื่องแม่ข่ายของมหาวิทยาลัย</div></div>
+  <div><div class="cap gn" style="font-weight:400">Gemini</div><div class="cap" style="font-size:20px">ส่งข้อความบางส่วนไปประมวลผลที่ Google · บริการแบบชำระเงินระบุว่าไม่นำข้อมูลไปใช้ฝึกแบบจำลอง</div></div>
+  <div><div class="cap mk" style="font-weight:400">ประเด็นที่ต้องพิจารณา</div><div class="cap" style="font-size:20px">กำหนดนโยบายประเภทเอกสารที่อนุญาตให้ประมวลผลบนคลาวด์ (ประเด็นค้าง C5)</div></div></div>`;})();
+
+/* 10 · matrix */
+(()=>{const rows=[['การคุ้มครองข้อมูล',3,'ไม่ส่งข้อมูลออกนอก มศว',1,'ส่งข้อความไปยัง Google'],['ความถูกต้อง · ระดับระบบ',3,'สอดคล้อง 6/6 เล่ม',3,'สอดคล้อง 6/6 เล่ม'],['ความถูกต้อง · ระดับแบบจำลอง',2,'ไม่ส่งค่าเชิงตัวเลข 4 ฟิลด์',2,'สูญหายรายวิชาบางรอบ'],['ความคงที่ของผลลัพธ์',3,'คะแนนคงที่ 12/12 คู่',2,'คะแนนคงที่ 9/12 คู่'],['ต้นทุนการประมวลผล',3,'0 บาท · ใช้ GPU ร่วมกับ HRIS',2,'ประมาณ 0.75 บาท/เล่ม'],['เวลาประมวลผล',2,'35 วินาที/เล่ม',3,'27 วินาที/เล่ม']];
+ const W=1680,rh=104,c1=470,c2=c1+40,c3=c2+600;let o='';
+ o+=T(c2,22,'GEMMA · ON-PREMISE',{f:'PlexMono, PlexThai',size:15,c:GM,ls:2})+T(c3,22,'GEMINI · CLOUD',{f:'PlexMono, PlexThai',size:15,c:GN,ls:2});
+ const dots=(x,y,k,c)=>{let s='';for(let i=0;i<3;i++)s+= i<k?`<circle cx="${x+i*30+11}" cy="${y}" r="11" fill="${c}"/>`:`<circle cx="${x+i*30+11}" cy="${y}" r="10" fill="none" stroke="${c}" stroke-width="1.6"/>`;return s;};
+ rows.forEach((r,i)=>{const y=46+i*rh;o+=`<line x1="0" y1="${y}" x2="${W}" y2="${y}" stroke="${RULE}"/>`;const cy=y+rh/2;
+  o+=T(0,cy+9,r[0],{size:27,w:300,c:INK});
+  o+=dots(c2,cy,r[1],GM)+T(c2+120,cy+8,r[2],{size:21,c:INK2});
+  o+=dots(c3,cy,r[3],GN)+T(c3+120,cy+8,r[4],{size:21,c:INK2});
+  if(r[1]===r[3])o+=T(W,cy+8,'เทียบเท่า',{size:17,c:INK3,a:'end'});});
+ o+=`<line x1="0" y1="${46+rows.length*rh}" x2="${W}" y2="${46+rows.length*rh}" stroke="${RULE}"/>`;
+ $('matrix').innerHTML=svg(W,50+rows.length*rh,o);})();
+
+/* 11 · fixes */
+(()=>{const f=[['ป้องกันการสูญหายของรายวิชาโดยไม่มีการแจ้งเตือน','ตรวจนับรหัสวิชาในแต่ละช่วงข้อความ และประมวลผลซ้ำเมื่อพบรายการไม่ครบ'],['ปรับปรุงการส่งค่าเชิงตัวเลขของ Gemma','ปรับคำสั่ง (Prompt) และโครงสร้างข้อมูลตอบกลับ (Schema) ของฟิลด์เชิงตัวเลข'],['รองรับ PLO ที่จำแนกตามแผนการศึกษา','สำหรับหลักสูตรระดับปริญญาโทที่มี 2 แผน'],['คัดกรองหัวเรื่องออกจากโครงสร้างหลักสูตร','ป้องกันไม่ให้บรรทัดหัวเรื่องถูกจัดเป็นหมวดวิชา']];
+ $('fixes').innerHTML=f.map((x,i)=>`<div style="display:flex;gap:22px;padding:20px 0;border-top:1px solid var(--rule)"><span class="mono" style="font-size:15px;color:var(--mark);padding-top:6px">${String(i+1).padStart(2,'0')}</span><div><div class="cap" style="color:var(--ink)">${x[0]}</div><div class="small">${x[1]}</div></div></div>`).join('')+'<div class="hr"></div>';})();
+
+/* 12 · asks */
+(()=>{const a=[['การตรวจสอบผลกับต้นฉบับ','ผู้ดูแลระบบ ฝ่ายวิชาการ','ชุดทดสอบ 138 กรณี ประกอบด้วยจุดตรวจสอบกับต้นฉบับ 50 จุด และการเปรียบเทียบสองแบบจำลองผ่านระบบ 12 งาน · ระยะเวลาประมาณ 3 วันทำการ'],['นโยบายการประมวลผลบนคลาวด์','ผู้บริหาร · ฝ่ายวิชาการ','กำหนดประเภทเอกสารที่อนุญาตให้ประมวลผลด้วย Gemini หรือจำกัดเฉพาะเครื่องแม่ข่ายของมหาวิทยาลัย'],['เอกสารภาพสแกนจริง','ฝ่ายวิชาการ','เล่มหลักสูตรรูปแบบภาพสแกน 2–3 เล่ม เพื่อประเมินระบบรู้จำอักขระ (OCR) กับเอกสารที่เอียงหรือความคมชัดต่ำ']];
+ $('asks').innerHTML='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:70px">'+a.map((x,i)=>`<div style="border-top:3px solid var(--ink);padding-top:28px"><div class="mono" style="font-size:15px;color:var(--mark);letter-spacing:.12em">${['A','B','C'][i]}</div><div style="font-size:38px;font-weight:300;margin-top:16px;line-height:1.3">${x[0]}</div><div class="small" style="margin-top:16px;color:var(--ink3)">${x[1]}</div><div class="cap" style="margin-top:26px;font-size:24px;line-height:1.6">${x[2]}</div></div>`).join('')+'</div>';})();
+</script>
+</body></html>

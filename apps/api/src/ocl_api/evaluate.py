@@ -100,8 +100,14 @@ def score_info(ref: dict[str, Any], cand: dict[str, Any]) -> dict[str, Any]:
 
 
 def score_plo(ref: dict[str, Any], cand: dict[str, Any]) -> dict[str, Any]:
-    r = {norm(p.get("code")): p for p in ref.get("plos") or []}
-    c = {norm(p.get("code")): p for p in cand.get("plos") or []}
+    # books with study plans have PLO1..n per plan: match on (plan, code) there, code elsewhere
+    by_plan = any(p.get("plan") for p in ref.get("plos") or [])
+
+    def key(p: dict[str, Any]) -> str:
+        return (norm(p.get("plan")) + "|" if by_plan else "") + norm(p.get("code"))
+
+    r = {key(p): p for p in ref.get("plos") or []}
+    c = {key(p): p for p in cand.get("plos") or []}
     out = _pr(set(r), set(c))
     matched = [k for k in r if k in c]
     text_ok = sum(similar(r[k].get("text"), c[k].get("text")) >= TEXT_MATCH_RATIO for k in matched)

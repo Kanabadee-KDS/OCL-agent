@@ -49,6 +49,12 @@ def main() -> int:
     ap.add_argument("--modes", default="parser_first,llm_only")
     ap.add_argument("--parts", default=",".join(SCORED_PARTS), help="parts to extract/score")
     ap.add_argument("--only", default="", help="substring filter on book file names")
+    ap.add_argument(
+        "--fewshot",
+        default="off",
+        choices=["off", "approved", "all"],
+        help="few-shot examples for LLM legs",
+    )
     ap.add_argument("--repeat", type=int, default=1, help="run each LLM leg N times (variance)")
     ap.add_argument("--limit", type=int, default=0, help="only the first N books")
     args = ap.parse_args()
@@ -89,7 +95,9 @@ def main() -> int:
         for provider in providers:
             for mode in modes:
                 for rep_i in range(1, max(1, args.repeat) + 1):
-                    suffix = "" if rep_i == 1 else f"-r{rep_i}"
+                    suffix = ("" if args.fewshot == "off" else f"-fs-{args.fewshot}") + (
+                        "" if rep_i == 1 else f"-r{rep_i}"
+                    )
                     run_dir = bdir / f"{provider}-{mode}{suffix}"
                     rep_path = run_dir / "report.json"
                     if rep_path.exists():
@@ -103,7 +111,14 @@ def main() -> int:
                             gw = LLMGateway(settings.model_copy(update={"llm_provider": provider}))
                         t0 = time.perf_counter()
                         try:
-                            extract(ingest_dir, parts=parts, gateway=gw, out_dir=run_dir, mode=mode)  # type: ignore[arg-type]
+                            extract(
+                                ingest_dir,
+                                parts=parts,
+                                gateway=gw,
+                                out_dir=run_dir,
+                                mode=mode,
+                                fewshot=args.fewshot,
+                            )  # type: ignore[arg-type]
                             status = "ok"
                         except Exception as e:  # keep going with the other legs
                             status = f"error: {e}"[:300]

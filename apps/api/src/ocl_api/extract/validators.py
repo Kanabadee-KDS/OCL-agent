@@ -121,11 +121,17 @@ def _ksec_checks(ks: dict[str, Any], plos: list[dict[str, Any]]) -> list[Check]:
         )
     )
     if n and plos:
-        have = {p["code"] for p in kplos}
+        # with study plans, a PLO must have KSEC rows under the same plan
+        by_plan = any(p.get("plan") for p in plos) and any(p.get("plan") for p in kplos)
+        have = {(p.get("plan") if by_plan else None, p["code"]) for p in kplos}
         missing = [
-            p["code"]
+            p["code"] + (f" ({p.get('plan')})" if by_plan and p.get("plan") else "")
             for p in plos
-            if not any(h == p["code"] or h.startswith(p["code"] + ".") for h in have)
+            if not any(
+                hp == (p.get("plan") if by_plan else None)
+                and (h == p["code"] or h.startswith(p["code"] + "."))
+                for hp, h in have
+            )
         ]
         out.append(
             Check(
@@ -618,7 +624,12 @@ def run_checks(parts: dict[str, dict[str, Any]]) -> list[Check]:
         Check(
             "plo_present",
             "pass" if plos else "fail",
-            f"พบ PLO {len(plos)} ข้อ" if plos else "ไม่พบ PLO ในหมวดที่ 3",
+            (
+                f"พบ PLO {len(plos)} ข้อ"
+                + (f" ใน {len(plo.get('plans') or [])} แผน" if plo.get("plans") else "")
+            )
+            if plos
+            else "ไม่พบ PLO ในหมวดที่ 3",
             "plo",
         )
     )

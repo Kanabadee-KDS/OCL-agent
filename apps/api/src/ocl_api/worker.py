@@ -94,6 +94,7 @@ def process_job(store: JobStore, job_id: str, settings: Settings | None = None) 
                     gateway=gateway,
                     out_dir=d / "extract",
                     mode=settings.extract_mode if gateway is not None else "parser_first",
+                    fewshot=settings.fewshot,
                 )
                 job = store.read(job_id)
                 job["timings"][key] = round(time.perf_counter() - t0, 2)

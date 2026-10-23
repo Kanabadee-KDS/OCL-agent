@@ -132,7 +132,11 @@ def render_plo(data: dict[str, Any]) -> str:
             "- **PLO1**: _[ระบุ]_\n- **PLO2**: _[ระบุ]_\n"
         )
     lines = ["# ผลลัพธ์การเรียนรู้ของหลักสูตร (PLO)", ""]
+    plan: str | None = None
     for p in plos:
+        if p.get("plan") and p.get("plan") != plan:
+            plan = p.get("plan")
+            lines += ["", f"## {plan}", ""]
         lines.append(f"- **{p['code']}**: {p['text']}  \n  <sub>{_conf(p.get('meta'))}</sub>")
         for s in p.get("sub_plos") or []:
             lines.append(f"  - **{s['code']}**: {s['text']}")

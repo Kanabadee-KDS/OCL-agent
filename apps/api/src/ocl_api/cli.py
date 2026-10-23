@@ -142,6 +142,12 @@ def cmd_api(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_fewshot(args: argparse.Namespace) -> int:
+    from ocl_api.fewshot.check import main as check_main
+
+    return check_main(args.parts or None)
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="ocl", description="OCL Agent tools")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -191,6 +197,11 @@ def main(argv: list[str] | None = None) -> int:
     db = sub.add_parser("db", help="database: migrate (apply schema) or status")
     db.add_argument("action", choices=["migrate", "status"])
     db.set_defaults(func=cmd_db)
+
+    f = sub.add_parser("fewshot", help="few-shot examples: check the files before approving")
+    f.add_argument("action", choices=["check"])
+    f.add_argument("parts", nargs="*", help="info / plo / courses (default: all)")
+    f.set_defaults(func=cmd_fewshot)
 
     a = sub.add_parser("api", help="run the REST API (uvicorn)")
     a.add_argument("--host")

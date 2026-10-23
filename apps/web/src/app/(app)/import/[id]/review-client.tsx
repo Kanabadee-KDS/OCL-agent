@@ -21,7 +21,7 @@ type InfoData = {
   careers: { group: string | null; name: string; meta?: Meta }[];
 };
 type Node = { number: string; level: number; name: string; credits: number | null; children: Node[]; meta?: Meta; plan?: boolean };
-type Plo = { code: string; text: string; sub_plos: { code: string; text: string; meta?: Meta }[]; meta?: Meta };
+type Plo = { code: string; plan?: string | null; text: string; sub_plos: { code: string; text: string; meta?: Meta }[]; meta?: Meta };
 type MapRow = { course_code: string; course_name: string | null; group: string | null; plos: string[]; meta?: Meta };
 type KsecRow = { course_code: string; course_name: string | null; group: string | null; by_column: Record<string, string[]>; ksec_codes: string[]; plos: string[]; meta?: Meta };
 type MapData = { plo_codes: string[]; rows: MapRow[]; ksec_columns?: string[]; ksec_rows?: KsecRow[] };
@@ -507,7 +507,9 @@ function PloEditor({ data, onChange, pick }: { data: { plos: Plo[] }; onChange: 
   return (
     <div className="stack" style={{ gap: 10 }}>
       {(data.plos ?? []).map((p, i) => (
-        <div key={i} className={`card pad stack ${p.meta?.confidence === "low" ? "low" : ""}`} style={{ gap: 8, background: "var(--surface-2)", cursor: "pointer" }} onClick={() => pick(p.meta)}>
+        <Fragment key={i}>
+        {p.plan && p.plan !== (data.plos ?? [])[i - 1]?.plan && <div className="h2" style={{ fontSize: 15, marginTop: i ? 8 : 0 }}>{p.plan}</div>}
+        <div className={`card pad stack ${p.meta?.confidence === "low" ? "low" : ""}`} style={{ gap: 8, background: "var(--surface-2)", cursor: "pointer" }} onClick={() => pick(p.meta)}>
           <div className="row" style={{ flexWrap: "nowrap", alignItems: "flex-start", gap: 10 }}>
             <div className="field" style={{ width: 110, flexShrink: 0 }}><label>รหัส</label><input className="inp" value={p.code} onChange={(e) => set(i, "code", e.target.value)} onClick={(e) => e.stopPropagation()} /></div>
             <div className="field" style={{ flex: 1 }}><label>ข้อความ PLO</label><textarea className="inp" rows={2} style={{ height: "auto", padding: 8 }} value={p.text} onChange={(e) => set(i, "text", e.target.value)} onClick={(e) => e.stopPropagation()} /></div>
@@ -515,6 +517,7 @@ function PloEditor({ data, onChange, pick }: { data: { plos: Plo[] }; onChange: 
           </div>
           {p.sub_plos?.length > 0 && <div className="small">{p.sub_plos.map((s) => <div key={s.code}>　<b>{s.code}</b> {s.text}</div>)}</div>}
         </div>
+        </Fragment>
       ))}
       {(data.plos ?? []).length === 0 && <Note kind="warn">ไม่พบ PLO ในหมวดที่ 3 · กรอกด้วยมือได้ใน R1</Note>}
     </div>

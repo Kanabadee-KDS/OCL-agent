@@ -182,8 +182,9 @@ def render_golden(extract_dir: str | Path, *, book: str, reviewer: str = "") -> 
         "| --- | --- | --- | --- | --- | --- |",
     ]
     for p in plo.get("plos") or []:
+        code = p["code"] + (f" ({p['plan']})" if p.get("plan") else "")
         L.append(
-            f"| {p['code']} | {p['text']} | {_page(p.get('meta'))} | {_conf(p.get('meta'))} |  |  |"
+            f"| {code} | {p['text']} | {_page(p.get('meta'))} | {_conf(p.get('meta'))} |  |  |"
         )
         for s in p.get("sub_plos") or []:
             L.append(

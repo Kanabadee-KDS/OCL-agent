@@ -22,6 +22,7 @@ from ocl_api.extract.base import (
     paragraphs_text,
     subsection,
 )
+from ocl_api.fewshot import fewshot_kw
 from ocl_api.ingest.model import Document, Paragraph, Table
 
 RE_CREDIT = re.compile(r"(\d+)\s*\(\s*(\d+)\s*-\s*(\d+)\s*-\s*(\d+)\s*\)")
@@ -353,12 +354,16 @@ def _add_usage(res: PartResult, usage) -> None:
         res.llm_usage[k] += u.get(k, 0)
 
 
-def _llm_chunk(gateway, chunk: str, res: PartResult, depth: int) -> list[dict[str, Any]]:
+def _llm_chunk(
+    gateway, chunk: str, res: PartResult, depth: int, shots: dict[str, Any] | None = None
+) -> list[dict[str, Any]]:
     """Ask for the courses in one chunk; on truncation split the chunk and recurse."""
     from ocl_api.llm.gateway import LLMTruncated
 
     try:
-        r = gateway.chat_json(SYSTEM, LLM_PROMPT + chunk, schema=SCHEMA, max_tokens=4096)
+        r = gateway.chat_json(
+            SYSTEM, LLM_PROMPT + chunk, schema=SCHEMA, max_tokens=4096, **(shots or {})
+        )
     except LLMTruncated as e:
         if e.usage is not None:
             _add_usage(res, e.usage)
@@ -369,8 +374,8 @@ def _llm_chunk(gateway, chunk: str, res: PartResult, depth: int) -> list[dict[st
         cut = chunk.rfind("\n", 0, half)
         cut = half if cut <= 0 else cut
         res.notes.append(f"llm: chunk of {len(chunk)} chars truncated; split")
-        return _llm_chunk(gateway, chunk[:cut], res, depth + 1) + _llm_chunk(
-            gateway, chunk[cut:], res, depth + 1
+        return _llm_chunk(gateway, chunk[:cut], res, depth + 1, shots) + _llm_chunk(
+            gateway, chunk[cut:], res, depth + 1, shots
         )
     _add_usage(res, r.usage)
     return r.data.get("courses", []) if isinstance(r.data, dict) else []
@@ -397,6 +402,7 @@ def extract_courses(doc: Document, gateway=None, *, llm_chunk_chars: int = 20000
     res.data["parser_count"] = len(courses)
 
     if gateway is not None:
+        shots = fewshot_kw("courses", doc.source_name)
         # Paragraphs only: tables (course lists, mapping) are the parser's job and only
         # tempt the model into listing hundreds of codes.
         text = paragraphs_text(subsection(ch4.blocks, "3") or blocks)
@@ -404,7 +410,7 @@ def extract_courses(doc: Document, gateway=None, *, llm_chunk_chars: int = 20000
         seen: set[str] = set()
         dropped = 0
         for i, chunk in enumerate(chunk_text(text, llm_chunk_chars), start=1):
-            items = _llm_chunk(gateway, chunk, res, depth=0)
+            items = _llm_chunk(gateway, chunk, res, depth=0, shots=shots)
             kept = 0
             for it in items:
                 it = _verify_against_text(it, chunk)

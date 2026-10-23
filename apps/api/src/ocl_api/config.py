@@ -37,6 +37,8 @@ class Settings(BaseSettings):
 
     # parser_first (production) | llm_only (evaluation: LLM-capable parts skip their parsers)
     extract_mode: Literal["parser_first", "llm_only"] = "parser_first"
+    # few-shot examples from golden books: off (default) | approved | all (bench experiments)
+    fewshot: Literal["off", "approved", "all"] = "off"
 
     # OCR of scanned PDF pages (MuPDF's built-in Tesseract; needs tessdata for these languages)
     ocr: bool = True

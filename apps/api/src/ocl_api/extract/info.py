@@ -22,6 +22,7 @@ from ocl_api.extract.base import (
     subsection,
     to_int,
 )
+from ocl_api.fewshot import fewshot_kw
 from ocl_api.ingest.model import Document, Paragraph
 
 CHECKED = "☑☒✔✓🗹🗷"
@@ -662,6 +663,7 @@ def extract_info(doc: Document, gateway=None) -> PartResult:
             "จากหมวดที่ 1 ด้านล่าง ให้ค่าของฟิลด์: " + ", ".join(missing) + "\n\n" + text,
             schema=SCHEMA,
             max_tokens=1024,
+            **fewshot_kw("info", doc.source_name),
         )
         res.llm_usage = r.usage.to_dict()
         squashed = _squash(text)

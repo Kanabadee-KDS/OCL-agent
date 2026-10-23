@@ -20,6 +20,7 @@ from ocl_api.extract.render import RENDERERS
 from ocl_api.extract.structure import extract_structure
 from ocl_api.extract.teachers import extract_teachers
 from ocl_api.extract.validators import run_checks
+from ocl_api.fewshot import FEWSHOT_MODE, FewshotMode
 
 PLUGINS = {
     "info": extract_info,
@@ -54,13 +55,18 @@ def extract(
     gateway=None,
     out_dir: str | Path | None = None,
     mode: ExtractMode = "parser_first",
+    fewshot: FewshotMode = "off",
 ) -> dict[str, Any]:
     if mode == "llm_only" and gateway is None:
         raise ValueError("llm_only mode needs an LLM gateway")
     token = EXTRACT_MODE.set(mode)
+    ftoken = FEWSHOT_MODE.set(fewshot)
     try:
-        return _extract(ingest_dir, parts=parts, gateway=gateway, out_dir=out_dir, mode=mode)
+        rep = _extract(ingest_dir, parts=parts, gateway=gateway, out_dir=out_dir, mode=mode)
+        rep["fewshot"] = fewshot
+        return rep
     finally:
+        FEWSHOT_MODE.reset(ftoken)
         EXTRACT_MODE.reset(token)
 
 

@@ -99,6 +99,7 @@ class LLMGateway:
         schema: dict[str, Any] | None = None,
         max_tokens: int = 4096,
         retries: int = 1,
+        examples: list[tuple[str, str]] | None = None,
     ) -> LLMResult:
         if self.provider == "gemini":
             key = self.settings.gemini_api_key or ""
@@ -114,7 +115,7 @@ class LLMGateway:
         last_err: Exception | None = None
         prompt_user = user
         for _attempt in range(retries + 1):
-            raw, u, done_reason = chat(system, prompt_user, schema, max_tokens)
+            raw, u, done_reason = chat(system, prompt_user, schema, max_tokens, examples or [])
             usage.add(u)
             if done_reason == "length":
                 # Retrying the same prompt cannot help; the caller must send less text.
@@ -131,13 +132,24 @@ class LLMGateway:
     # ---------- providers ----------
 
     def _ollama_chat(
-        self, system: str, user: str, schema: dict[str, Any] | None, max_tokens: int
+        self,
+        system: str,
+        user: str,
+        schema: dict[str, Any] | None,
+        max_tokens: int,
+        examples: list[tuple[str, str]] = (),  # type: ignore[assignment]
     ) -> tuple[str, LLMUsage, str | None]:
         s = self.settings
+        shots = [
+            m
+            for inp, out in examples
+            for m in ({"role": "user", "content": inp}, {"role": "assistant", "content": out})
+        ]
         body: dict[str, Any] = {
             "model": s.ollama_model,
             "messages": [
                 {"role": "system", "content": system},
+                *shots,
                 {"role": "user", "content": user},
             ],
             "stream": False,
@@ -171,7 +183,12 @@ class LLMGateway:
         return content, usage, data.get("done_reason")
 
     def _gemini_chat(
-        self, system: str, user: str, schema: dict[str, Any] | None, max_tokens: int
+        self,
+        system: str,
+        user: str,
+        schema: dict[str, Any] | None,
+        max_tokens: int,
+        examples: list[tuple[str, str]] = (),  # type: ignore[assignment]
     ) -> tuple[str, LLMUsage, str | None]:
         """Gemini `generateContent` (REST, v1beta). JSON mode via responseMimeType and, when a
         schema is given, responseSchema (OpenAPI subset, see `gemini_schema`). The API key goes in
@@ -188,7 +205,17 @@ class LLMGateway:
             gen["thinkingConfig"] = {"thinkingBudget": s.gemini_thinking_budget}
         body = {
             "systemInstruction": {"parts": [{"text": system}]},
-            "contents": [{"role": "user", "parts": [{"text": user}]}],
+            "contents": [
+                *(
+                    m
+                    for inp, out in examples
+                    for m in (
+                        {"role": "user", "parts": [{"text": inp}]},
+                        {"role": "model", "parts": [{"text": out}]},
+                    )
+                ),
+                {"role": "user", "parts": [{"text": user}]},
+            ],
             "generationConfig": gen,
         }
         url = f"{s.gemini_base_url.rstrip('/')}/v1beta/models/{s.gemini_model}:generateContent"

@@ -1,0 +1,63 @@
+{
+ "info": {
+  "fields": 10,
+  "correct": 10,
+  "accuracy": 1.0,
+  "wrong": [],
+  "unscored_extra": []
+ },
+ "structure": {
+  "ref": 5,
+  "cand": 5,
+  "matched": 5,
+  "precision": 1.0,
+  "recall": 1.0,
+  "hallucinated": [],
+  "missed": [],
+  "credits_accuracy": 1.0,
+  "total_credits_match": true
+ },
+ "plo": {
+  "ref": 5,
+  "cand": 5,
+  "matched": 5,
+  "precision": 1.0,
+  "recall": 1.0,
+  "hallucinated": [],
+  "missed": [],
+  "text_accuracy": 1.0
+ },
+ "courses": {
+  "ref": 57,
+  "cand": 16,
+  "matched": 16,
+  "precision": 1.0,
+  "recall": 0.281,
+  "hallucinated": [],
+  "missed": [
+   "คณ104",
+   "คม100",
+   "คม190",
+   "ฟส100",
+   "วป111",
+   "วป112",
+   "วป113",
+   "วป211",
+   "วป212",
+   "วป213",
+   "วป214",
+   "วป215",
+   "วป216",
+   "วป217",
+   "วป218",
+   "วป219",
+   "วป221",
+   "วป311",
+   "วป312",
+   "วป313"
+  ],
+  "name_th_accuracy": 1.0,
+  "name_en_accuracy": 0.938,
+  "credits_accuracy": 0.938
+ }
+}
