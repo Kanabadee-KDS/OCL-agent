@@ -22,8 +22,9 @@ from ocl_api.extract.base import (
     subsection,
     to_int,
 )
-from ocl_api.fewshot import fewshot_kw
+from ocl_api.fewshot import fewshot_examples, narrow_fields
 from ocl_api.ingest.model import Document, Paragraph
+from ocl_api.llm.gateway import LLMTruncated
 
 CHECKED = "☑☒✔✓🗹🗷"
 UNCHECKED = "□■☐▪○"
@@ -658,13 +659,22 @@ def extract_info(doc: Document, gateway=None) -> PartResult:
             b for n in ("1", "2", "3", "4", "5", "6", "7", "13") for b in subsection(ch1.blocks, n)
         ]
         text = paragraphs_text(blocks, max_chars=12000)
-        r = gateway.chat_json(
-            SYSTEM,
-            "จากหมวดที่ 1 ด้านล่าง ให้ค่าของฟิลด์: " + ", ".join(missing) + "\n\n" + text,
-            schema=SCHEMA,
-            max_tokens=1024,
-            **fewshot_kw("info", doc.source_name),
-        )
+        prompt = "จากหมวดที่ 1 ด้านล่าง ให้ค่าของฟิลด์: " + ", ".join(missing) + "\n\n" + text
+        shots = narrow_fields(fewshot_examples("info", doc.source_name), missing)
+        try:
+            r = gateway.chat_json(
+                SYSTEM,
+                prompt,
+                schema=SCHEMA,
+                max_tokens=1024,
+                **({"examples": shots} if shots else {}),
+            )
+        except LLMTruncated:
+            if not shots:
+                raise
+            # examples can push a small model into a repetition loop; the plain request worked
+            res.notes.append("ตัวอย่างทำให้คำตอบยาวเกิน จึงถามซ้ำโดยไม่ใช้ตัวอย่าง")
+            r = gateway.chat_json(SYSTEM, prompt, schema=SCHEMA, max_tokens=1024)
         res.llm_usage = r.usage.to_dict()
         squashed = _squash(text)
         for k in missing:

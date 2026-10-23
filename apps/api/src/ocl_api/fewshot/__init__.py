@@ -73,6 +73,22 @@ def fewshot_examples(
     return out
 
 
+def narrow_fields(examples: list[tuple[str, str]], fields: list[str]) -> list[tuple[str, str]]:
+    """Info examples ask for all 11 fields; the system asks only for the ones still missing.
+
+    Rewrite each example's field list and answer to `fields`, so the shots match the real
+    request. A one-field request shown 11-field answers made the local model echo a
+    placeholder ("xxxxxxxxxxxxx") and then repeat characters until max_tokens.
+    """
+    head = "ให้ค่าของฟิลด์: " + ", ".join(fields)
+    out = []
+    for inp, ans in examples:
+        data = json.loads(ans)
+        inp = re.sub(r"ให้ค่าของฟิลด์: [^\n]*", lambda _m: head, inp, count=1)
+        out.append((inp, json.dumps({k: data.get(k) for k in fields}, ensure_ascii=False)))
+    return out
+
+
 def fewshot_kw(part: str, source_name: str | None) -> dict[str, Any]:
     """`**fewshot_kw(...)` for gateway.chat_json: adds `examples=` only when there are some."""
     ex = fewshot_examples(part, source_name)

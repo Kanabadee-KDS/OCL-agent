@@ -1141,3 +1141,48 @@ def test_modules_headings_descriptions_and_checks() -> None:
     )
     md = render_modules(r.data)
     assert "### 3.2.1.1 ชุดวิชาพื้นฐานเคมี (Basic Chemistry)" in md and "รายวิชา: ฟส100" in md
+
+
+def test_info_fewshot_matches_missing_fields_and_falls_back(monkeypatch) -> None:
+    import json as _json
+
+    import ocl_api.extract.info as info_mod
+    from ocl_api.fewshot import narrow_fields
+    from ocl_api.llm.gateway import LLMTruncated
+
+    shot = ("จากหมวดที่ 1 ด้านล่าง ให้ค่าของฟิลด์: program_code, name_th, total_credits\n\nรหัส 1",
+            _json.dumps({"program_code": None, "name_th": "ก", "total_credits": 127}))  # fmt: skip
+    ((inp, out),) = narrow_fields([shot], ["total_credits"])
+    assert "ให้ค่าของฟิลด์: total_credits\n" in inp and inp.endswith("รหัส 1")
+    assert _json.loads(out) == {"total_credits": 127}
+
+    # a one-field request with examples loops until max_tokens: ask again without them
+    monkeypatch.setattr(info_mod, "fewshot_examples", lambda part, src: [shot])
+    doc = info_doc()
+    doc.blocks = [b for b in doc.blocks if "ชื่อเต็ม" not in b.text and "ชื่อย่อ" not in b.text]
+    calls = []
+
+    class FakeGateway:
+        provider, model = "fake", "fake"
+
+        def chat_json(self, system, user, schema=None, max_tokens=None, examples=None):
+            calls.append(examples)
+            if examples:
+                assert _json.loads(examples[0][1]).keys() == {"degree_full_th", "degree_abbr_th",
+                                                               "degree_full_en", "degree_abbr_en"}  # fmt: skip
+                raise LLMTruncated("reply truncated at max_tokens=1024")
+
+            class R:
+                data = {"degree_full_en": "Bachelor of Science Program in Testing"}
+
+                class usage:
+                    @staticmethod
+                    def to_dict():
+                        return {"calls": 1}
+
+            return R()
+
+    r = info_mod.extract_info(doc, FakeGateway())
+    assert len(calls) == 2 and calls[1] is None
+    assert r.data["values"]["degree_full_en"] == "Bachelor of Science Program in Testing"
+    assert any("ถามซ้ำโดยไม่ใช้ตัวอย่าง" in n for n in r.notes)
