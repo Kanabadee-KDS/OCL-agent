@@ -161,6 +161,9 @@ def check_part(part: str, rep: Report, directory: Path = DIR) -> None:
             rep.err(where, f"status ต้องเป็น {' / '.join(STATUSES)} (ได้ '{status}')")
         if not (ex.get("source") or {}).get("book"):
             rep.err(where, "source.book ว่าง (ใช้กันไม่ให้ส่งตัวอย่างของเล่มเดียวกัน)")
+        same_as = (ex.get("source") or {}).get("same_as", [])
+        if not isinstance(same_as, list) or not all(isinstance(n, str) and n for n in same_as):
+            rep.err(where, 'source.same_as ต้องเป็นรายการชื่อไฟล์ เช่น ["เล่ม (สแกน).pdf"]')
         inp = ex.get("input") or ""
         if len(inp) > MAX_INPUT:
             rep.err(where, f"input ยาว {len(inp)} ตัวอักษร เกิน {MAX_INPUT}")

@@ -10,7 +10,9 @@ Which examples are sent is decided per extraction run (FEWSHOT_MODE):
   approved  only examples a reviewer approved
   all       approved + draft (for bench experiments before review)
 An example is never sent while extracting the book it was cut from (leave-one-book-out),
-so a book cannot be "taught" its own answers, and at most MAX_PER_PART are sent.
+so a book cannot be "taught" its own answers, and at most MAX_PER_PART are sent. A book
+that exists as more than one file (the scanned sample is made from the food-science PDF)
+lists the other file names in source.same_as, so every copy counts as the same book.
 """
 
 from __future__ import annotations
@@ -35,6 +37,13 @@ def book_key(name: str | None) -> str:
     return re.sub(r"[^0-9A-Za-zก-๙]+", "", stem).lower()
 
 
+def source_keys(ex: dict[str, Any]) -> set[str]:
+    """book_key of every file the example was cut from: source.book plus source.same_as."""
+    src = ex.get("source") or {}
+    names = [src.get("book"), *(src.get("same_as") or [])]
+    return {k for k in map(book_key, names) if k}
+
+
 @cache
 def load(part: str) -> dict[str, Any]:
     p = DIR / f"{part}.json"
@@ -56,7 +65,7 @@ def fewshot_examples(
     for ex in load(part).get("examples", []):
         if ex.get("status") not in allowed:
             continue
-        if me and book_key((ex.get("source") or {}).get("book")) == me:
+        if me and me in source_keys(ex):
             continue
         out.append((ex["input"], json.dumps(ex["output"], ensure_ascii=False)))
         if len(out) >= MAX_PER_PART:

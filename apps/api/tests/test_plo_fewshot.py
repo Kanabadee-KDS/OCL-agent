@@ -12,7 +12,7 @@ from ocl_api.config import Settings
 from ocl_api.evaluate import score_plo
 from ocl_api.extract.plo import extract_plo, split_llm_code
 from ocl_api.extract.render import render_plo
-from ocl_api.fewshot import FEWSHOT_MODE, book_key, fewshot_examples, fewshot_kw
+from ocl_api.fewshot import FEWSHOT_MODE, book_key, fewshot_examples, fewshot_kw, source_keys
 from ocl_api.ingest.model import Document, Paragraph, Table
 from ocl_api.llm.gateway import LLMGateway
 
@@ -120,6 +120,40 @@ def test_fewshot_modes_and_leave_one_book_out(shots) -> None:
     assert fewshot_kw("plo", book) == {}
 
 
+def test_same_as_counts_every_copy_of_a_book(tmp_path, monkeypatch) -> None:
+    data = {"part": "info", "examples": [
+        {"id": "a", "status": "approved", "input": "A", "output": {},
+         "source": {"book": "อาหาร ดิจิทัล.pdf", "same_as": ["อาหาร (สแกน 14 หน้า).pdf"]}},
+        {"id": "b", "status": "approved", "input": "B", "output": {}, "source": {"book": "อื่น.docx"}},
+    ]}  # fmt: skip
+    (tmp_path / "info.json").write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    monkeypatch.setattr(fs, "DIR", tmp_path)
+    fs.load.cache_clear()
+    try:
+        for name in ("อาหาร ดิจิทัล.pdf", "อาหาร (สแกน 14 หน้า).pdf", "อาหาร-สแกน-14-หน้า.PDF"):
+            assert [i for i, _ in fewshot_examples("info", name, "approved")] == ["B"], name
+        assert [i for i, _ in fewshot_examples("info", "อื่นอีก.docx", "approved")] == ["A", "B"]
+    finally:
+        fs.load.cache_clear()
+    assert source_keys({"source": {"book": "x.docx", "same_as": []}}) == {"x"}
+    assert source_keys({}) == set()
+
+
+def test_repo_food_example_is_not_shown_to_the_scanned_food_book() -> None:
+    """The scanned sample is made from the food-science PDF, so info-02 would leak its answers."""
+    fs.load.cache_clear()
+    scanned = "วท.บ. อาหาร (สแกน 14 หน้า).pdf"
+    food_pdf = "4.1.4 วท.บ.วิทยาศาสตร์การอาหารและโภชนาการ ปรั.pdf"
+    climate = "วท.บ. วิทยาการการเปลี่ยนแปลงสภาพภูมิอากาศ.docx"
+    ids = {
+        ex["input"]: ex["id"] for ex in fs.load("info")["examples"] if ex["status"] != "rejected"
+    }
+    shown = {n: [ids[i] for i, _ in fewshot_examples("info", n, "all")] for n in (scanned, food_pdf, climate)}  # fmt: skip
+    assert "info-02" not in shown[scanned] and "info-02" not in shown[food_pdf]
+    assert "info-01" in shown[scanned], "another book's example is still sent"
+    assert "info-01" not in shown[climate]
+
+
 def _settings(**kw) -> Settings:
     base = dict(ollama_model="gemma4:26b", ollama_keep_alive="10m", ollama_num_ctx="32768",
                 ollama_base_url="http://ollama.test:11434", gemini_base_url="https://gemini.test")  # fmt: skip
@@ -180,3 +214,6 @@ def test_fewshot_checker_on_repo_files_and_on_broken_file(tmp_path) -> None:
     text = "\n".join(rep.errors)
     assert "reviewed_by" in text and "reviewed_at" in text
     assert "ต้องเป็นรหัสล้วน" in text and "ไม่พบตามตัวอักษรใน input" in text
+    bad["examples"][0]["source"]["same_as"] = "สแกน.pdf"
+    (tmp_path / "plo.json").write_text(json.dumps(bad, ensure_ascii=False), encoding="utf-8")
+    assert any("source.same_as" in e for e in run(["plo"], tmp_path).errors)
