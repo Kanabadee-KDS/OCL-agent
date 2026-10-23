@@ -1,0 +1,137 @@
+{
+ "source": "วท.บ. วิทยาการการเปลี่ยนแปลงสภาพภูมิอากาศ.docx",
+ "out_dir": "docs/eval/run-2026-10-23-localllm-fewshot/วท-บ-วิทยาการการเปลี่ยนแปลงสภาพภูมิอากาศ/ollama-llm_only-r2",
+ "provider": "ollama",
+ "model": "gemma4:26b",
+ "mode": "llm_only",
+ "parts": {
+  "info": {
+   "seconds": 2.74,
+   "count": 26,
+   "llm": {
+    "provider": "ollama",
+    "model": "gemma4:26b",
+    "prompt_tokens": 956,
+    "completion_tokens": 207,
+    "seconds": 2.734,
+    "calls": 1,
+    "retries": 0
+   },
+   "notes": [
+    "program_code: เล่มยังไม่ระบุ (รหัสหลักสูตร xxxxxxxxxxxxx)"
+   ]
+  },
+  "structure": {
+   "seconds": 2.37,
+   "count": 5,
+   "llm": {
+    "provider": "ollama",
+    "model": "gemma4:26b",
+    "prompt_tokens": 229,
+    "completion_tokens": 200,
+    "seconds": 2.365,
+    "calls": 1,
+    "retries": 0
+   },
+   "notes": []
+  },
+  "plo": {
+   "seconds": 24.25,
+   "count": 5,
+   "llm": {
+    "provider": "ollama",
+    "model": "gemma4:26b",
+    "prompt_tokens": 3381,
+    "completion_tokens": 2580,
+    "seconds": 24.252,
+    "calls": 1,
+    "retries": 0
+   },
+   "notes": []
+  },
+  "courses": {
+   "seconds": 44.74,
+   "count": 57,
+   "llm": {
+    "provider": "ollama",
+    "model": "gemma4:26b",
+    "prompt_tokens": 9924,
+    "completion_tokens": 4681,
+    "seconds": 44.687999999999995,
+    "calls": 2,
+    "retries": 0
+   },
+   "notes": [
+    "llm chunk 1: 42 items, 42 verified",
+    "llm chunk 2: 15 items, 15 verified"
+   ]
+  }
+ },
+ "checks": {
+  "pass": 5,
+  "warn": 3,
+  "fail": 0,
+  "items": [
+   {
+    "key": "info_required",
+    "status": "warn",
+    "message": "ฟิลด์บังคับที่ยังว่าง: หน่วยกิตตลอดหลักสูตร (ไม่น้อยกว่า), ปีการศึกษาที่เริ่มใช้",
+    "part": "info"
+   },
+   {
+    "key": "program_code_format",
+    "status": "warn",
+    "message": "เล่มยังไม่ระบุรหัสหลักสูตร สกอ.",
+    "part": "info"
+   },
+   {
+    "key": "name_consistent",
+    "status": "pass",
+    "message": "สาขาวิชาในชื่อหลักสูตรตรงกับชื่อปริญญา (ไทย/อังกฤษ)",
+    "part": "info"
+   },
+   {
+    "key": "info_inferred",
+    "status": "info",
+    "message": "ระบบอนุมานเอง 7 ฟิลด์ ต้องให้คนยืนยัน: ภาคการศึกษาที่นับ, ระดับการศึกษา, กลุ่มการศึกษา, หลักสูตรนานาชาติ, ประเภทการรับสมัคร, เกณฑ์มาตรฐานหลักสูตร, หลักสูตรฝึกปฏิบัติ CWIE",
+    "part": "info"
+   },
+   {
+    "key": "credits_total",
+    "status": "pass",
+    "message": "ผลรวมหมวดวิชา 127 = หน่วยกิตตลอดหลักสูตร 127",
+    "part": "structure"
+   },
+   {
+    "key": "credits_sub",
+    "status": "pass",
+    "message": "หน่วยกิตกลุ่มย่อยรวมตรงกับหมวดทุกหมวด",
+    "part": "structure"
+   },
+   {
+    "key": "plo_present",
+    "status": "pass",
+    "message": "พบ PLO 5 ข้อ",
+    "part": "plo"
+   },
+   {
+    "key": "course_code_unique",
+    "status": "pass",
+    "message": "รหัสรายวิชาไม่ซ้ำ (57 วิชา)",
+    "part": "courses"
+   },
+   {
+    "key": "course_fields",
+    "status": "warn",
+    "message": "ไม่มีหน่วยกิต 0 วิชา · ไม่มีคำอธิบาย 57 วิชา (เช่น ศท111, ศท112, ศท113, ศท114, ศท121)",
+    "part": "courses"
+   },
+   {
+    "key": "courses_vs_structure",
+    "status": "info",
+    "message": "รายวิชา 57 วิชา · หน่วยกิตรวมของรายวิชาที่พบ 152",
+    "part": "courses"
+   }
+  ]
+ }
+}

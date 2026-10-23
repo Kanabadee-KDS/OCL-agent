@@ -1,0 +1,62 @@
+{
+ "info": {
+  "fields": 11,
+  "correct": 11,
+  "accuracy": 1.0,
+  "wrong": [],
+  "unscored_extra": []
+ },
+ "structure": {
+  "ref": 5,
+  "cand": 8,
+  "matched": 5,
+  "precision": 0.625,
+  "recall": 1.0,
+  "hallucinated": [
+   "จำนวนหน่วยกิตตลอดหลักสูตร",
+   "รวมไม่น้อยกว่า",
+   "โครงสร้างหลักสูตร"
+  ],
+  "missed": [],
+  "credits_accuracy": 0.4,
+  "total_credits_match": true
+ },
+ "plo": {
+  "ref": 6,
+  "cand": 6,
+  "matched": 6,
+  "precision": 1.0,
+  "recall": 1.0,
+  "hallucinated": [],
+  "missed": [],
+  "text_accuracy": 1.0
+ },
+ "courses": {
+  "ref": 17,
+  "cand": 2,
+  "matched": 2,
+  "precision": 1.0,
+  "recall": 0.118,
+  "hallucinated": [],
+  "missed": [
+   "ศฐ510",
+   "ศฐ511",
+   "ศฐ512",
+   "ศฐ513",
+   "ศฐ514",
+   "ศฐ521",
+   "ศฐ522",
+   "ศฐ631",
+   "ศฐ632",
+   "ศฐ633",
+   "ศฐ634",
+   "ศฐ635",
+   "ศฐ636",
+   "ศฐ637",
+   "ศฐ638"
+  ],
+  "name_th_accuracy": 1.0,
+  "name_en_accuracy": 1.0,
+  "credits_accuracy": 1.0
+ }
+}

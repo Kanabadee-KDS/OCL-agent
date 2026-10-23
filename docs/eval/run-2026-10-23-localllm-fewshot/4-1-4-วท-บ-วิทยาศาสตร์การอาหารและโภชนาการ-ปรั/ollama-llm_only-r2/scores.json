@@ -1,0 +1,63 @@
+{
+ "info": {
+  "fields": 11,
+  "correct": 7,
+  "accuracy": 0.636,
+  "wrong": [
+   {
+    "field": "total_credits",
+    "ref": 130,
+    "cand": null
+   },
+   {
+    "field": "duration_years",
+    "ref": 4,
+    "cand": null
+   },
+   {
+    "field": "start_semester",
+    "ref": 1,
+    "cand": null
+   },
+   {
+    "field": "start_year",
+    "ref": 2570,
+    "cand": null
+   }
+  ],
+  "unscored_extra": []
+ },
+ "structure": {
+  "ref": 7,
+  "cand": 7,
+  "matched": 7,
+  "precision": 1.0,
+  "recall": 1.0,
+  "hallucinated": [],
+  "missed": [],
+  "credits_accuracy": 1.0,
+  "total_credits_match": true
+ },
+ "plo": {
+  "ref": 4,
+  "cand": 4,
+  "matched": 4,
+  "precision": 1.0,
+  "recall": 1.0,
+  "hallucinated": [],
+  "missed": [],
+  "text_accuracy": 1.0
+ },
+ "courses": {
+  "ref": 78,
+  "cand": 78,
+  "matched": 78,
+  "precision": 1.0,
+  "recall": 1.0,
+  "hallucinated": [],
+  "missed": [],
+  "name_th_accuracy": 1.0,
+  "name_en_accuracy": 1.0,
+  "credits_accuracy": 1.0
+ }
+}

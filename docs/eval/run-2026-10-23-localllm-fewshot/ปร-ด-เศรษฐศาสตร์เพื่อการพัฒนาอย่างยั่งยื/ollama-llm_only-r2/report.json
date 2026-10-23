@@ -1,0 +1,130 @@
+{
+ "source": "ปร.ด. เศรษฐศาสตร์เพื่อการพัฒนาอย่างยั่งยื.docx",
+ "out_dir": "docs/eval/run-2026-10-23-localllm-fewshot/ปร-ด-เศรษฐศาสตร์เพื่อการพัฒนาอย่างยั่งยื/ollama-llm_only-r2",
+ "provider": "ollama",
+ "model": "gemma4:26b",
+ "mode": "llm_only",
+ "parts": {
+  "info": {
+   "seconds": 3.12,
+   "count": 30,
+   "llm": {
+    "provider": "ollama",
+    "model": "gemma4:26b",
+    "prompt_tokens": 1124,
+    "completion_tokens": 246,
+    "seconds": 3.118,
+    "calls": 1,
+    "retries": 0
+   },
+   "notes": []
+  },
+  "structure": {
+   "seconds": 3.07,
+   "count": 6,
+   "llm": {
+    "provider": "ollama",
+    "model": "gemma4:26b",
+    "prompt_tokens": 258,
+    "completion_tokens": 250,
+    "seconds": 3.069,
+    "calls": 1,
+    "retries": 0
+   },
+   "notes": []
+  },
+  "plo": {
+   "seconds": 13.37,
+   "count": 3,
+   "llm": {
+    "provider": "ollama",
+    "model": "gemma4:26b",
+    "prompt_tokens": 2750,
+    "completion_tokens": 1424,
+    "seconds": 13.373,
+    "calls": 1,
+    "retries": 0
+   },
+   "notes": []
+  },
+  "courses": {
+   "seconds": 9.59,
+   "count": 0,
+   "llm": {
+    "provider": "ollama",
+    "model": "gemma4:26b",
+    "prompt_tokens": 3518,
+    "completion_tokens": 911,
+    "seconds": 9.587,
+    "calls": 1,
+    "retries": 0
+   },
+   "notes": [
+    "llm chunk 1: 10 items, 0 verified",
+    "llm: 10 items dropped (code not in text, or duplicate)",
+    "no course lines matched in chapter 4"
+   ]
+  }
+ },
+ "checks": {
+  "pass": 7,
+  "warn": 1,
+  "fail": 0,
+  "items": [
+   {
+    "key": "info_required",
+    "status": "warn",
+    "message": "ฟิลด์บังคับที่ยังว่าง: หน่วยกิตตลอดหลักสูตร (ไม่น้อยกว่า), ปีการศึกษาที่เริ่มใช้",
+    "part": "info"
+   },
+   {
+    "key": "program_code_format",
+    "status": "pass",
+    "message": "รหัสหลักสูตร สกอ. 25520091100839 ครบ 14 หลัก",
+    "part": "info"
+   },
+   {
+    "key": "name_consistent",
+    "status": "pass",
+    "message": "สาขาวิชาในชื่อหลักสูตรตรงกับชื่อปริญญา (ไทย/อังกฤษ)",
+    "part": "info"
+   },
+   {
+    "key": "info_inferred",
+    "status": "info",
+    "message": "ระบบอนุมานเอง 7 ฟิลด์ ต้องให้คนยืนยัน: ภาคการศึกษาที่นับ, ระดับการศึกษา, กลุ่มการศึกษา, หลักสูตรนานาชาติ, ประเภทการรับสมัคร, เกณฑ์มาตรฐานหลักสูตร, หลักสูตรฝึกปฏิบัติ CWIE",
+    "part": "info"
+   },
+   {
+    "key": "credits_total",
+    "status": "pass",
+    "message": "ผลรวมหมวดวิชา 48 = หน่วยกิตตลอดหลักสูตร 48",
+    "part": "structure"
+   },
+   {
+    "key": "credits_sub",
+    "status": "pass",
+    "message": "หน่วยกิตกลุ่มย่อยรวมตรงกับหมวดทุกหมวด",
+    "part": "structure"
+   },
+   {
+    "key": "plo_present",
+    "status": "pass",
+    "message": "พบ PLO 3 ข้อ",
+    "part": "plo"
+   },
+   {
+    "key": "course_code_unique",
+    "status": "pass",
+    "message": "รหัสรายวิชาไม่ซ้ำ (0 วิชา)",
+    "part": "courses"
+   },
+   {
+    "key": "course_fields",
+    "status": "pass",
+    "message": "ไม่มีหน่วยกิต 0 วิชา · ไม่มีคำอธิบาย 0 วิชา",
+    "part": "courses"
+   }
+  ]
+ }
+}
