@@ -21,6 +21,22 @@ RE_PLO_CELL = re.compile(r"^\s*(PLO\s?\d+(?:\.\d+)?)\s*[:：.)]?\s*(.*)$", re.I 
 RE_CODE = re.compile(r"(?<![A-Za-z])([KSEC])\s?(\d+(?:\s?[-.]\s?\d+)+)\s*[:：]?\s*")
 RE_SUBTYPE = re.compile(r"^\s*(?:ทักษะ|คุณลักษณะ)?\s*(ทั่วไป|ลักษณะเฉพาะ|เฉพาะ)\s*$")
 RE_PLAN = re.compile(r"(แผน\s*\d+(?:\.\d+)?(?:\s*แบบ\S+)?)")
+
+
+def clean_plan(raw: str | None) -> str | None:
+    """One spelling per plan: 'แผน1แบบวิชาการ)' / '(แผน 1 แบบวิชาการ)' -> 'แผน 1 แบบวิชาการ'.
+
+    RE_PLAN's `แบบ\\S+` also swallows a closing bracket or comma that follows the plan name,
+    and models squash the spaces, so the same plan came out in several spellings. PLO and KSEC
+    both use this, so `ksec_vs_plo` can match plans by plain string equality.
+    """
+    if not raw:
+        return raw
+    plan = re.sub(r"แผน\s*", "แผน ", raw)
+    plan = re.sub(r"(\d)\s*แบบ", r"\1 แบบ", plan)
+    return plan.strip(" \t()[]{}<>,.:;\"'") or None
+
+
 CATEGORY_TH = {"K": "ความรู้", "S": "ทักษะ", "E": "จริยธรรม", "C": "คุณลักษณะ"}
 
 
@@ -83,7 +99,7 @@ def _plan_before(blocks: list[Block], index: int) -> str | None:
         if isinstance(b, Paragraph):
             m = RE_PLAN.search(b.text)
             if m and len(b.text) < 160:
-                return m.group(1).strip()
+                return clean_plan(m.group(1))
     return None
 
 

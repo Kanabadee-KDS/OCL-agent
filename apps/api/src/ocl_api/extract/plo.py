@@ -12,7 +12,7 @@ from ocl_api.extract.base import (
     llm_only,
     meta,
 )
-from ocl_api.extract.ksec import RE_PLAN
+from ocl_api.extract.ksec import RE_PLAN, clean_plan
 from ocl_api.fewshot import fewshot_kw
 from ocl_api.ingest.model import Document, Paragraph, Table
 
@@ -67,20 +67,20 @@ def _plan_label(text: str) -> str | None:
     if len(text) >= 160 or RE_PLO.match(text) or RE_SUB.match(text):
         return None
     m = RE_PLAN.search(text)
-    return re.sub(r"แผน\s*", "แผน ", m.group(1)).strip() if m else None
+    return clean_plan(m.group(1)) if m else None
 
 
 def split_llm_code(code: str, plan: str | None) -> tuple[str, str | None]:
     """Models sometimes put the plan inside the code ('PLO1 แผน 1 แบบวิชาการ'); split it out."""
     m = re.match(r"\s*((?:Sub-?)?PLO\s?\d+(?:\.\d+)?)(.*)$", code or "", re.I | re.S)
     if not m:
-        return code, plan
+        return code, clean_plan(plan)
     rest = m.group(2)
     if not plan:
         pm = RE_PLAN.search(rest)
         if pm:
-            plan = re.sub(r"แผน\s*", "แผน ", pm.group(1)).strip()
-    return m.group(1), plan
+            plan = pm.group(1)
+    return m.group(1), clean_plan(plan)
 
 
 def extract_plo(doc: Document, gateway=None) -> PartResult:

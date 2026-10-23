@@ -10,6 +10,7 @@ import pytest
 import ocl_api.fewshot as fs
 from ocl_api.config import Settings
 from ocl_api.evaluate import score_plo
+from ocl_api.extract.ksec import clean_plan
 from ocl_api.extract.plo import extract_plo, split_llm_code
 from ocl_api.extract.render import render_plo
 from ocl_api.extract.validators import run_checks
@@ -120,6 +121,12 @@ def test_later_note_lines_are_not_conflicts() -> None:
 def test_split_llm_code_and_plan_scoring() -> None:
     assert split_llm_code("PLO1 แผน1 แบบวิชาการ", None) == ("PLO1", "แผน 1 แบบวิชาการ")
     assert split_llm_code("PLO2", "แผน 2 แบบวิชาชีพ") == ("PLO2", "แผน 2 แบบวิชาชีพ")
+    # first-round Gemini wrote the plan in brackets with the spaces squashed
+    assert split_llm_code("PLO1(แผน1แบบวิชาการ)", None) == ("PLO1", "แผน 1 แบบวิชาการ")
+    assert split_llm_code("PLO3 (แผน 2 แบบวิชาชีพ),", None) == ("PLO3", "แผน 2 แบบวิชาชีพ")
+    assert split_llm_code("PLO1", "(แผน 1 แบบวิชาการ)") == ("PLO1", "แผน 1 แบบวิชาการ")
+    assert split_llm_code("ข้อ 1", "แผน2แบบวิชาชีพ") == ("ข้อ 1", "แผน 2 แบบวิชาชีพ")
+    assert clean_plan(None) is None and clean_plan("แผน 1.1") == "แผน 1.1"
     ref = {
         "plos": [
             {"plan": "แผน 1", "code": "PLO1", "text": "ก"},
