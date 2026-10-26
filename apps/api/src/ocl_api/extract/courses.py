@@ -11,6 +11,7 @@ chunk whose reply is truncated is split in half and sent again.
 from __future__ import annotations
 
 import re
+from collections import Counter
 from typing import Any
 
 from ocl_api.extract.base import (
@@ -345,6 +346,71 @@ LLM_PROMPT = (
 MIN_CHUNK_CHARS = 4000
 
 
+RE_CODE_PARTS = re.compile(r"^([^\d\s]+)(\d+)$")
+
+
+def _prefix_typo(a: str, b: str) -> bool:
+    """'ฐน' vs 'ศฐน': one letter dropped, added or changed."""
+    if a == b or abs(len(a) - len(b)) > 1:
+        return False
+    if len(a) == len(b):
+        return sum(x != y for x, y in zip(a, b, strict=True)) == 1
+    short, long_ = sorted((a, b), key=len)
+    return any(long_[:i] + long_[i + 1 :] == short for i in range(len(long_)))
+
+
+def merge_code_typos(courses: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+    """Fold a course the book lists twice under a mistyped Thai code into one entry.
+
+    ปร.ด. (R1 accuracy test ACC-190): the course list has ศฐน821 and the description section
+    prints it as ฐน821, so the book seemed to have 24 courses instead of 23. Two entries are
+    the same course when the digits, the English code (or the Thai name) agree and the Thai
+    prefixes differ by one letter. The code whose prefix the book uses most is kept, the other
+    entry's fields fill its gaps, and the row is marked low confidence for the reviewer.
+    """
+    parts = {k: RE_CODE_PARTS.match(k) for k in courses}
+    prefix_use = Counter(m.group(1) for m in parts.values() if m)
+    typos: list[dict[str, Any]] = []
+    codes = list(courses)
+    for i, a in enumerate(codes):
+        for b in codes[i + 1 :]:
+            if a not in courses or b not in courses:
+                continue
+            ma, mb = parts[a], parts[b]
+            if not (ma and mb) or ma.group(2) != mb.group(2):
+                continue
+            if not _prefix_typo(ma.group(1), mb.group(1)):
+                continue
+            ca, cb = courses[a], courses[b]
+            en_a, en_b = _squash(ca.get("code_en") or ""), _squash(cb.get("code_en") or "")
+            if en_a and en_b:
+                # two majors can share a course name with their own codes (ศศ.บ. กจส413 GSM413 /
+                # กจว413 GCM413 "เตรียมสหกิจศึกษา"): the English code decides
+                if en_a != en_b:
+                    continue
+            elif not (
+                ca.get("name_th") and _squash(ca["name_th"]) == _squash(cb.get("name_th") or "")
+            ):
+                continue
+            keep, drop = (a, b) if prefix_use[ma.group(1)] >= prefix_use[mb.group(1)] else (b, a)
+            kept, gone = courses[keep], courses.pop(drop)
+            for field, value in gone.items():
+                if field != "meta" and kept.get(field) in (None, "") and value not in (None, ""):
+                    kept[field] = value
+            page = ((gone.get("meta") or {}).get("source") or {}).get("page")
+            m = kept["meta"] = kept.get("meta") or {}
+            m["confidence"] = "low"
+            m["code_typo"] = drop
+            note = (
+                f"เล่มพิมพ์รหัสวิชานี้เป็น {drop}"
+                + (f" (หน้า {page})" if page else "")
+                + f" ระบบรวมเป็น {keep} วิชาเดียว ให้ผู้ตรวจยืนยัน"
+            )
+            m["note"] = f"{m['note']} · {note}" if m.get("note") else note
+            typos.append({"kept": keep, "dropped": drop, "page": page})
+    return typos
+
+
 def _add_usage(res: PartResult, usage) -> None:
     u = usage.to_dict() if hasattr(usage, "to_dict") else dict(usage or {})
     if res.llm_usage is None:
@@ -426,6 +492,13 @@ def extract_courses(doc: Document, gateway=None, *, llm_chunk_chars: int = 20000
         res.notes.extend(merge_llm(courses, total_items))
         res.data["llm_count"] = len(total_items)
 
+    typos = merge_code_typos(courses)
+    if typos:
+        res.data["code_typos"] = typos
+        res.notes.append(
+            "รหัสที่น่าจะพิมพ์ผิด รวมเป็นวิชาเดียว: "
+            + ", ".join(f"{t['dropped']} → {t['kept']}" for t in typos)
+        )
     res.data["courses"] = list(courses.values())
     res.data["count"] = len(courses)
     if not courses:

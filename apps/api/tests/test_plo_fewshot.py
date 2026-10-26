@@ -28,6 +28,7 @@ def test_plos_are_kept_per_plan() -> None:
     doc = _doc([
         Paragraph(text="1.1 เมื่อนิสิตจบการศึกษาแผน 1 แบบวิชาการ จะสามารถ", page=19),
         Paragraph(text="PLO1 วิเคราะห์แนวโน้มเศรษฐกิจ", page=19),
+        Paragraph(text="และใช้เครื่องมือ", page=19),  # the book wraps the PLO by hand
         Paragraph(text="PLO2 สร้างผลงานวิจัย", page=19),
         Table(rows=[["ผลลัพธ์การเรียนรู้", "ด้านความรู้ (K)"], ["PLO1: วิเคราะห์แนวโน้มเศรษฐกิจ และใช้เครื่องมือ", "K1-1"]], page=19),
         Paragraph(text="1.2 เมื่อนิสิตจบการศึกษาแผน 2 แบบวิชาชีพ จะสามารถ", page=20),
@@ -43,8 +44,9 @@ def test_plos_are_kept_per_plan() -> None:
         ("แผน 2 แบบวิชาชีพ", "PLO2"),
     ]
     assert r.data["plans"] == ["แผน 1 แบบวิชาการ", "แผน 2 แบบวิชาชีพ"] and r.data["count"] == 4
-    assert r.data["plos"][0]["text"].endswith("และใช้เครื่องมือ"), (
-        "longer table text wins within the same plan"
+    p1 = r.data["plos"][0]
+    assert p1["text"].endswith("และใช้เครื่องมือ") and "alternatives" not in p1["meta"], (
+        "the wrapped list line is joined, so the list and the table are the same PLO"
     )
     assert r.data["plos"][2]["text"] == "ประยุกต์ใช้เศรษฐศาสตร์ธุรกิจ"
     md = render_plo(r.data)
@@ -67,7 +69,7 @@ def test_single_plo_set_ignores_later_plan_headings() -> None:
 def test_list_and_table_wording_mismatch_is_flagged_not_dropped() -> None:
     # ปร.ด. p.22: the PLO list and the K/S/E/C table word PLO2 differently
     doc = _doc([
-        Paragraph(text="PLO1: สังเคราะห์แนวคิดทฤษฎี", page=22),
+        Paragraph(text="PLO1: สังเคราะห์แนวคิดทฤษฎีทางเศรษฐศาสตร์", page=22),
         Paragraph(text="PLO2: ให้ข้อเสนอแนะเชิงนโยบาย", page=22),
         Table(rows=[["ผลลัพธ์การเรียนรู้", "ด้านความรู้ (K)"],
                     ["PLO1: สังเคราะห์แนวคิดทฤษฎี\nทางเศรษฐศาสตร์", "K1-1"],
@@ -75,8 +77,8 @@ def test_list_and_table_wording_mismatch_is_flagged_not_dropped() -> None:
     ])  # fmt: skip
     r = extract_plo(doc)
     p1, p2 = r.data["plos"]
-    assert p1["text"] == "สังเคราะห์แนวคิดทฤษฎี" and "alternatives" not in p1["meta"], (
-        "a table cell that wraps is the same wording, not a conflict"
+    assert p1["text"] == "สังเคราะห์แนวคิดทฤษฎีทางเศรษฐศาสตร์" and "alternatives" not in p1["meta"], (
+        "a table cell that wraps onto a second line is joined: same wording, not a conflict"
     )
     assert p2["text"] == "ให้ข้อเสนอแนะเชิงนโยบาย", "list wording kept even though the table is longer"
     assert p2["meta"]["alternatives"] == [
@@ -116,6 +118,54 @@ def test_later_note_lines_are_not_conflicts() -> None:
     ]
     assert r.data["text_conflicts"] == []
     assert "plo_text_conflict" not in {c.key for c in run_checks({"plo": r.data})}
+
+
+def test_wrapped_list_lines_are_joined_and_an_extra_clause_is_flagged() -> None:
+    # ศศ.บ. p.17 (R1 accuracy test ACC-095): PLOs wrap into separate paragraphs; the table
+    # copy of PLO5 stops before the list's last clause
+    doc = _doc([
+        Paragraph(text="PLO4: ประยุกต์ใช้เทคโนโลยีสมัยใหม่เพื่อสร้างนวัตกรรมที่ตอบสนองความต้องการ", page=17),
+        Paragraph(text="ของชุมชนและสังคม", page=17),
+        Paragraph(text="PLO5: ออกแบบและดำเนินโครงการอย่างมี", page=17),
+        Paragraph(text="ส่วนร่วมและยั่งยืน ด้วยจิตสาธารณะ และมีความรับผิดชอบต่อสังคม", page=17),
+        Paragraph(text="PLO6: ผลลัพธ์การเรียนรู้ของวิชาเอก ดังนี้", page=17),
+        Paragraph(text="วิชาเอกการจัดการภูมิสังคม", page=17),
+        Paragraph(text="PLO6.1: สามารถจัดการทุนชุมชน", page=17),
+        Paragraph(text="หมายเหตุ: PLO6 เป็นผลลัพธ์การเรียนรู้ของวิชาเอก", page=17),
+        Table(rows=[["ผลลัพธ์การเรียนรู้", "ด้านความรู้ (K)"],
+                    ["PLO4: ประยุกต์ใช้เทคโนโลยีสมัยใหม่เพื่อสร้างนวัตกรรมที่ตอบสนองความต้องการของชุมชนและสังคม", "K4.1"],
+                    ["PLO5: ออกแบบและดำเนินโครงการอย่างมีส่วนร่วมและยั่งยืนด้วยจิตสาธารณะ", "K5.1"]], page=18),
+    ])  # fmt: skip
+    r = extract_plo(doc)
+    p4, p5, p6 = r.data["plos"]
+    assert p4["text"].endswith("ความต้องการของชุมชนและสังคม"), "Thai wrap joined without a space"
+    assert "alternatives" not in p4["meta"]
+    assert p5["text"] == (
+        "ออกแบบและดำเนินโครงการอย่างมีส่วนร่วมและยั่งยืน ด้วยจิตสาธารณะ และมีความรับผิดชอบต่อสังคม"
+    )
+    assert p5["meta"]["alternatives"] == [
+        {"text": "ออกแบบและดำเนินโครงการอย่างมีส่วนร่วมและยั่งยืนด้วยจิตสาธารณะ", "page": 18, "from": "table"}
+    ]
+    assert p5["meta"]["confidence"] == "low" and r.data["text_conflicts"] == ["PLO5"]
+    assert p6["text"] == "ผลลัพธ์การเรียนรู้ของวิชาเอก ดังนี้", "a line ending 'ดังนี้' opens a list"
+    assert [s["code"] for s in p6["sub_plos"]] == ["PLO6.1"]
+    assert p6["sub_plos"][0]["text"] == "สามารถจัดการทุนชุมชน", "'หมายเหตุ' is not a wrap"
+
+
+def test_bare_plo_code_takes_the_next_paragraph() -> None:
+    # อาหาร PDF p.19: "PLO1:" on its own line, the statement (over 160 chars) below it
+    long = "พัฒนาตนเองอย่างต่อเนื่องด้วยการเรียนรู้ตลอดชีวิต " * 4
+    doc = _doc([
+        Paragraph(text="PLO1:", page=19),
+        Paragraph(text=long.strip(), page=19),
+        Paragraph(text="PLO2:", page=19),
+        Paragraph(text="แปรรูปวัตถุดิบ", page=19),
+        Paragraph(text="หมายเหตุ: PLO1 เป็นผลลัพธ์การเรียนรู้ของหลักสูตร", page=19),
+        Paragraph(text="โดยมีรายละเอียดของผลลัพธ์การเรียนรู้ของหลักสูตร ในแต่ละด้าน ดังนี้", page=19),
+    ])  # fmt: skip
+    p1, p2 = extract_plo(doc).data["plos"]
+    assert p1["text"] == long.strip() and p1["meta"]["from"] == "list"
+    assert p2["text"] == "แปรรูปวัตถุดิบ"
 
 
 def test_split_llm_code_and_plan_scoring() -> None:

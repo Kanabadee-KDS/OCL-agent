@@ -509,7 +509,9 @@ def _module_checks(md: dict[str, Any], crs: dict[str, Any]) -> list[Check]:
     courses = crs.get("courses") or []
     if courses:
         known = {c.get("code_th") for c in courses}
-        in_mods = [c for m in mods for c in m.get("course_codes") or []]
+        # a code the courses part folded into its correct spelling (code_typos) is that course
+        alias = {t["dropped"]: t["kept"] for t in crs.get("code_typos") or []}
+        in_mods = [alias.get(c, c) for m in mods for c in m.get("course_codes") or []]
         unknown = sorted({c for c in in_mods if c not in known})
         dup = sorted({c for c in in_mods if in_mods.count(c) > 1})
         out.append(
@@ -527,7 +529,7 @@ def _module_checks(md: dict[str, Any], crs: dict[str, Any]) -> list[Check]:
         by_code = {c.get("code_th"): c.get("credits") or 0 for c in courses}
         for m in mods:
             if m.get("credits") and m.get("course_codes"):
-                s = sum(by_code.get(c, 0) for c in m["course_codes"])
+                s = sum(by_code.get(alias.get(c, c), 0) for c in m["course_codes"])
                 if s != m["credits"]:
                     credit_bad.append(f"{m['name_th'][:30]}: รายวิชารวม {s} ≠ {m['credits']}")
         if any(m.get("credits") for m in mods):
@@ -728,7 +730,26 @@ def run_checks(parts: dict[str, dict[str, Any]]) -> list[Check]:
     )
     no_credit = [c["code_th"] for c in courses if not c.get("credit_text")]
     no_desc = [c["code_th"] for c in courses if not c.get("description_th")]
-    low = [c["code_th"] for c in courses if (c.get("meta") or {}).get("confidence") == "low"]
+    typos = crs.get("code_typos") or []
+    if typos:
+        checks.append(
+            Check(
+                "course_code_typo",
+                "warn",
+                "รหัสวิชาที่เล่มน่าจะพิมพ์ผิด ระบบรวมเป็นวิชาเดียว: "
+                + ", ".join(
+                    f"{t['dropped']} → {t['kept']}"
+                    + (f" (หน้า {t['page']})" if t.get("page") else "")
+                    for t in typos
+                ),
+                "courses",
+            )
+        )
+    low = [
+        c["code_th"]
+        for c in courses
+        if (c.get("meta") or {}).get("confidence") == "low" and not c["meta"].get("code_typo")
+    ]
     checks.append(
         Check(
             "course_fields",

@@ -62,6 +62,55 @@ def same_wording(a: str, b: str) -> bool:
     return a in b or b in a
 
 
+# Once wrapped lines are joined (join_continuation) a list PLO and its table copy should be
+# the same text. A longer one that adds this many characters or more adds a clause: the book
+# words the PLO two ways (ศศ.บ. PLO5: the list ends "…และมีความรับผิดชอบต่อสังคม", the table
+# stops before it), so it is a conflict to show, not a wrap to swallow.
+CLAUSE_CHARS = 8
+
+
+def adds_clause(a: str, b: str) -> bool:
+    a, b = _squash(a), _squash(b)
+    return bool(a and b) and abs(len(a) - len(b)) >= CLAUSE_CHARS
+
+
+# A line after "PLOn: …" that starts one of these is not the rest of the statement.
+RE_NOT_CONT = re.compile(
+    r"^\s*(PLO|Sub-?PLO|หมายเหตุ|โดยมี|วิชาเอก|[KSEC]\s?\d|\d+(\.\d+)*[.)]?\s|[-•●▪])", re.I
+)
+MAX_CONT_LINES = 3
+
+
+def is_continuation(prev: str, line: str) -> bool:
+    """`line` carries on the PLO statement in `prev`: books wrap long PLOs by hand into
+    separate paragraphs (ศศ.บ., ศศ.ม.), table cells wrap them into lines (ปร.ด.), and the food
+    PDF puts the text after a bare "PLO1:" (R1 accuracy test, ACC-095: ศศ.บ. PLO5 lost its
+    last clause because only the first paragraph was read)."""
+    line = line.strip()
+    if not line or RE_NOT_CONT.match(line) or _plan_label(line):
+        return False
+    if prev.strip(" :：") and len(line) >= 160:  # a wrap is short; after a bare code it is all
+        return False
+    return not prev.rstrip().endswith(("ดังนี้", ":", "："))  # "PLO6: … ดังนี้" opens a list
+
+
+def join_continuation(first: str, rest: list[str]) -> tuple[str, int]:
+    """`first` plus the wrapped lines that follow it; returns (text, lines used from rest)."""
+    text, used = first, 0
+    for line in rest[:MAX_CONT_LINES]:
+        if not is_continuation(text, line):
+            break
+        line = line.strip()
+        if not text.strip(" :："):
+            text = line
+        elif re.match(r"[ก-๙]", text[-1]) and re.match(r"[ก-๙]", line[0]):
+            text += line  # Thai has no word spaces: a hand wrap is not a space in the sentence
+        else:
+            text = f"{text} {line}"
+        used += 1
+    return text, used
+
+
 def _plan_label(text: str) -> str | None:
     """'1.1 เมื่อนิสิตจบการศึกษาแผน 1 แบบวิชาการ จะสามารถ' -> 'แผน 1 แบบวิชาการ' (short lines only)."""
     if len(text) >= 160 or RE_PLO.match(text) or RE_SUB.match(text):
@@ -122,7 +171,7 @@ def extract_plo(doc: Document, gateway=None) -> PartResult:
         key = (plan, code)
         if key in plos:
             cur = plos[key]
-            if same_wording(text, cur["text"]):
+            if same_wording(text, cur["text"]) and not adds_clause(text, cur["text"]):
                 # keep the longest text (tables sometimes truncate), never overwrite with shorter
                 if len(text) > len(cur["text"]):
                     cur["text"] = text
@@ -162,9 +211,27 @@ def extract_plo(doc: Document, gateway=None) -> PartResult:
         }
         order.append(key)
 
+    def following_lines(blocks: list, i: int) -> list[str]:
+        """Body paragraphs right after block i on the same or next page (wrap candidates)."""
+        out = []
+        for b in blocks[i + 1 : i + 1 + MAX_CONT_LINES]:
+            if (
+                not isinstance(b, Paragraph)
+                or b.level
+                or (b.page and blocks[i].page and b.page - blocks[i].page > 1)
+            ):
+                break
+            out.append(b.text)
+        return out
+
     if not llm_only():
         plan: str | None = None
-        for b in ch3.blocks:
+        blocks = ch3.blocks
+        skip = 0
+        for i, b in enumerate(blocks):
+            if skip:
+                skip -= 1
+                continue
             if isinstance(b, Paragraph):
                 label = _plan_label(b.text)
                 if label:
@@ -175,7 +242,8 @@ def extract_plo(doc: Document, gateway=None) -> PartResult:
                     continue
                 m = RE_SUB.match(b.text)
                 if m:
-                    add(m.group(1), m.group(2), b.page, b.text, "high", True, plan)
+                    text, skip = join_continuation(m.group(2), following_lines(blocks, i))
+                    add(m.group(1), text, b.page, b.text, "high", True, plan)
                     continue
                 m = RE_PLO.match(b.text)
                 if (
@@ -183,18 +251,23 @@ def extract_plo(doc: Document, gateway=None) -> PartResult:
                     and not b.text.lower().startswith("plo ")
                     or (m and re.match(r"^PLO\s?\d", b.text, re.I))
                 ):
-                    add(m.group(1), m.group(2), b.page, b.text, "high", False, plan)
+                    text, skip = join_continuation(
+                        m.group(2).strip(" :："), following_lines(blocks, i)
+                    )
+                    add(m.group(1), text, b.page, b.text, "high", False, plan)
             elif isinstance(b, Table):
                 for row in b.rows:
                     for cell in row:
-                        for line in cell.split("\n"):
-                            m = RE_SUB.match(line)
-                            if m:
-                                add(m.group(1), m.group(2), b.page, line, "medium", True, plan)
+                        lines = cell.split("\n")
+                        for j, line in enumerate(lines):
+                            m = RE_SUB.match(line) or RE_PLO.match(line)
+                            if not m:
                                 continue
-                            m = RE_PLO.match(line)
-                            if m:
-                                add(m.group(1), m.group(2), b.page, line, "medium", False, plan,
+                            text, _ = join_continuation(m.group(2).strip(" :："), lines[j + 1 :])
+                            if RE_SUB.match(line):
+                                add(m.group(1), text, b.page, line, "medium", True, plan)
+                            else:
+                                add(m.group(1), text, b.page, line, "medium", False, plan,
                                     table=True)  # fmt: skip
 
     if not plos and gateway is not None:

@@ -319,6 +319,66 @@ def test_course_table_rows_with_th_en_cells() -> None:
     assert by["ศฐ511"]["description_th"] == "ศึกษาเครื่องมือเชิงปริมาณ"
 
 
+def test_mistyped_course_code_is_merged_and_flagged() -> None:
+    # ปร.ด. (R1 accuracy test ACC-190): the list says ศฐน821, the description section prints
+    # ฐน821 with the same English code; the book has one course, not two
+    blocks = [
+        H("หมวดที่ 4 โครงสร้างหลักสูตร รายวิชา และหน่วยกิต", 1, 29),
+        H("2. รายละเอียดของหมวดวิชาและหน่วยกิต", 2, 29),
+        Table(
+            rows=[
+                ["ศฐน821\nECI821", "การเงินอย่างยั่งยืนและการพัฒนา\nSustainable Finance and Development", "2(1-2-3)"],
+                ["ศฐน822\nECI822", "การเงินสีเขียว\nGreen Finance", "2(1-2-3)"],
+            ],
+            page=29,
+        ),
+        H("3. คำอธิบายชุดวิชา/รายวิชา", 2, 40),
+        Table(
+            rows=[
+                ["ฐน821\nECI821", "การเงินอย่างยั่งยืนและการพัฒนา\nSustainable Finance and Development", "2 (1-2-3)"],
+                ["ศฐน822\nECI822", "การเงินสีเขียว\nGreen Finance", "2 (1-2-3)"],
+            ],
+            page=40,
+        ),
+        P("ศึกษาบทบาทของระบบการเงิน", 40),
+    ]  # fmt: skip
+    r = extract_courses(Document(source_name="phd.docx", source_type="docx", blocks=blocks))
+    by = {c["code_th"]: c for c in r.data["courses"]}
+    assert set(by) == {"ศฐน821", "ศฐน822"} and r.data["count"] == 2
+    assert r.data["code_typos"] == [{"kept": "ศฐน821", "dropped": "ฐน821", "page": 40}]
+    m = by["ศฐน821"]["meta"]
+    assert m["confidence"] == "low" and m["code_typo"] == "ฐน821"
+    assert "เล่มพิมพ์รหัสวิชานี้เป็น ฐน821 (หน้า 40)" in m["note"]
+    checks = {c.key: c for c in run_checks({"courses": r.data})}
+    assert checks["course_code_typo"].status == "warn"
+    assert "ฐน821 → ศฐน821 (หน้า 40)" in checks["course_code_typo"].message
+    assert "course_conflicts" not in checks, "a merged typo is not a parser/LLM disagreement"
+    # the module table still lists the typo; it must count as the merged course
+    module = {"name_th": "การเงินเพื่อความยั่งยืน", "credits": 4, "description_th": "-",
+              "course_codes": ["ฐน821", "ศฐน822"]}  # fmt: skip
+    checks = {c.key: c for c in run_checks({"courses": r.data, "modules": {"modules": [module]}})}
+    assert checks["modules_vs_courses"].status == "pass"
+    assert checks["modules_credits"].status == "pass"
+
+
+def test_same_course_name_in_two_majors_is_not_a_typo() -> None:
+    # ศศ.บ.: each major has its own "เตรียมสหกิจศึกษา" (กจส413 GSM413 / กจว413 GCM413)
+    blocks = [
+        H("หมวดที่ 4 โครงสร้างหลักสูตร รายวิชา และหน่วยกิต", 1, 35),
+        H("2. รายละเอียดของหมวดวิชาและหน่วยกิต", 2, 35),
+        Table(
+            rows=[
+                ["กจส413\nGSM413", "เตรียมสหกิจศึกษา\nPre Cooperative Education", "1(0-2-1)"],
+                ["กจว413\nGCM413", "เตรียมสหกิจศึกษา\nPre Cooperative Education", "1(0-2-1)"],
+            ],
+            page=35,
+        ),
+    ]  # fmt: skip
+    r = extract_courses(Document(source_name="ba.docx", source_type="docx", blocks=blocks))
+    assert {c["code_th"] for c in r.data["courses"]} == {"กจส413", "กจว413"}
+    assert "code_typos" not in r.data
+
+
 def test_pdf_split_header_layout() -> None:
     blocks = [
         H("หมวดที่ 4 โครงสร้างหลักสูตร รายวิชา และหน่วยกิต", 1, 30),
