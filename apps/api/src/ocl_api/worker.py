@@ -16,7 +16,7 @@ from typing import Any
 
 from ocl_api.config import Settings, get_settings
 from ocl_api.extract.pipeline import extract
-from ocl_api.ingest.pipeline import ingest
+from ocl_api.ingest.pipeline import EmptyDocumentError, ingest
 from ocl_api.jobs import JobStore, make_store, now_iso
 
 _LOCK = threading.Lock()
@@ -109,6 +109,8 @@ def process_job(store: JobStore, job_id: str, settings: Settings | None = None) 
             job["timings"]["total"] = round(time.perf_counter() - t_all, 2)
             store.write(job)
             return store.set_status(job_id, "review", "สกัดข้อมูลแล้ว รอตรวจสอบและยืนยันทีละส่วน")
+        except EmptyDocumentError as e:  # a user problem, not a crash: no traceback
+            return store.set_status(job_id, "failed", "ไม่พบเนื้อหาในไฟล์", error=str(e))
         except Exception as e:  # noqa: BLE001 - the job must record any failure
             tb = traceback.format_exc(limit=5)
             return store.set_status(job_id, "failed", "เกิดข้อผิดพลาด", error=f"{e}\n{tb}")

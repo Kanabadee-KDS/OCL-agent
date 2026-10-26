@@ -89,6 +89,8 @@ cd /home/arsoft/ocl-agent && docker compose -f deploy/docker-compose.yml exec -T
 cd /home/arsoft/ocl-agent && git pull && docker compose -f deploy/docker-compose.yml build && docker compose -f deploy/docker-compose.yml up -d
 ```
 
+ก่อน build รอบที่ทีมจะทดสอบ ให้รัน `uv run python tools/expected_values.py --check` บน Mac ที่ commit เดียวกันก่อน (เฉลยใน `docs/testing/` ต้องมาจากโค้ดรุ่นเดียวกับที่ server รัน)
+
 ถ้า commit นั้นแก้ `deploy/Caddyfile` ต้อง recreate container caddy ด้วย (ไฟล์ถูก bind-mount ทีละไฟล์ git pull เขียนไฟล์ใหม่เป็น inode ใหม่ container เดิมจึงยังเห็นไฟล์เก่า แม้สั่ง `caddy reload` ก็อ่านของเก่า อาการ: `/api/auth/*` หรือ `/api/ocl/*` ตอบ `{"detail":"Not Found"}` จาก FastAPI และ login ไม่ได้)
 
 ```bash

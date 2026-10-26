@@ -123,11 +123,38 @@ def build_docx(path: Path) -> None:
         z.writestr("word/media/image1.png", PNG)
 
 
+def build_blank_docx(path: Path) -> None:
+    """What Word saves for a new, untouched document: a valid package with one empty
+    paragraph (about 1 KB, so it passes the API's 0-byte check)."""
+    document = f"<w:document {W_NS}><w:body><w:p/><w:sectPr/></w:body></w:document>"
+    content_types = (
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+        '<Default Extension="xml" ContentType="application/xml"/>'
+        '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-'
+        'officedocument.wordprocessingml.document.main+xml"/></Types>'
+    )
+    with zipfile.ZipFile(path, "w") as z:
+        z.writestr("[Content_Types].xml", content_types)
+        z.writestr("word/document.xml", document)
+
+
 @pytest.fixture
 def docx_file(tmp_path: Path) -> Path:
     f = tmp_path / "sample.docx"
     build_docx(f)
     return f
+
+
+def test_blank_docx_is_rejected(tmp_path: Path) -> None:
+    from ocl_api.ingest.pipeline import EmptyDocumentError
+
+    f = tmp_path / "x.docx"
+    build_blank_docx(f)
+    assert f.stat().st_size > 0
+    with pytest.raises(EmptyDocumentError) as exc:
+        ingest(f, tmp_path / "out")
+    assert "ไม่พบเนื้อหาในไฟล์: 1 หน้า ไม่มีข้อความและตาราง" in str(exc.value)
+    assert not (tmp_path / "out" / "document.json").exists(), "nothing written for a blank book"
 
 
 def test_reader_structure(docx_file: Path, tmp_path: Path) -> None:

@@ -10,7 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from ocl_api.main import create_app
-from tests.test_ingest_docx import build_docx
+from tests.test_ingest_docx import build_blank_docx, build_docx
 
 
 @pytest.fixture
@@ -109,6 +109,21 @@ def test_full_import_flow(client: TestClient, tmp_path: Path) -> None:
     client.put(f"/api/imports/{jid}/parts/plo", json={"data": data, "confirm": True})
     done = client.post(f"/api/imports/{jid}/finalize").json()
     assert done["status"] == "done" and done["step"] == 4
+
+
+def test_blank_book_fails_with_a_message(client: TestClient, tmp_path: Path) -> None:
+    """R1 test B-2: a blank Word file is not 0 bytes, so it passes upload validation; the
+    job must then stop as 'failed' with a readable reason instead of opening an empty review."""
+    book = tmp_path / "x.docx"
+    build_blank_docx(book)
+    r = client.post(
+        "/api/imports", files={"file": ("x.docx", book.read_bytes())}, data={"provider": "none"}
+    )
+    assert r.status_code == 201, r.text
+    job = _wait(client, r.json()["id"], "review")
+    assert job["status"] == "failed"
+    assert job["progress"] == "ไม่พบเนื้อหาในไฟล์"
+    assert "ไม่พบเนื้อหาในไฟล์: 1 หน้า" in job["error"] and "Traceback" not in job["error"]
 
 
 def test_upload_validation(client: TestClient) -> None:

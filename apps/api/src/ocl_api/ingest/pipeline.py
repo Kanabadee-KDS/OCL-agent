@@ -10,7 +10,27 @@ from typing import Any
 
 from ocl_api.ingest.docx_reader import DocxReader
 from ocl_api.ingest.markdown import render_book, render_section
-from ocl_api.ingest.model import Document
+from ocl_api.ingest.model import Document, Paragraph, Table
+
+
+class EmptyDocumentError(ValueError):
+    """The file opened fine but holds no text and no table: a blank Word file, or a scanned
+    PDF with OCR off. Nothing downstream can work on it, so the job must stop here with a
+    message the user can act on (R1 test B-2: a blank .docx used to reach the review page)."""
+
+
+def check_not_empty(doc: Document, *, ocr: bool) -> None:
+    has_text = any(isinstance(b, Paragraph) and b.text.strip() for b in doc.blocks)
+    has_table = any(isinstance(b, Table) and b.rows for b in doc.blocks)
+    if has_text or has_table:
+        return
+    pages = doc.pages or 0
+    # no file name here: a job stores the upload as source.docx, the UI shows the real name
+    why = f"ไม่พบเนื้อหาในไฟล์: {pages} หน้า ไม่มีข้อความและตาราง"
+    if doc.scanned_pages:
+        why += f" · หน้าสแกน (ไม่มีชั้นข้อความ) {len(doc.scanned_pages)} หน้า"
+        why += " · OCR ปิดอยู่ (OCR=false)" if not ocr else " · OCR อ่านข้อความไม่ได้"
+    raise EmptyDocumentError(why + " · ตรวจว่าเลือกไฟล์ถูกต้องแล้วอัปโหลดใหม่")
 
 
 def read_document(
@@ -40,6 +60,7 @@ def ingest(
     out.mkdir(parents=True, exist_ok=True)
     t0 = time.perf_counter()
     doc = read_document(path, out / "assets", ocr=ocr, ocr_language=ocr_language)
+    check_not_empty(doc, ocr=ocr)
 
     (out / "book.md").write_text(render_book(doc), encoding="utf-8")
     sec_dir = out / "sections"
