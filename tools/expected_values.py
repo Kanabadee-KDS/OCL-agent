@@ -3,9 +3,9 @@
 
 Runs the parser-only extraction (what `ocl extract --no-llm` does) on the sample books and
 writes what the *current* code produces into
-  docs/testing/test-script_ocl.csv   rows C-xx (counts per part, 'ควรตรวจ' checks) and the
-                                     "จำนวนรายการ = …" prefix of rows V-xx
-  docs/testing/test-manual_ocl.md    ภาคผนวก ก (counts per book)
+  docs/testing/test-script_ocl.csv       rows C-xx (counts per part, 'ควรตรวจ' checks) and the
+  docs/testing/r1-2-test-script_ocl.csv  "จำนวนรายการ = …" prefix of rows V-xx (both files)
+  docs/testing/test-manual_ocl.md        ภาคผนวก ก (counts per book)
 so testers compare the screen with this build, not with numbers copied from an older one
 (R1 lesson, 26 ต.ค. 2569: 4 of the 5 failures were a stale answer key).
 
@@ -32,7 +32,10 @@ from ocl_api.extract.pipeline import extract
 from ocl_api.ingest.pipeline import ingest
 
 ROOT = Path(__file__).resolve().parents[1]
-CSV = ROOT / "docs/testing/test-script_ocl.csv"
+CSVS = [
+    ROOT / "docs/testing/test-script_ocl.csv",  # every case
+    ROOT / "docs/testing/r1-2-test-script_ocl.csv",  # round R1-2: without cases passed in R1
+]
 MANUAL = ROOT / "docs/testing/test-manual_ocl.md"
 NOTE_PREFIX = "ตัวเลขในตารางสร้างโดย `tools/expected_values.py`"
 
@@ -225,20 +228,29 @@ def main() -> int:
     ).stdout.strip()
     stamp = f"commit {commit or '?'} ({dt.date.today().isoformat()})"
 
-    with CSV.open(encoding="utf-8-sig", newline="") as fh:
-        reader = csv.DictReader(fh)
-        fields = list(reader.fieldnames or [])
-        rows = list(reader)
-    changed = update_csv(rows, exp)
-    new_csv = csv_text(rows, fields)
+    new_csvs, changed = {}, 0
+    for path in CSVS:
+        with path.open(encoding="utf-8-sig", newline="") as fh:
+            reader = csv.DictReader(fh)
+            fields = list(reader.fieldnames or [])
+            rows = list(reader)
+        n = update_csv(rows, exp)
+        print(f"{path.name}: {n} row(s) differ")
+        changed += n
+        new_csvs[path] = csv_text(rows, fields)
     old_manual = MANUAL.read_text(encoding="utf-8")
     new_manual = manual_text(old_manual, exp, stamp)
-    manual_changed = new_manual != old_manual
 
-    print(f"CSV: {changed} row(s) differ · manual: {'differs' if manual_changed else 'same'}")
+    # the stamp line names the commit and date, so it differs on every run: compare without it
+    def body(t: str) -> list[str]:
+        return [ln for ln in t.split("\n") if not ln.startswith(NOTE_PREFIX)]
+
+    manual_changed = body(new_manual) != body(old_manual)
+    print(f"manual: {'differs' if manual_changed else 'same'}")
     if a.check:
         return 1 if (changed or manual_changed) else 0
-    CSV.write_text(new_csv, encoding="utf-8", newline="")
+    for path, text in new_csvs.items():
+        path.write_text(text, encoding="utf-8", newline="")
     MANUAL.write_text(new_manual, encoding="utf-8")
     return 0
 
