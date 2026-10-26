@@ -20,8 +20,10 @@ cd /home/arsoft/ocl-agent && cp deploy/.env.example deploy/.env
 แก้ `deploy/.env` ตั้ง `AUTH_SECRET` (openssl rand -hex 32) และ `POSTGRES_PASSWORD` เป็นรหัสยาว ๆ (service `db` ใช้ครั้งแรกตอนสร้าง volume `ocl_pg` ถ้าเปลี่ยนทีหลังต้องลบ volume หรือ ALTER USER ใน psql) · db ไม่เปิดพอร์ตออกนอก compose network (กติกาข้อ 8) · API สร้างตาราง (migration) ให้เองตอนเริ่ม
 
 ```bash
-cd /home/arsoft/ocl-agent && tmux new -s ocl-build
+cd /home/arsoft/ocl-agent && sh deploy/tmux-ocl.sh
 ```
+
+เปิด (หรือกลับเข้า) tmux session `ocl` ที่มีแถบ "OCL Agent" ด้านบนและชื่อเดียวกันบน title ของ terminal · ตั้งค่าเฉพาะ session นี้ ไม่แตะ `~/.tmux.conf` เพราะบัญชี arsoft ใช้ร่วมกับ HRIS/hr_recruit · ออกโดยไม่ปิดงาน: `Ctrl-b` แล้ว `d`
 
 (ใน tmux) build ทั้ง 2 image ราว 5–10 นาที ครั้งแรก
 
