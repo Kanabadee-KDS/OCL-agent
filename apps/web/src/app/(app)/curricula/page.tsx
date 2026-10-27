@@ -15,7 +15,7 @@ export default function CurriculaPage() {
     <>
       <PageHead
         crumb={["บริหารข้อมูลหลักสูตร", "คู่มือหลักสูตร"]}
-        title="คู่มือหลักสูตรตาม TOR"
+        title="คู่มือหลักสูตร"
         sub="สถานะของคู่มือหลักสูตรที่นำเข้าจากเล่มด้วย AI: ร่าง → คณะตรวจสอบ (5 วันทำการ แก้ได้เฉพาะหมวด 3–4) → ตรวจสอบสำเร็จ (ล็อก) → เผยแพร่"
         actions={<Link href="/import" className="btn primary"><Ic name="ai" size={17} /> นำเข้าจากเล่มด้วย AI</Link>}
       />

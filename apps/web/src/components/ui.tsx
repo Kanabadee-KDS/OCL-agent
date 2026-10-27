@@ -20,6 +20,7 @@ const ICONS: Record<string, string> = {
   refresh: '<path d="M20 11a8 8 0 0 0-14.9-3M4 5v4h4M4 13a8 8 0 0 0 14.9 3M20 19v-4h-4"/>',
   send: '<path d="M4 12l16-8-6 16-2-7z"/>',
   download: '<path d="M12 4v12M7 11l5 5 5-5"/><path d="M4 20h16"/>',
+  menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
 };
 
 export function Ic({ name, size = 18, width = 1.8 }: { name: string; size?: number; width?: number }) {

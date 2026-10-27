@@ -210,9 +210,16 @@ export default function ReviewClient() {
           <>
             <button className="btn" disabled title="อยู่ใน R1"><Ic name="refresh" size={17} /> สกัดใหม่</button>
             <button className="btn" onClick={() => setTab("preview")}><Ic name="eye" size={17} /> Preview แบบเล่ม</button>
-            <button className="btn primary" disabled={okN === 0 || job.status === "done" || !canWrite} onClick={finalize}>
-              {job.status === "done" ? "บันทึกแล้ว" : `บันทึกเข้าระบบ (${okN}/${total} ส่วน)`}
-            </button>
+            {job.status === "done" ? (
+              <Link href={`/import/${id}/done`} className="btn primary"><Ic name="chart" size={17} /> ดูสรุปผล (บันทึกแล้ว)</Link>
+            ) : (
+              <>
+                <Link href={`/import/${id}/done`} className="btn"><Ic name="chart" size={17} /> สรุปผล</Link>
+                <button className="btn primary" disabled={okN === 0 || !canWrite} onClick={finalize}>
+                  {`บันทึกเข้าระบบ (${okN}/${total} ส่วน)`}
+                </button>
+              </>
+            )}
           </>
         }
       />

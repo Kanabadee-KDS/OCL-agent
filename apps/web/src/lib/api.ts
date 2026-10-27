@@ -94,6 +94,19 @@ export const PART_LABELS: Record<string, [string, string]> = {
   appr: ["สถานภาพและมติอนุมัติ", "หมวด 1 ข้อ 13"],
 };
 
+/** Import job status → Thai label + pill colour (shared by /import, /import/history). */
+export const JOB_STATUS_TH: Record<Job["status"], [string, "ok" | "warn" | "red" | "info" | "grey"]> = {
+  queued: ["รอคิว", "grey"],
+  ingesting: ["กำลังแปลงไฟล์", "info"],
+  extracting: ["AI กำลังสกัด", "info"],
+  review: ["รอตรวจสอบ", "warn"],
+  done: ["บันทึกแล้ว", "ok"],
+  failed: ["ล้มเหลว", "red"],
+};
+export const providerLabel = (p: string) => (p === "none" ? "อ่านด้วยกฎ" : p === "ollama" ? "Local AI · Gemma" : p === "gemini" ? "Cloud AI · Gemini" : p);
+/** A job has a summary (timings, LLM usage, per-part table) once extraction finished. */
+export const hasSummary = (j: Pick<Job, "status">) => j.status === "review" || j.status === "done";
+
 export const fmtBytes = (n: number) => (n > 1e6 ? `${(n / 1e6).toFixed(1)} MB` : `${Math.round(n / 1e3)} KB`);
 /** "YYYY-MM-DD HH:MM" in Asia/Bangkok when the stamp carries a zone (Postgres timestamptz); naive stamps are shown as-is. */
 export const fmtTime = (iso: string | null | undefined) => {

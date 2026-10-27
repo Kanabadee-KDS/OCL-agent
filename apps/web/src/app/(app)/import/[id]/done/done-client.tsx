@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { api, curricula, fmtTime, PART_LABELS, type Job } from "@/lib/api";
+import { api, curricula, fmtTime, JOB_STATUS_TH as STATUS_TH, PART_LABELS, type Job } from "@/lib/api";
 import { Ic, Note, Pill, Steps } from "@/components/ui";
 
 export default function DoneClient() {
@@ -14,20 +14,27 @@ export default function DoneClient() {
   useEffect(() => { api.get(id).then(setJob).catch(() => setJob(null)); }, [id]);
   if (!job) return <div className="card pad">กำลังโหลด…</div>;
   const parts = job.counts.parts ?? {};
+  // also reachable for jobs still in review (history "สรุป" button): never claim they were saved
+  const saved = job.status === "done";
   return (
     <>
-      <Steps current={4} />
+      <Link href="/import/history" className="link-btn small" style={{ color: "var(--red-ink)" }}><Ic name="back" size={14} /> ประวัติการนำเข้าทั้งหมด</Link>
+      <Steps current={saved ? 4 : 2} />
       <section className="card pad stack" style={{ alignItems: "center", textAlign: "center", padding: "48px 20px" }}>
-        <span className="av" style={{ width: 64, height: 64, background: "var(--ok)", color: "#fff" }}><Ic name="check" size={32} width={2.5} /></span>
-        <h1 style={{ fontSize: 24, margin: 0 }}>{job.status === "done" ? "บันทึกข้อมูลเข้าระบบแล้ว" : "ยังไม่ได้บันทึก"}</h1>
-        <Pill kind="grey">สถานะ: 1. ร่างนำเข้าหลักสูตร</Pill>
+        {saved ? (
+          <span className="av" style={{ width: 64, height: 64, background: "var(--ok)", color: "#fff" }}><Ic name="check" size={32} width={2.5} /></span>
+        ) : (
+          <span className="av" style={{ width: 64, height: 64 }}><Ic name="eye" size={30} /></span>
+        )}
+        <h1 style={{ fontSize: 24, margin: 0 }}>{saved ? "บันทึกข้อมูลเข้าระบบแล้ว" : "สรุปผลการนำเข้า · ยังไม่ได้บันทึกเข้าระบบ"}</h1>
+        {saved ? <Pill kind="grey">สถานะ: 1. ร่างนำเข้าหลักสูตร</Pill> : <Pill kind={STATUS_TH[job.status][1]}>สถานะงาน: {STATUS_TH[job.status][0]}</Pill>}
         <p className="muted" style={{ margin: 0 }}>
           โครงสร้างหลักสูตร {parts.structure ?? 0} โหนด · PLO {parts.plo ?? 0} · รายวิชา {parts.courses ?? 0} · ยืนยันแล้ว {job.confirmed_count}/{job.parts_total} ส่วน
         </p>
         <div className="small faint">{job.filename} · {fmtTime(job.created_at)} → {fmtTime(job.finished_at)}</div>
         <div className="row" style={{ justifyContent: "center" }}>
           <Link className="btn" href="/import">นำเข้าเล่มอื่น</Link>
-          <Link className="btn" href={`/import/${id}`}>เปิดดูข้อมูลที่ยืนยันแล้ว</Link>
+          <Link className="btn" href={`/import/${id}`}>{saved ? "เปิดดูข้อมูลที่ยืนยันแล้ว" : "กลับไปตรวจและยืนยัน"}</Link>
           <a className="btn primary" href={api.fileUrl(id, "ingest/book.md")} target="_blank"><Ic name="download" size={16} /> Markdown ทั้งเล่ม</a>
         </div>
       </section>
@@ -56,7 +63,11 @@ export default function DoneClient() {
             </tbody>
           </table>
         </div>
-        <Note kind="ok">บันทึกเป็นคู่มือหลักสูตรสถานะ &ldquo;1. ร่างนำเข้าหลักสูตร&rdquo; แล้ว · ขั้นต่อไปคือส่งให้คณะตรวจสอบหมวด 3–4 ที่หน้าคู่มือหลักสูตร <Link href={draftId ? `/curricula/${draftId}` : "/curricula"} className="btn sm primary" style={{ marginLeft: 8 }}>เปิดคู่มือหลักสูตร</Link></Note>
+        {saved ? (
+          <Note kind="ok">บันทึกเป็นคู่มือหลักสูตรสถานะ &ldquo;1. ร่างนำเข้าหลักสูตร&rdquo; แล้ว · ขั้นต่อไปคือส่งให้คณะตรวจสอบหมวด 3–4 ที่หน้าคู่มือหลักสูตร <Link href={draftId ? `/curricula/${draftId}` : "/curricula"} className="btn sm primary" style={{ marginLeft: 8 }}>เปิดคู่มือหลักสูตร</Link></Note>
+        ) : (
+          <Note kind="info">งานนี้ยังไม่ได้บันทึกเข้าระบบ จึงยังไม่เป็นคู่มือหลักสูตร · ยืนยันแล้ว {job.confirmed_count}/{job.parts_total} ส่วน · กด &ldquo;บันทึกเข้าระบบ&rdquo; ที่หน้าตรวจเมื่อพร้อม <Link href={`/import/${id}`} className="btn sm" style={{ marginLeft: 8 }}>กลับไปตรวจและยืนยัน</Link></Note>
+        )}
       </section>
     </>
   );

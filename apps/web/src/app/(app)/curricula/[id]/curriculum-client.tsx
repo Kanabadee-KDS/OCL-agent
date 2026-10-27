@@ -50,7 +50,12 @@ export function CurriculumClient() {
         crumb={["บริหารข้อมูลหลักสูตร", "คู่มือหลักสูตร", d.name_th ?? ""]}
         title={d.name_th ?? "คู่มือหลักสูตร"}
         sub={<>{d.level ?? "–"} · {d.faculty ?? "–"} · เริ่มใช้ {d.start_year ?? "–"} · รหัส สกอ. {d.program_code ?? "–"} · <Pill kind={STATUS_KIND[d.status]}>{d.status_th}</Pill>{d.review_due_at && d.status === "review" && <> · กำหนดตรวจภายใน {d.review_due_at}</>}</>}
-        actions={<Link href={`/import/${d.job_id}`} className="btn"><Ic name="eye" size={16} /> เปิดข้อมูลที่นำเข้า (10 ส่วน)</Link>}
+        actions={
+          <>
+            <Link href={`/import/${d.job_id}`} className="btn"><Ic name="eye" size={16} /> เปิดข้อมูลที่นำเข้า (10 ส่วน)</Link>
+            <Link href={`/import/${d.job_id}/done`} className="btn"><Ic name="chart" size={16} /> สรุปผลการนำเข้า</Link>
+          </>
+        }
       />
       <div className="steps">
         {STEPS.map(([k, label], i) => (

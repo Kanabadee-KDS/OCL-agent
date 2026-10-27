@@ -5,20 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { can } from "@/lib/perm";
-import { api, fmtBytes, fmtTime, PART_LABELS, type Job } from "@/lib/api";
+import { api, fmtBytes, fmtTime, hasSummary, JOB_STATUS_TH as STATUS_TH, PART_LABELS, providerLabel, type Job } from "@/lib/api";
 import { Ic, Note, PageHead, Pill, Steps } from "@/components/ui";
 
 const ORDER = ["info", "teachers", "plan", "plo", "ksec", "structure", "modules", "courses", "mapping", "appr"];
 const POC_PARTS = new Set(ORDER);
-
-const STATUS_TH: Record<Job["status"], [string, "ok" | "warn" | "red" | "info" | "grey"]> = {
-  queued: ["รอคิว", "grey"],
-  ingesting: ["กำลังแปลงไฟล์", "info"],
-  extracting: ["AI กำลังสกัด", "info"],
-  review: ["รอตรวจสอบ", "warn"],
-  done: ["บันทึกแล้ว", "ok"],
-  failed: ["ล้มเหลว", "red"],
-};
+const RECENT = 8; // rows on this page; the rest are on /import/history
 
 export default function ImportPage() {
   const router = useRouter();
@@ -144,33 +136,42 @@ export default function ImportPage() {
         </section>
 
         <section className="card pad stack">
-          <h2 className="h2">ประวัติการนำเข้า</h2>
+          <div className="between">
+            <h2 className="h2">ประวัติการนำเข้า</h2>
+            {history.length > 0 && (
+              <Link href="/import/history" className="btn xs">ดูทั้งหมด ({history.length})</Link>
+            )}
+          </div>
           {history.length === 0 && <div className="small faint">ยังไม่มี</div>}
-          {history.slice(0, 8).map((h) => (
-            <Link
+          {history.slice(0, RECENT).map((h) => (
+            <div
               key={h.id}
-              href={`/import/${h.id}`}
               className="between"
-              style={{ padding: "8px 0", borderBottom: "1px solid var(--line)", flexWrap: "nowrap", color: "inherit", textDecoration: "none" }}
+              style={{ padding: "8px 0", borderBottom: "1px solid var(--line)", flexWrap: "nowrap" }}
             >
-              <div style={{ minWidth: 0 }}>
+              <Link href={`/import/${h.id}`} style={{ minWidth: 0, color: "inherit", textDecoration: "none" }}>
                 <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{h.filename}</div>
                 <div className="small faint">
-                  {fmtTime(h.created_at)} · {h.provider === "none" ? "กฎ" : h.provider} · ยืนยันแล้ว {h.confirmed_count}/{h.parts_total}
+                  {fmtTime(h.created_at)} · {providerLabel(h.provider)} · ยืนยันแล้ว {h.confirmed_count}/{h.parts_total}
                 </div>
+              </Link>
+              <div className="row" style={{ flexWrap: "nowrap", gap: 6 }}>
+                <Pill kind={STATUS_TH[h.status][1]}>{STATUS_TH[h.status][0]}</Pill>
+                {hasSummary(h) && (
+                  <Link href={`/import/${h.id}/done`} className="btn xs" title="เวลา · LLM · ส่วนที่ยืนยัน">สรุป</Link>
+                )}
               </div>
-              <Pill kind={STATUS_TH[h.status][1]}>{STATUS_TH[h.status][0]}</Pill>
-            </Link>
+            </div>
           ))}
+          {history.length > RECENT && (
+            <div className="small faint">แสดง {RECENT} งานล่าสุดจาก {history.length} งาน · <Link href="/import/history">ดูทั้งหมด</Link></div>
+          )}
           <Note kind="info">
             <b>AI ช่วยอะไรบ้าง</b>
             <br />สกัดข้อมูล — อ่านหมวด 3–4 ของเล่มแล้ววางลงฟิลด์ พร้อมความมั่นใจและเลขหน้าต้นฉบับทุกค่า
             <br />ตรวจความสอดคล้อง — หน่วยกิตรวม รหัสวิชาซ้ำ หน่วยกิตกลุ่มย่อย ด้วยกฎ ไม่ใช่ความเห็นของ AI
             <br />ชี้จุดที่เล่มขัดแย้งกันเอง — รายชื่อวิชากับคำอธิบายไม่ตรงกัน ระบบระบุหน้าทั้งสองจุด
           </Note>
-          <div className="small faint">
-            API: {health ? `${String(health.llm_provider)} · ${String(health.ollama_model)}${health.gemini_configured ? ` · Cloud AI: ${String(health.gemini_model ?? "gemini")}` : ""}` : "ติดต่อไม่ได้"}
-          </div>
         </section>
       </div>
     </>

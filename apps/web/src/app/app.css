@@ -28,8 +28,12 @@
 @keyframes spin { to { transform: rotate(360deg); } }
 .spinner { animation: spin 1s linear infinite !important; }
 @media (max-width: 900px) {
-  .nav { display: none; }
   .doc { grid-template-columns: 1fr; }
   .split { grid-template-columns: 1fr; }
   .g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+/* sidebar toggle: the customer's .menu-btn/.scrim are mobile-only; show the button everywhere and let wide screens collapse */
+.menu-btn { display: flex; flex-shrink: 0; }
+@media (min-width: 1025px) {
+  .app.nav-collapsed .nav { display: none; }
 }
