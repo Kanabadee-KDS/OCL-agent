@@ -50,7 +50,7 @@ BOOKS = [
 ]
 # section number -> (label as the review page numbers them, where it sits in the book)
 SECTIONS = {
-    1: ("1 ข้อมูลหลัก (ฟิลด์ที่มีค่า)", "หมวด 1 ข้อ 1–10, 13"),
+    1: ("1 ข้อมูลหลัก (ตามหัวส่วนบนจอ)", "หมวด 1 ข้อ 1–10, 13"),
     2: ("2 อาจารย์ (คน / ผู้รับผิดชอบ)", "หมวด 1 ข้อ 11–12"),
     3: ("3 แผนรับ (ตาราง / รับปีละ)", "หมวด 2 ข้อ 4"),
     4: ("4 PLO", "หมวด 3 ข้อ 1"),
@@ -87,9 +87,18 @@ def expected(out: Path) -> dict[str, Any]:
     """Counts per section in the three spellings the documents use, plus the warn checks."""
     rep = json.loads((out / "report.json").read_text(encoding="utf-8"))
     n = {k: v["count"] or 0 for k, v in rep["parts"].items()}
-    teachers, plan, plo, mapping, appr = (
-        load(out, p) for p in ("teachers", "plan", "plo", "mapping", "appr")
+    info, teachers, plan, plo, mapping, appr = (
+        load(out, p) for p in ("info", "teachers", "plan", "plo", "mapping", "appr")
     )
+    # Part 1 is written the way the review page heads it ("ฟิลด์ 34 · ว่าง 4"), not as the
+    # count of filled fields: testers read the screen, and twice (R1 22 ต.ค., R1-2 27 ต.ค.)
+    # wrote 34 against an expected 30.
+    fields = info.get("fields") or []
+    values = info.get("values") or {}
+    # the page's rule (review-client InfoEditor): null or "" is empty; [] and false are not,
+    # so "ว่าง" can differ from 34 minus the part's count (อาหาร: count 33, ว่าง 0)
+    empty = sum(1 for f in fields if values.get(f["key"]) in (None, ""))
+    info_txt = f"ฟิลด์ {len(fields)} · ว่าง {empty}"
     plans = sorted({p["plan"] for p in plo.get("plos", []) if p.get("plan")})
     plo_txt = str(n["plo"]) + (f" ({n['plo'] // len(plans)} × {len(plans)} แผน)" if plans else "")
     pending = sum(1 for a in appr.get("approvals", []) if a.get("pending"))
@@ -98,7 +107,7 @@ def expected(out: Path) -> dict[str, Any]:
     rows41, rows42 = mapping.get("count") or 0, mapping.get("ksec_count") or 0
     # (text of the C row, text after "จำนวนรายการ = " in the V row, cell of ภาคผนวก ก)
     sec = {
-        1: (f"1 ข้อมูลหลัก {n['info']} ฟิลด์", f"{n['info']}", f"{n['info']}"),
+        1: (f"1 ข้อมูลหลัก {info_txt}", info_txt, info_txt),
         2: (
             f"2 อาจารย์ {n['teachers']} คน / ผู้รับผิดชอบ {resp}",
             f"{n['teachers']} คน / ผู้รับผิดชอบ {resp}",
@@ -153,7 +162,10 @@ def update_csv(rows: list[dict[str, str]], exp: dict[str, dict[str, Any]]) -> in
             if m and r["ผลที่คาดหวัง"].startswith("จำนวนรายการ = "):
                 v = e["sections"][int(m.group(1))][1]
                 new = re.sub(
-                    r"^จำนวนรายการ = .*? · ", f"จำนวนรายการ = {v} · ", r["ผลที่คาดหวัง"], count=1
+                    r"^จำนวนรายการ = .*? · (?=ทุกค่าที่ตรวจ)",  # the value may hold " · " itself
+                    f"จำนวนรายการ = {v} · ",
+                    r["ผลที่คาดหวัง"],
+                    count=1,
                 )
         if new is not None and new != r["ผลที่คาดหวัง"]:
             r["ผลที่คาดหวัง"] = new
@@ -184,8 +196,8 @@ def manual_text(text: str, exp: dict[str, dict[str, Any]], stamp: str) -> str:
         for k in range(1, 11)
     ]
     note = (
-        f"{NOTE_PREFIX} จากโค้ด {stamp} · ส่วนที่ 1 นับเฉพาะฟิลด์ที่มีค่า "
-        "(หน้าจอแสดง 'ฟิลด์ 34 · ว่าง N' → ฟิลด์ที่มีค่า = 34 − N) · ถ้าหน้าจอไม่ตรงตารางนี้ "
+        f"{NOTE_PREFIX} จากโค้ด {stamp} · ส่วนที่ 1 เขียนแบบเดียวกับหัวส่วนบนหน้าจอ "
+        "('ฟิลด์ 34 · อนุมานโดยระบบ N · ว่าง M' ให้เทียบเลขฟิลด์และว่าง) · ถ้าหน้าจอไม่ตรงตารางนี้ "
         "ให้เปิด issue แล้ว PM รันสคริปต์ซ้ำบน build ที่ทดสอบ ห้ามแก้ตัวเลขในตารางเอง"
     )
     tail = lines[last + 1 :]
