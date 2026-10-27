@@ -1,0 +1,42 @@
+{
+ "info": {
+  "fields": 11,
+  "correct": 11,
+  "accuracy": 1.0,
+  "wrong": [],
+  "unscored_extra": []
+ },
+ "structure": {
+  "ref": 9,
+  "cand": 9,
+  "matched": 9,
+  "precision": 1.0,
+  "recall": 1.0,
+  "hallucinated": [],
+  "missed": [],
+  "credits_accuracy": 1.0,
+  "total_credits_match": true
+ },
+ "plo": {
+  "ref": 6,
+  "cand": 6,
+  "matched": 6,
+  "precision": 1.0,
+  "recall": 1.0,
+  "hallucinated": [],
+  "missed": [],
+  "text_accuracy": 1.0
+ },
+ "courses": {
+  "ref": 90,
+  "cand": 90,
+  "matched": 90,
+  "precision": 1.0,
+  "recall": 1.0,
+  "hallucinated": [],
+  "missed": [],
+  "name_th_accuracy": 1.0,
+  "name_en_accuracy": 1.0,
+  "credits_accuracy": 1.0
+ }
+}

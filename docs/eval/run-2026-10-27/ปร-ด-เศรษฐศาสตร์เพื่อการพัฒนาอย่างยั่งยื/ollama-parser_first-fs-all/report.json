@@ -1,0 +1,144 @@
+{
+ "source": "ปร.ด. เศรษฐศาสตร์เพื่อการพัฒนาอย่างยั่งยื.docx",
+ "out_dir": "docs/eval/run-2026-10-27/ปร-ด-เศรษฐศาสตร์เพื่อการพัฒนาอย่างยั่งยื/ollama-parser_first-fs-all",
+ "provider": "ollama",
+ "model": "gemma4:26b",
+ "mode": "parser_first",
+ "parts": {
+  "info": {
+   "seconds": 0.0,
+   "count": 34,
+   "llm": null,
+   "notes": []
+  },
+  "structure": {
+   "seconds": 0.0,
+   "count": 6,
+   "llm": null,
+   "notes": []
+  },
+  "plo": {
+   "seconds": 0.0,
+   "count": 3,
+   "llm": null,
+   "notes": [
+    "ข้อความ PLO ในรายการกับตารางไม่ตรงกัน: PLO2, PLO3"
+   ]
+  },
+  "courses": {
+   "seconds": 9.86,
+   "count": 23,
+   "llm": {
+    "provider": "ollama",
+    "model": "gemma4:26b",
+    "prompt_tokens": 3518,
+    "completion_tokens": 911,
+    "seconds": 9.86,
+    "calls": 1,
+    "retries": 0
+   },
+   "notes": [
+    "llm chunk 1: 10 items, 0 verified",
+    "llm: 10 items dropped (code not in text, or duplicate)",
+    "รหัสที่น่าจะพิมพ์ผิด รวมเป็นวิชาเดียว: ฐน821 → ศฐน821"
+   ]
+  }
+ },
+ "checks": {
+  "pass": 8,
+  "warn": 4,
+  "fail": 0,
+  "items": [
+   {
+    "key": "info_required",
+    "status": "pass",
+    "message": "ฟิลด์บังคับของข้อมูลหลักครบ (ชื่อ ระดับ ปริญญา หน่วยกิต ปีที่เริ่มใช้)",
+    "part": "info"
+   },
+   {
+    "key": "program_code_format",
+    "status": "pass",
+    "message": "รหัสหลักสูตร สกอ. 25520091100839 ครบ 14 หลัก",
+    "part": "info"
+   },
+   {
+    "key": "info_credits_match",
+    "status": "pass",
+    "message": "หน่วยกิตหมวดที่ 1 ข้อ 4 (48) = โครงสร้างหมวดที่ 4 (48)",
+    "part": "info"
+   },
+   {
+    "key": "name_consistent",
+    "status": "pass",
+    "message": "สาขาวิชาในชื่อหลักสูตรตรงกับชื่อปริญญา (ไทย/อังกฤษ)",
+    "part": "info"
+   },
+   {
+    "key": "next_revision",
+    "status": "info",
+    "message": "เริ่มใช้ปีการศึกษา 2569 → ครบรอบปรับปรุงหลักสูตร พ.ศ. 2574",
+    "part": "info"
+   },
+   {
+    "key": "info_inferred",
+    "status": "info",
+    "message": "ระบบอนุมานเอง 7 ฟิลด์ ต้องให้คนยืนยัน: ภาคการศึกษาที่นับ, ระดับการศึกษา, กลุ่มการศึกษา, หลักสูตรนานาชาติ, ประเภทการรับสมัคร, เกณฑ์มาตรฐานหลักสูตร, หลักสูตรฝึกปฏิบัติ CWIE",
+    "part": "info"
+   },
+   {
+    "key": "credits_total",
+    "status": "pass",
+    "message": "ผลรวมหมวดวิชา 48 = หน่วยกิตตลอดหลักสูตร 48",
+    "part": "structure"
+   },
+   {
+    "key": "credits_sub",
+    "status": "pass",
+    "message": "หน่วยกิตกลุ่มย่อยรวมตรงกับหมวดทุกหมวด",
+    "part": "structure"
+   },
+   {
+    "key": "plo_present",
+    "status": "pass",
+    "message": "พบ PLO 3 ข้อ",
+    "part": "plo"
+   },
+   {
+    "key": "plo_text_conflict",
+    "status": "warn",
+    "message": "ข้อความ PLO ในรายการกับในตารางไม่ตรงกัน: PLO2, PLO3 (ระบบใช้ข้อความจากรายการ ให้ Admin ยืนยันฉบับทางการ)",
+    "part": "plo"
+   },
+   {
+    "key": "course_code_unique",
+    "status": "pass",
+    "message": "รหัสรายวิชาไม่ซ้ำ (23 วิชา)",
+    "part": "courses"
+   },
+   {
+    "key": "course_code_typo",
+    "status": "warn",
+    "message": "รหัสวิชาที่เล่มน่าจะพิมพ์ผิด ระบบรวมเป็นวิชาเดียว: ฐน821 → ศฐน821 (หน้า 40)",
+    "part": "courses"
+   },
+   {
+    "key": "course_fields",
+    "status": "warn",
+    "message": "ไม่มีหน่วยกิต 0 วิชา · ไม่มีคำอธิบาย 2 วิชา (เช่น ปพอ892, ปพอ891)",
+    "part": "courses"
+   },
+   {
+    "key": "course_conflicts",
+    "status": "warn",
+    "message": "parser กับ LLM ไม่ตรงกัน 3 วิชา: ศฐน722, ศฐน723, ศฐน871",
+    "part": "courses"
+   },
+   {
+    "key": "courses_vs_structure",
+    "status": "info",
+    "message": "รายวิชา 23 วิชา · หน่วยกิตรวมของรายวิชาที่พบ 124",
+    "part": "courses"
+   }
+  ]
+ }
+}

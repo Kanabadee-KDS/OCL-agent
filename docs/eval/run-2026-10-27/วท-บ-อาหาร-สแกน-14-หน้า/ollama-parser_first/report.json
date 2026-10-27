@@ -1,0 +1,108 @@
+{
+ "source": "วท.บ. อาหาร (สแกน 14 หน้า).pdf",
+ "out_dir": "docs/eval/run-2026-10-27/วท-บ-อาหาร-สแกน-14-หน้า/ollama-parser_first",
+ "provider": "ollama",
+ "model": "gemma4:26b",
+ "mode": "parser_first",
+ "parts": {
+  "info": {
+   "seconds": 3.12,
+   "count": 29,
+   "llm": {
+    "provider": "ollama",
+    "model": "gemma4:26b",
+    "prompt_tokens": 1001,
+    "completion_tokens": 220,
+    "seconds": 3.115,
+    "calls": 1,
+    "retries": 0
+   },
+   "notes": []
+  },
+  "structure": {
+   "seconds": 0.0,
+   "count": 0,
+   "llm": null,
+   "notes": [
+    "no structure table/text found in chapter 4 item 1"
+   ]
+  },
+  "plo": {
+   "seconds": 0.0,
+   "count": null,
+   "llm": null,
+   "notes": [
+    "chapter 3 not found"
+   ]
+  },
+  "courses": {
+   "seconds": 0.0,
+   "count": null,
+   "llm": null,
+   "notes": [
+    "chapter 4 not found"
+   ]
+  }
+ },
+ "checks": {
+  "pass": 4,
+  "warn": 1,
+  "fail": 2,
+  "items": [
+   {
+    "key": "info_required",
+    "status": "pass",
+    "message": "ฟิลด์บังคับของข้อมูลหลักครบ (ชื่อ ระดับ ปริญญา หน่วยกิต ปีที่เริ่มใช้)",
+    "part": "info"
+   },
+   {
+    "key": "program_code_format",
+    "status": "pass",
+    "message": "รหัสหลักสูตร สกอ. 25290091100204 ครบ 14 หลัก",
+    "part": "info"
+   },
+   {
+    "key": "name_consistent",
+    "status": "warn",
+    "message": "สาขาวิชาในชื่อหลักสูตรไม่ตรงกับชื่อปริญญา: ไทย 'วิทยาศาสตร์การอาหารและโภชนาการ' ∉ 'วิทยาศาสตรบัณฑิต(วทยาศาสตร์การอาหารและโภชนาการ)'",
+    "part": "info"
+   },
+   {
+    "key": "next_revision",
+    "status": "info",
+    "message": "เริ่มใช้ปีการศึกษา 2570 → ครบรอบปรับปรุงหลักสูตร พ.ศ. 2575",
+    "part": "info"
+   },
+   {
+    "key": "info_inferred",
+    "status": "info",
+    "message": "ระบบอนุมานเอง 8 ฟิลด์ ต้องให้คนยืนยัน: ภาคการศึกษาที่นับ, ระดับการศึกษา, กลุ่มการศึกษา, หลักสูตรนานาชาติ, ประเภทการรับสมัคร, เกณฑ์มาตรฐานหลักสูตร, พ.ศ. ของฉบับนี้, หลักสูตรฝึกปฏิบัติ CWIE",
+    "part": "info"
+   },
+   {
+    "key": "credits_total",
+    "status": "fail",
+    "message": "ไม่พบโครงสร้างหลักสูตร",
+    "part": "structure"
+   },
+   {
+    "key": "plo_present",
+    "status": "fail",
+    "message": "ไม่พบ PLO ในหมวดที่ 3",
+    "part": "plo"
+   },
+   {
+    "key": "course_code_unique",
+    "status": "pass",
+    "message": "รหัสรายวิชาไม่ซ้ำ (0 วิชา)",
+    "part": "courses"
+   },
+   {
+    "key": "course_fields",
+    "status": "pass",
+    "message": "ไม่มีหน่วยกิต 0 วิชา · ไม่มีคำอธิบาย 0 วิชา",
+    "part": "courses"
+   }
+  ]
+ }
+}

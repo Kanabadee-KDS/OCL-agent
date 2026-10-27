@@ -1,0 +1,63 @@
+{
+ "info": {
+  "fields": 11,
+  "correct": 11,
+  "accuracy": 1.0,
+  "wrong": [],
+  "unscored_extra": []
+ },
+ "structure": {
+  "ref": 5,
+  "cand": 5,
+  "matched": 5,
+  "precision": 1.0,
+  "recall": 1.0,
+  "hallucinated": [],
+  "missed": [],
+  "credits_accuracy": 1.0,
+  "total_credits_match": true
+ },
+ "plo": {
+  "ref": 3,
+  "cand": 3,
+  "matched": 3,
+  "precision": 1.0,
+  "recall": 1.0,
+  "hallucinated": [],
+  "missed": [],
+  "text_accuracy": 1.0
+ },
+ "courses": {
+  "ref": 23,
+  "cand": 0,
+  "matched": 0,
+  "precision": 0.0,
+  "recall": 0.0,
+  "hallucinated": [],
+  "missed": [
+   "ปพอ891",
+   "ปพอ892",
+   "ศฐน711",
+   "ศฐน712",
+   "ศฐน721",
+   "ศฐน722",
+   "ศฐน723",
+   "ศฐน811",
+   "ศฐน812",
+   "ศฐน821",
+   "ศฐน822",
+   "ศฐน831",
+   "ศฐน832",
+   "ศฐน841",
+   "ศฐน842",
+   "ศฐน851",
+   "ศฐน852",
+   "ศฐน861",
+   "ศฐน862",
+   "ศฐน871"
+  ],
+  "name_th_accuracy": null,
+  "name_en_accuracy": null,
+  "credits_accuracy": null
+ }
+}

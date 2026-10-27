@@ -1,0 +1,5 @@
+book,mode,model,provider,run,status,completion_tokens,cost_usd,courses_credits,courses_name_th,courses_precision,courses_recall,extract_seconds,info_accuracy,llm_calls,llm_retries,llm_seconds,plo_precision,plo_recall,plo_text,prompt_tokens,structure_credits,structure_precision,structure_recall
+ปร.ด. เศรษฐศาสตร์เพื่อการพัฒนาอย่างยั่งยื.docx,parser_first,gemini-flash-latest,gemini,1,ok,654,0.0051,1.0,1.0,1.0,1.0,6.14,1.0,1,0,6.13,1.0,1.0,1.0,3501,1.0,1.0,1.0
+ปร.ด. เศรษฐศาสตร์เพื่อการพัฒนาอย่างยั่งยื.docx,parser_first,gemini-flash-latest,gemini,2,ok,564,0.0047,1.0,1.0,1.0,1.0,5.3,1.0,1,0,5.29,1.0,1.0,1.0,3501,1.0,1.0,1.0
+ปร.ด. เศรษฐศาสตร์เพื่อการพัฒนาอย่างยั่งยื.docx,llm_only,gemini-flash-latest,gemini,1,ok,5305,0.0256,,,0.0,0.0,43.03,1.0,4,0,43.01,1.0,1.0,1.0,7582,1.0,1.0,1.0
+ปร.ด. เศรษฐศาสตร์เพื่อการพัฒนาอย่างยั่งยื.docx,llm_only,gemini-flash-latest,gemini,2,ok,2108,0.0136,,,0.0,0.0,22.37,1.0,4,0,22.35,1.0,1.0,1.0,7582,1.0,0.8,0.8

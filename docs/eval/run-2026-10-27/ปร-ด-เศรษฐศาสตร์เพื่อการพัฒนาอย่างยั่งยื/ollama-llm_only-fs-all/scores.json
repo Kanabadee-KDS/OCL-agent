@@ -1,0 +1,70 @@
+{
+ "info": {
+  "fields": 11,
+  "correct": 11,
+  "accuracy": 1.0,
+  "wrong": [],
+  "unscored_extra": []
+ },
+ "structure": {
+  "ref": 5,
+  "cand": 6,
+  "matched": 3,
+  "precision": 0.5,
+  "recall": 0.6,
+  "hallucinated": [
+   "จำนวนหน่วยกิตตลอดหลักสูตร",
+   "รวมไม่น้อยกว่า",
+   "โครงสร้างหลักสูตร"
+  ],
+  "missed": [
+   "แผน1.1เน้นการทำวิจัย",
+   "แผน2.1เน้นการทำวิจัยและมีรายวิชา"
+  ],
+  "credits_accuracy": 0.0,
+  "total_credits_match": true
+ },
+ "plo": {
+  "ref": 3,
+  "cand": 3,
+  "matched": 3,
+  "precision": 1.0,
+  "recall": 1.0,
+  "hallucinated": [],
+  "missed": [],
+  "text_accuracy": 0.333
+ },
+ "courses": {
+  "ref": 23,
+  "cand": 0,
+  "matched": 0,
+  "precision": 0.0,
+  "recall": 0.0,
+  "hallucinated": [],
+  "missed": [
+   "ปพอ891",
+   "ปพอ892",
+   "ศฐน711",
+   "ศฐน712",
+   "ศฐน721",
+   "ศฐน722",
+   "ศฐน723",
+   "ศฐน811",
+   "ศฐน812",
+   "ศฐน821",
+   "ศฐน822",
+   "ศฐน831",
+   "ศฐน832",
+   "ศฐน841",
+   "ศฐน842",
+   "ศฐน851",
+   "ศฐน852",
+   "ศฐน861",
+   "ศฐน862",
+   "ศฐน871"
+  ],
+  "name_th_accuracy": null,
+  "name_en_accuracy": null,
+  "credits_accuracy": null
+ }
+}
