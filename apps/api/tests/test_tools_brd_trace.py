@@ -46,6 +46,19 @@ def test_test_ids_collapse_to_ranges():
     assert trace.ranges(["K-03", "K-01", "K-02", "B-04", "B-06"]) == "B-04 · B-06 · K-01–K-03"
 
 
+def test_nfr_rows_name_their_test_cases(tmp_path):
+    f = tmp_path / "06-nfr.md"
+    f.write_text(
+        "| รหัส | requirement | เกณฑ์ | วิธีวัด | ผล | กรณีทดสอบ |\n|---|---|---|---|---|---|\n"
+        "| NFR-01 | ไม่สร้างรหัส | 0 **[ยืนยันแล้ว]** | นับ | 0 | M-01–M-03 · G-05 |\n"
+        "| NFR-02 | เวลา | ≤ 5 นาที **[เสนอ]** | จับเวลา | 1 นาที | – |\n",
+        encoding="utf-8",
+    )
+    a, b = trace.parse_nfrs(f)
+    assert (a.id, a.proposed, a.tests) == ("NFR-01", False, ["M-01", "M-02", "M-03", "G-05"])
+    assert (b.id, b.proposed, b.tests) == ("NFR-02", True, [])
+
+
 def test_every_test_category_is_mapped():
     cats = {tc.split("-")[0] for tc, _ in trace.test_cases(trace.TESTS)}
     assert cats <= set(trace.TEST_MAP), cats - set(trace.TEST_MAP)

@@ -112,28 +112,56 @@ BUILT: dict[str, str] = {
 }
 BUILT_EXTRA = ["`/import/history` ประวัติการนำเข้าทั้งหมด (US-M1-21 · UI-2 · กรณีทดสอบ E-06)"]
 
-# Test categories -> (mock pages, user stories, non-functional area). A category with no
-# story is evidence for a requirement the BRD has not written yet.
-TEST_MAP: dict[str, tuple[list[str], list[str], str | None]] = {
-    "A": ([], [], "สภาพแวดล้อมและการติดตั้ง"),
-    "J": (["login", "users", "roles"], ["US-U-01", "US-U-03", "US-U-04"], None),
-    "B": (["import"], ["US-M1-11"], None),
-    "C": (["import-review"], ["US-M1-12", "US-M1-14"], None),
-    "D": (["import-review"], ["US-M1-12", "US-M1-14"], None),
-    "E": (["import-review", "import-done"], ["US-M1-15", "US-M1-16", "US-M1-17", "US-M1-21"], None),
-    "F": (["import"], ["US-M1-11"], None),
-    "G": (["import"], ["US-M1-11"], None),
-    "H": (["import"], ["US-M1-11"], None),
-    "K": (["cur", "fac-plo", "fac-plo-edit"], ["US-M1-03", "US-M1-07", "US-M1-08"], None),
-    "I": ([], [], "ความปลอดภัยของ API"),
-    "V": (["import-review"], [], "ความถูกต้องของการสกัด"),
-    "M": (["import"], [], "เปรียบเทียบแบบจำลอง"),
-    "S": ([], [], "การปฏิบัติการบน server"),
+# Test categories -> (mock pages, user stories). Non-functional requirements name their
+# own test cases in the last column of docs/brd/06-nfr.md, so they are not listed here.
+TEST_MAP: dict[str, tuple[list[str], list[str]]] = {
+    "A": ([], []),
+    "J": (["login", "users", "roles"], ["US-U-01", "US-U-03", "US-U-04"]),
+    "B": (["import"], ["US-M1-11"]),
+    "C": (["import-review"], ["US-M1-12", "US-M1-14"]),
+    "D": (["import-review"], ["US-M1-12", "US-M1-14"]),
+    "E": (["import-review", "import-done"], ["US-M1-15", "US-M1-16", "US-M1-17", "US-M1-21"]),
+    "F": (["import"], ["US-M1-11"]),
+    "G": (["import"], ["US-M1-11"]),
+    "H": (["import"], ["US-M1-11"]),
+    "K": (["cur", "fac-plo", "fac-plo-edit"], ["US-M1-03", "US-M1-07", "US-M1-08"]),
+    "I": ([], []),
+    "V": (["import-review"], []),
+    "M": (["import"], []),
+    "S": ([], []),
 }
 
 RE_US = re.compile(r"^- \*\*(US-[A-Z][A-Z0-9]*-\d+)[^*]*\*\*\s*(.*)$")
 RE_MOCK = re.compile(r"\[mock: ([^\]]+)\]")
 RE_OPEN = re.compile(r"ยังไม่เห็น|— ถาม|\[สมมติ|\[ต้องขอ")
+RE_NFR = re.compile(r"^\| (NFR-\d+) \| (.*) \|$")
+RE_TC = re.compile(r"([A-Z])-(\d{2})(?:–[A-Z]-(\d{2}))?")
+
+
+@dataclass
+class Nfr:
+    id: str
+    title: str
+    proposed: bool
+    tests: list[str]
+
+
+def expand_tests(cell: str) -> list[str]:
+    """'M-01–M-03 · G-05' -> ['M-01', 'M-02', 'M-03', 'G-05']"""
+    out: list[str] = []
+    for cat, a, b in RE_TC.findall(cell):
+        out.extend(f"{cat}-{n:02d}" for n in range(int(a), int(b or a) + 1))
+    return out
+
+
+def parse_nfrs(path: Path) -> list[Nfr]:
+    out: list[Nfr] = []
+    for line in path.read_text(encoding="utf-8").split("\n"):
+        m = RE_NFR.match(line)
+        if m:
+            cells = m.group(2).split(" | ")
+            out.append(Nfr(m.group(1), cells[0], "[เสนอ]" in line, expand_tests(cells[-1])))
+    return out
 
 
 @dataclass
@@ -214,16 +242,20 @@ def build() -> str:
     stories = parse_stories(sorted(BRD.glob("0*.md")))
     by_id = {s.id: s for s in stories}
     cases = test_cases(TESTS)
+    case_ids = {tc for tc, _ in cases}
+    nfrs = parse_nfrs(BRD / "06-nfr.md")
+    for n in nfrs:
+        unknown = sorted(set(n.tests) - case_ids)
+        if unknown:
+            sys.exit(f"06-nfr.md {n.id} cites test cases that do not exist: {unknown}")
+    in_nfr = {t for n in nfrs for t in n.tests}
     page_tests: dict[str, list[str]] = {}
-    nfr: dict[str, list[str]] = {}
     for tc, _ in cases:
-        pages, ids, area = TEST_MAP[tc.split("-")[0]]
+        pages, ids = TEST_MAP[tc.split("-")[0]]
         for p in pages:
             page_tests.setdefault(p, []).append(tc)
         for i in ids:
             by_id[i].tests.append(tc)
-        if area:
-            nfr.setdefault(area, []).append(tc)
     page_stories: dict[str, list[Story]] = {}
     for s in stories:
         for p in s.pages:
@@ -232,7 +264,8 @@ def build() -> str:
     no_story = [p for p in PAGES if p[0] not in page_stories]
     no_ac = [s for s in stories if not s.ac]
     with_tests = [s for s in stories if s.tests]
-    tied = sum(1 for tc, _ in cases if TEST_MAP[tc.split("-")[0]][1])
+    tied_us = {tc for tc, _ in cases if TEST_MAP[tc.split("-")[0]][1]}
+    loose = [tc for tc, _ in cases if tc not in tied_us and tc not in in_nfr]
     today = dt.date.today().isoformat()
     md: list[str] = []
     w = md.append
@@ -252,9 +285,12 @@ def build() -> str:
     w(f"| user story ที่มี AC | {len(stories) - len(no_ac)} / {len(stories)} |")
     w(f"| user story ที่ยังมีคำถามหรือข้อสมมติค้าง | {sum(s.open_q for s in stories)} |")
     w(f"| user story ที่มีกรณีทดสอบ | {len(with_tests)} / {len(stories)} |")
+    w(f"| requirement ที่ไม่ใช่ฟังก์ชัน (`06-nfr.md`) | {len(nfrs)} ข้อ |")
+    w(f"| NFR ที่มีกรณีทดสอบ | {sum(1 for n in nfrs if n.tests)} / {len(nfrs)} |")
+    w(f"| NFR ที่เกณฑ์ยังเป็นข้อเสนอ รอลูกค้ายืนยัน | {sum(n.proposed for n in nfrs)} |")
     w(
-        f"| กรณีทดสอบที่ผูกกับ user story | {tied} / {len(cases)} "
-        "(ที่เหลือทดสอบ requirement ที่ BRD ยังไม่ได้เขียน ดูข้อ 5) |"
+        f"| กรณีทดสอบที่ผูกกับ user story หรือ NFR | {len(cases) - len(loose)} / {len(cases)} "
+        "(ที่เหลือดูข้อ 6) |"
     )
     w(f"| หน้าที่มีในระบบแล้ว (ทั้งหมดหรือบางส่วน) | {len(BUILT)} / {len(PAGES)} |")
     w("")
@@ -294,18 +330,24 @@ def build() -> str:
     for s in no_ac:
         w(f"| `{s.file}` | {s.id}{'?' if s.open_q else ''} | {ranges(s.tests) or '–'} |")
     w("")
-    w("## 5. กรณีทดสอบที่ไม่มี user story รองรับ (requirement ที่ยังไม่ได้เขียน)")
+    w("## 5. requirement ที่ไม่ใช่ฟังก์ชัน → กรณีทดสอบ")
     w("")
-    w("| ด้าน | กรณีทดสอบ | จำนวน |")
-    w("|---|---|---|")
-    for area, tcs in nfr.items():
-        w(f"| {area} | {ranges(tcs)} | {len(tcs)} |")
+    w("| NFR | requirement | เกณฑ์ | กรณีทดสอบ |")
+    w("|---|---|---|---|")
+    for n in nfrs:
+        state = "เสนอ รอลูกค้ายืนยัน" if n.proposed else "ยืนยันแล้ว"
+        w(f"| {n.id} | {n.title} | {state} | {ranges(n.tests) or '**ไม่มี**'} |")
     w("")
-    w("## 6. วิธีผูกกรณีทดสอบ")
+    w(f"## 6. กรณีทดสอบที่ไม่ผูกกับ user story หรือ NFR ({len(loose)} กรณี)")
+    w("")
+    w(ranges(loose) if loose else "ทุกกรณีทดสอบผูกกับ requirement แล้ว")
+    w("")
+    w("## 7. วิธีผูกกรณีทดสอบ")
     w("")
     w(
-        "ผูกทั้งกลุ่มตามรหัสหมวดของกรณีทดสอบ (`TEST_MAP` ใน `tools/brd_trace.py`) ไม่ได้ผูกทีละกรณี "
-        "จึงบอกได้ว่า user story มีการทดสอบหรือไม่ แต่ไม่ได้บอกว่าทดสอบ AC ครบทุกข้อ"
+        "user story: ผูกทั้งกลุ่มตามรหัสหมวดของกรณีทดสอบ (`TEST_MAP` ใน `tools/brd_trace.py`) "
+        "จึงบอกได้ว่า user story มีการทดสอบหรือไม่ แต่ไม่ได้บอกว่าทดสอบ AC ครบทุกข้อ · "
+        "NFR: ผูกทีละกรณีตามคอลัมน์สุดท้ายของ `06-nfr.md` และสคริปต์หยุดถ้าอ้างรหัสที่ไม่มีอยู่"
     )
     w("")
     return "\n".join(md)

@@ -11,6 +11,7 @@
 | [03-m3-skill-transcript.md](03-m3-skill-transcript.md) | M3 Skill Transcript | ร่าง v0.1 |
 | [04-m4-qa.md](04-m4-qa.md) | M4 ประเมินผลหลักสูตรตามเกณฑ์มาตรฐาน | ร่าง v0.2 |
 | [05-m5-reports.md](05-m5-reports.md) | M5 รายงาน (R01–R14) | ร่าง v0.2 |
+| [06-nfr.md](06-nfr.md) | requirement ที่ไม่ใช่ฟังก์ชัน 25 ข้อ: ความถูกต้อง เวลา ความปลอดภัย ข้อมูลส่วนบุคคลและ cloud การใช้ server ร่วม HRIS ค่าใช้จ่าย การใช้งาน | ร่าง v0.2 |
 | [90-ai-import-data-dictionary.md](90-ai-import-data-dictionary.md) | Data dictionary 10 ส่วนที่ AI สกัด (ฐานของ JSON schema ใน D4) | ร่าง v0.1 |
 | [99-open-questions.md](99-open-questions.md) | ข้อสมมติและคำถามถึงลูกค้า | เปิด |
 | [91-traceability.md](91-traceability.md) | ตารางไล่ความครบ หน้า mock → user story → AC → กรณีทดสอบ (สร้างด้วย `tools/brd_trace.py`) | สร้างอัตโนมัติ |
