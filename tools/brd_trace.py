@@ -4,7 +4,8 @@
 Writes docs/brd/91-traceability.md from three sources, so the table is regenerated rather
 than edited by hand whenever one of them changes:
   samples/ui-mock.html            the customer's mock (acceptance spec); not in git
-  docs/brd/0*.md                  user stories "- **US-Mx-nn** ..." with "  - AC: ..." below,
+  docs/brd/0*.md                  user stories "- **US-M1-nn** ..." (US-U-nn, US-G-nn for the
+                                  shared pages) with "  - AC: ..." below,
                                   pages cited as "[mock: a, b]" in the story or its heading
   docs/testing/test-script_ocl.csv  every test case; tied to stories by category (TEST_MAP)
 
@@ -109,17 +110,17 @@ BUILT: dict[str, str] = {
     "import-done": "มีแล้ว",
     "users": "บางส่วน (คำสั่ง `ocl users` บน server · ไม่มีหน้าเว็บ)",
 }
-BUILT_EXTRA = ["`/import/history` ประวัติการนำเข้าทั้งหมด (UI-2 · กรณีทดสอบ E-06) ไม่มีใน mock"]
+BUILT_EXTRA = ["`/import/history` ประวัติการนำเข้าทั้งหมด (US-M1-21 · UI-2 · กรณีทดสอบ E-06)"]
 
 # Test categories -> (mock pages, user stories, non-functional area). A category with no
 # story is evidence for a requirement the BRD has not written yet.
 TEST_MAP: dict[str, tuple[list[str], list[str], str | None]] = {
     "A": ([], [], "สภาพแวดล้อมและการติดตั้ง"),
-    "J": (["login", "users", "roles"], [], "การเข้าสู่ระบบและสิทธิ์"),
+    "J": (["login", "users", "roles"], ["US-U-01", "US-U-03", "US-U-04"], None),
     "B": (["import"], ["US-M1-11"], None),
     "C": (["import-review"], ["US-M1-12", "US-M1-14"], None),
     "D": (["import-review"], ["US-M1-12", "US-M1-14"], None),
-    "E": (["import-review", "import-done"], ["US-M1-15", "US-M1-16", "US-M1-17"], None),
+    "E": (["import-review", "import-done"], ["US-M1-15", "US-M1-16", "US-M1-17", "US-M1-21"], None),
     "F": (["import"], ["US-M1-11"], None),
     "G": (["import"], ["US-M1-11"], None),
     "H": (["import"], ["US-M1-11"], None),
@@ -130,7 +131,7 @@ TEST_MAP: dict[str, tuple[list[str], list[str], str | None]] = {
     "S": ([], [], "การปฏิบัติการบน server"),
 }
 
-RE_US = re.compile(r"^- \*\*(US-M\d-\d+)[^*]*\*\*\s*(.*)$")
+RE_US = re.compile(r"^- \*\*(US-[A-Z][A-Z0-9]*-\d+)[^*]*\*\*\s*(.*)$")
 RE_MOCK = re.compile(r"\[mock: ([^\]]+)\]")
 RE_OPEN = re.compile(r"ยังไม่เห็น|— ถาม|\[สมมติ|\[ต้องขอ")
 
@@ -278,24 +279,13 @@ def build() -> str:
     w("")
     w(f"## 3. หน้าที่ยังไม่มี user story ({len(no_story)} หน้า)")
     w("")
-    w("| โมดูล | หน้า | ที่อธิบายไว้ใน BRD ตอนนี้ |")
-    w("|---|---|---|")
-    where = {
-        "login": "`00-overview.md` §3 กติกาสิทธิ์ (ไม่มี US)",
-        "login-ext": "`00-overview.md` §3 ผู้ประเมินเข้าด้วยอีเมลที่เชิญ (ไม่มี US)",
-        "dash": "ไม่มี",
-        "st-courses": "ไม่มี (หน้าย่อยของหมวด 4)",
-        "qa-preview": "ไม่มี",
-        "reports": "`05-m5-reports.md` มี US-M5-01–04 แต่ไม่อ้างหน้า mock",
-        "rpt": "`05-m5-reports.md` ตาราง R01–R14 (ไม่อ้างหน้า mock)",
-        "roles": "`00-overview.md` §3 ตาราง 9 บทบาท (ไม่มี US)",
-        "role-edit": "`00-overview.md` §3 สิทธิ์รายเมนู ดู/เพิ่ม/แก้ไข/ลบ/อนุมัติ/พิมพ์ (ไม่มี US)",
-        "approval": "`00-overview.md` §4 ตาราง workflow อนุมัติ (ไม่มี US)",
-        "flow-edit": "`00-overview.md` §4 (ไม่มี US)",
-        "users": "`00-overview.md` §3 ระงับ/เปิดใช้ผู้ใช้ (ไม่มี US)",
-    }
-    for route, mod, name in no_story:
-        w(f"| {MODULES[mod]} | {name} (`{route}`) | {where.get(route, 'ไม่มี')} |")
+    if no_story:
+        w("| โมดูล | หน้า |")
+        w("|---|---|")
+        for route, mod, name in no_story:
+            w(f"| {MODULES[mod]} | {name} (`{route}`) |")
+    else:
+        w("ทุกหน้าใน mock มี user story รองรับแล้ว")
     w("")
     w(f"## 4. user story ที่ยังไม่มี AC ({len(no_ac)} เรื่อง)")
     w("")
@@ -310,8 +300,6 @@ def build() -> str:
     w("|---|---|---|")
     for area, tcs in nfr.items():
         w(f"| {area} | {ranges(tcs)} | {len(tcs)} |")
-    w("")
-    w("กรณีกลุ่ม J ผูกกับหน้า `login` `users` `roles` แต่หน้าเหล่านั้นยังไม่มี user story")
     w("")
     w("## 6. วิธีผูกกรณีทดสอบ")
     w("")
