@@ -323,12 +323,18 @@ def build() -> str:
     else:
         w("ทุกหน้าใน mock มี user story รองรับแล้ว")
     w("")
-    w(f"## 4. user story ที่ยังไม่มี AC ({len(no_ac)} เรื่อง)")
+    todo = [s for s in stories if not s.ac or s.open_q]
+    w(f"## 4. user story ที่ยังไม่มี AC หรือยังมีคำถามค้าง ({len(todo)} เรื่อง)")
     w("")
-    w("| ไฟล์ | user story | กรณีทดสอบที่มี |")
-    w("|---|---|---|")
-    for s in no_ac:
-        w(f"| `{s.file}` | {s.id}{'?' if s.open_q else ''} | {ranges(s.tests) or '–'} |")
+    if todo:
+        w("| ไฟล์ | user story | ไม่มี AC | คำถาม/ข้อสมมติค้าง | กรณีทดสอบที่มี |")
+        w("|---|---|---|---|---|")
+        for s in todo:
+            no = "✗" if not s.ac else ""
+            q = "?" if s.open_q else ""
+            w(f"| `{s.file}` | {s.id} | {no} | {q} | {ranges(s.tests) or '–'} |")
+    else:
+        w("ทุก user story มี AC และไม่มีคำถามค้าง")
     w("")
     w("## 5. requirement ที่ไม่ใช่ฟังก์ชัน → กรณีทดสอบ")
     w("")
