@@ -53,3 +53,30 @@ def test_question_list_is_current_and_complete():
     # stops on an assumption that TRIAGE does not classify, then compares the file
     r = subprocess.run([sys.executable, str(TOOL), "--check"], capture_output=True, text=True)
     assert r.returncode == 0, r.stdout + r.stderr
+
+
+INTERNAL = [
+    "Gemma",
+    "HRIS",
+    "parser",
+    "ด้วยกฎ",
+    "POC",
+    "scrypt",
+    "validator",
+    "TRIAGE",
+    ".md",
+    "tools/",
+    "คำถามภายใน",
+    "magic link",
+    "curator",
+    "release plan",
+]
+
+
+def test_customer_file_has_no_internal_words():
+    text = q.OUT.read_text(encoding="utf-8")
+    body = "\n".join(line for line in text.split("\n") if not line.startswith("<!--"))
+    found = [w for w in INTERNAL if w in body]
+    assert not found, (
+        f"98-customer-questions.md goes to the customer, reword at the source: {found}"
+    )
