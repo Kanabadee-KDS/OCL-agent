@@ -140,3 +140,12 @@ export const curricula = {
     fetch(`${API_BASE}/api/curricula/${id}/transition`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then(j<CurriculumDetail>),
 };
 export const STATUS_KIND: Record<string, "grey" | "warn" | "info" | "ok"> = { import: "grey", review: "warn", verified: "info", published: "ok" };
+
+// ---------- SUPREME / HURIS copies (ocl_api.external) ----------
+export type ExternalSource = {
+  system: string; label: string; adapter: string | null; adapter_label?: string; sample?: boolean;
+  synced_at?: string; as_of?: string | null; counts?: Record<string, number>;
+};
+export const external = {
+  status: () => fetch(`${API_BASE}/api/external/status`, { cache: "no-store" }).then(j<ExternalSource[]>),
+};

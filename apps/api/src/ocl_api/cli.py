@@ -127,6 +127,33 @@ def cmd_users(args: argparse.Namespace) -> int:
     return 1
 
 
+def cmd_seed(args: argparse.Namespace) -> int:
+    """Fill the SUPREME / HURIS copies from the sample adapter, or show what is loaded."""
+    import json
+
+    from ocl_api.config import get_settings
+    from ocl_api.db import migrate
+    from ocl_api.external import SYSTEMS, ExternalStore
+    from ocl_api.external.sample import SampleAdapter
+
+    s = get_settings()
+    if not s.database_url:
+        print("seed needs DATABASE_URL (Postgres)")
+        return 1
+    migrate(s.database_url, s.database_schema)
+    store = ExternalStore(s.database_url, s.database_schema)
+    if args.action == "sample":
+        for system in SYSTEMS if args.system == "all" else [args.system]:
+            src = store.source(system)
+            if src and not src["sample"] and not args.replace_real:
+                print(f"{system}: filled by {src['adapter']}, not replaced (--replace-real)")
+                continue
+            print(system, json.dumps(store.load(SampleAdapter(), system)))
+    for row in store.status():
+        print(json.dumps(row, ensure_ascii=False))
+    return 0
+
+
 def cmd_api(args: argparse.Namespace) -> int:
     import uvicorn
 
@@ -193,6 +220,12 @@ def main(argv: list[str] | None = None) -> int:
     u.add_argument("--ask-password", action="store_true")
     u.add_argument("--unit", help="คณะ/หน่วยงาน")
     u.set_defaults(func=cmd_users)
+
+    sd = sub.add_parser("seed", help="external data: load the sample adapter, or show status")
+    sd.add_argument("action", choices=["sample", "status"])
+    sd.add_argument("--system", choices=["all", "huris", "supreme"], default="all")
+    sd.add_argument("--replace-real", action="store_true", help="overwrite data from a real feed")
+    sd.set_defaults(func=cmd_seed)
 
     db = sub.add_parser("db", help="database: migrate (apply schema) or status")
     db.add_argument("action", choices=["migrate", "status"])

@@ -105,6 +105,67 @@ MIGRATIONS: list[tuple[str, str]] = [
         CREATE INDEX IF NOT EXISTS curriculum_events_draft_idx ON curriculum_events (draft_id, ts);
         """,
     ),
+    (
+        "004_external",
+        """
+        -- copies of SUPREME / HURIS data (ocl_api.external): filled by an adapter, read-only here
+        CREATE TABLE IF NOT EXISTS ext_sources (
+            system    text PRIMARY KEY,
+            adapter   text NOT NULL,
+            synced_at timestamptz NOT NULL DEFAULT now(),
+            as_of     date,
+            counts    jsonb NOT NULL DEFAULT '{}'::jsonb
+        );
+        CREATE TABLE IF NOT EXISTS ext_staff (
+            pid         text PRIMARY KEY,
+            title_full  text,
+            title_short text,
+            position    text,
+            name_th     text NOT NULL,
+            name_en     text,
+            faculty     text,
+            department  text,
+            email       text,
+            education   jsonb NOT NULL DEFAULT '[]'::jsonb,
+            works       jsonb NOT NULL DEFAULT '[]'::jsonb
+        );
+        CREATE TABLE IF NOT EXISTS ext_programs (
+            code    text PRIMARY KEY,
+            name_th text NOT NULL,
+            name_en text,
+            short   text,
+            level   text,
+            faculty text,
+            version text
+        );
+        CREATE TABLE IF NOT EXISTS ext_sections (
+            term         text NOT NULL,
+            course_code  text NOT NULL,
+            section      text NOT NULL,
+            course_name  text,
+            program_code text,
+            teachers     jsonb NOT NULL DEFAULT '[]'::jsonb,
+            schedule     text,
+            room         text,
+            enrolled     integer,
+            PRIMARY KEY (term, course_code, section)
+        );
+        CREATE TABLE IF NOT EXISTS ext_students (
+            sid          text PRIMARY KEY,
+            name_th      text NOT NULL,
+            program_code text,
+            entry_year   integer,
+            status       text,
+            graduated    text
+        );
+        CREATE TABLE IF NOT EXISTS ext_signers (
+            id       text PRIMARY KEY,
+            name_th  text NOT NULL,
+            position text,
+            scope    text
+        );
+        """,
+    ),
 ]
 
 

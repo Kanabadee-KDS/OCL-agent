@@ -199,11 +199,11 @@ def require(perm: str):
     return dep
 
 
-def require_menu(menu: str):
-    """Endpoint guard by menu id (lib/nav.ts), for the pages FS-1..FS-7 add."""
+def require_menu(*menus: str):
+    """Endpoint guard by menu id (lib/nav.ts): the user must see at least one of `menus`."""
 
     def dep(user: User = Depends(current_user)) -> User:
-        if not can_menu(user.roles, menu):
+        if not any(can_menu(user.roles, m) for m in menus):
             raise HTTPException(403, "บัญชีนี้ไม่มีสิทธิ์ในเมนูนี้")
         return user
 

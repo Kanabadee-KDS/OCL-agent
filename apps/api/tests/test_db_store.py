@@ -42,10 +42,14 @@ def _wait(client: TestClient, job_id: str, want: str, timeout: float = 30.0) -> 
 
 
 def test_migrate_is_idempotent(pg_url: str, schema: str) -> None:
-    assert migrate(pg_url, schema) == ["001_import_jobs", "002_users", "003_curriculum_workflow"]
+    from ocl_api.db import MIGRATIONS
+
+    names = [n for n, _ in MIGRATIONS]
+    assert names[:4] == ["001_import_jobs", "002_users", "003_curriculum_workflow", "004_external"]
+    assert migrate(pg_url, schema) == names
     assert migrate(pg_url, schema) == []
     st = status(pg_url, schema)
-    assert st["migrations"] == ["001_import_jobs", "002_users", "003_curriculum_workflow"]
+    assert st["migrations"] == names
     assert st["pending"] == [] and st["jobs"] == 0
 
 

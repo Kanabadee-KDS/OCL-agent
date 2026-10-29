@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { auth } from "@/auth";
 import { Ic, Note, PageHead, Pill } from "@/components/ui";
-import { roleLabel } from "@/lib/perm";
+import { can, roleLabel } from "@/lib/perm";
+import { ExternalStatus } from "@/components/external-status";
 import { visibleNav } from "@/lib/nav";
 
 // Landing page for every role: the menus the user may open, built or still in development.
@@ -40,6 +41,7 @@ export default async function HomePage() {
           </section>
         ))}
       </div>
+      {can(roles, "users_manage") && <ExternalStatus />}
     </>
   );
 }
