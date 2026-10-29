@@ -130,6 +130,9 @@ export type CurriculumDetail = CurriculumRow & {
   parts: Record<string, { count: number | null; confirmed_at: string | null; edited: boolean }>;
   checks: { pass: number; warn: number; fail: number };
   events: { ts: string; by: string; action: string; from_status: string; to_status: string; note: string | null }[];
+  // the approval flow `curriculum` (version this draft follows) and what this user may do in it
+  flow: { version: number; steps: FlowStep[] };
+  allowed: { submit: boolean; review: boolean; publish: boolean };
 };
 export type CurriculumList = { counts: Record<string, number>; items: CurriculumRow[]; statuses: Record<string, string>; actions: Record<string, string> };
 export const curricula = {
@@ -148,4 +151,68 @@ export type ExternalSource = {
 };
 export const external = {
   status: () => fetch(`${API_BASE}/api/external/status`, { cache: "no-store" }).then(j<ExternalSource[]>),
+};
+
+// ---------- กลุ่มสิทธิ์ (ocl_api.roles · menu u1) ----------
+export type RoleGroup = {
+  id: string; name: string; scope: string; scope_kind: string; builtin: boolean; ord: number; users: number;
+  modules?: string[]; auto_from_teachers: boolean; notify_on_change: boolean; updated_by: string | null; updated_at: string;
+};
+export type RoleEvent = { ts: string; by: string | null; action: string; detail: Record<string, unknown> };
+export type RoleDetail = RoleGroup & {
+  perms: Record<string, string[]>; events: RoleEvent[]; actions: Record<string, string>; scopes: Record<string, string>; notified?: number;
+};
+export type RoleEdit = Partial<Pick<RoleDetail, "name" | "scope_kind" | "perms" | "auto_from_teachers" | "notify_on_change">>;
+const json = (method: string, body: unknown) => ({ method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+export const roles = {
+  list: () => fetch(`${API_BASE}/api/roles`, { cache: "no-store" }).then(j<{ items: RoleGroup[]; actions: Record<string, string>; scopes: Record<string, string> }>),
+  get: (id: string) => fetch(`${API_BASE}/api/roles/${id}`, { cache: "no-store" }).then(j<RoleDetail>),
+  create: (name: string, copyFrom: string | null) => fetch(`${API_BASE}/api/roles`, json("POST", { name, copy_from: copyFrom })).then(j<RoleDetail>),
+  update: (id: string, body: RoleEdit) => fetch(`${API_BASE}/api/roles/${id}`, json("PUT", body)).then(j<RoleDetail>),
+  remove: async (id: string) => {
+    const r = await fetch(`${API_BASE}/api/roles/${id}`, { method: "DELETE" });
+    if (!r.ok) await j<never>(r);
+  },
+};
+
+// ---------- ผู้ใช้งาน (ocl_api.api.users · menu u3) ----------
+export type UserRow = {
+  email: string; name: string; buasri_id: string | null; roles: string[]; active: boolean; usable: boolean;
+  units: string[]; kind: "internal" | "external"; pid: string | null; expires_at: string | null;
+  has_password: boolean; last_login_at: string | null; updated_by: string | null; updated_at: string | null;
+};
+export type UserDetail = UserRow & { events: RoleEvent[] };
+export type UserOptions = { roles: { id: string; name: string }[]; units: string[]; units_sample: boolean };
+export type Staff = { pid: string; title_short: string | null; name_th: string; faculty: string | null; department: string | null; email: string | null };
+const enc = encodeURIComponent;
+export const usersApi = {
+  options: () => fetch(`${API_BASE}/api/users/options`, { cache: "no-store" }).then(j<UserOptions>),
+  list: () => fetch(`${API_BASE}/api/users`, { cache: "no-store" }).then(j<{ items: UserRow[] }>),
+  get: (email: string) => fetch(`${API_BASE}/api/users/${enc(email)}`, { cache: "no-store" }).then(j<UserDetail>),
+  add: (body: { pid?: string; email?: string; name?: string; roles: string[]; units: string[]; expires_at?: string | null }) =>
+    fetch(`${API_BASE}/api/users`, json("POST", body)).then(j<UserRow>),
+  invite: (body: { email: string; name: string; roles: string[]; units: string[]; expires_at: string }) =>
+    fetch(`${API_BASE}/api/users/invite`, json("POST", body)).then(j<UserRow>),
+  edit: (email: string, body: { name?: string; roles?: string[]; units?: string[]; expires_at?: string | null; clear_expiry?: boolean }) =>
+    fetch(`${API_BASE}/api/users/${enc(email)}`, json("PUT", body)).then(j<UserRow>),
+  setActive: (email: string, active: boolean) => fetch(`${API_BASE}/api/users/${enc(email)}/active`, json("POST", { active })).then(j<UserRow>),
+  staff: (q: string) => fetch(`${API_BASE}/api/external/staff?q=${enc(q)}&limit=8`, { cache: "no-store" }).then(j<{ items: Staff[]; source: ExternalSource | null }>),
+};
+
+// ---------- ขั้นตอนอนุมัติ (ocl_api.flows · menu u2) ----------
+export type FlowStep = { roles: string[]; position: string | null; label: string; action: string; days: number; on_reject: string };
+export type Flow = {
+  id: string; name: string; version: number; fixed_steps: number | null; ord: number;
+  notify_next: boolean; notify_sender: boolean; remind_overdue: boolean; updated_by: string | null; updated_at: string | null;
+  steps: FlowStep[];
+};
+export type FlowDetail = Flow & {
+  shown_version: number; history: { version: number; by: string | null; ts: string }[];
+  actions: Record<string, string>; on_reject: Record<string, string>; groups: { id: string; name: string }[];
+};
+export const flowsApi = {
+  list: () => fetch(`${API_BASE}/api/flows`, { cache: "no-store" }).then(j<{ items: Flow[]; groups: { id: string; name: string }[] }>),
+  get: (id: string, version?: number) => fetch(`${API_BASE}/api/flows/${id}${version ? `?version=${version}` : ""}`, { cache: "no-store" }).then(j<FlowDetail>),
+  save: (id: string, body: { steps: FlowStep[]; notify_next?: boolean; notify_sender?: boolean; remind_overdue?: boolean }) =>
+    fetch(`${API_BASE}/api/flows/${id}`, json("PUT", body)).then(j<FlowDetail>),
 };

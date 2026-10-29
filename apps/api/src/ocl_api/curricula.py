@@ -4,11 +4,15 @@
       ▲                  │ return                                  │ unpublish
       └──────────────────┘                                         ▼ (back to verified)
 
-* submit     ส่งให้คณะตรวจสอบ      admin/central/curator · sets a 5-business-day due date
-* check      ติ๊ก "ตรวจสอบหมวดนี้แล้ว" faculty, sections 3 and 4 only, while in review
-* return     ส่งคืนส่วนกลาง/เป็นร่าง  faculty or central, while in review
-* verify     ตรวจสอบสำเร็จ          faculty, both sections checked
-* publish    เปิดเผยแพร่             admin/central, from verified; unpublish goes back
+Who acts comes from the approval flow `curriculum` (flows.py, set on the approval page):
+* submit     ส่งให้คณะตรวจสอบ      step 1 · due date = step 2's business days; the draft keeps
+                                    the flow version it was submitted with (C13)
+* check      ติ๊ก "ตรวจสอบหมวดนี้แล้ว" step 2, sections 3 and 4 only, while in review
+* return     ส่งคืนเป็นร่าง          step 2 or step 1, while in review
+* verify     ตรวจสอบสำเร็จ          step 2, both sections checked
+* publish    เปิดเผยแพร่             step 3, from verified; unpublish goes back
+The administrators may act on any step. E-mails (outbox) follow the flow's switches: the next
+step is told, the sender hears of each outcome, and an overdue review is reminded once a day.
 After "verified" the data is locked: edits only through สมอ.08 (BR-06), not in this POC.
 Every transition is a row in `curriculum_events` and refreshes the draft's snapshot
 from the import job's parts (with the reviewer's edits applied).
@@ -23,7 +27,12 @@ from fastapi import HTTPException
 
 from ocl_api.auth import User
 from ocl_api.db import Jsonb, connect
+from ocl_api.flows import FlowStore, can_act, today_th
 from ocl_api.jobs import PARTS
+from ocl_api.mail import Outbox
+
+FLOW = "curriculum"
+SUBMIT, REVIEW, PUBLISH = 0, 1, 2  # step index in the flow
 
 STATUSES: dict[str, str] = {
     "import": "ร่างนำเข้าหลักสูตร",
@@ -31,7 +40,6 @@ STATUSES: dict[str, str] = {
     "verified": "ตรวจสอบสำเร็จ",
     "published": "เผยแพร่แล้ว",
 }
-REVIEW_BUSINESS_DAYS = 5
 FACULTY_SECTIONS = ("3", "4")  # หมวด 3 PLO/KSEC · หมวด 4 Curriculum Mapping
 FACULTY_EDITABLE_PARTS = {"plo", "ksec", "mapping"}
 ACTIONS = {
@@ -65,6 +73,7 @@ class CurriculumStore:
         self.url = url
         self.schema = schema
         self.jobs = job_store  # PgJobStore, for the parts snapshot
+        self.flows = FlowStore(url, schema)
 
     def _conn(self):
         return connect(self.url, self.schema)
@@ -90,7 +99,7 @@ class CurriculumStore:
         counts = {s: sum(1 for i in items if i["status"] == s) for s in STATUSES}
         return {"counts": counts, "items": items}
 
-    def get(self, draft_id: int) -> dict[str, Any]:
+    def get(self, draft_id: int, user: User | None = None) -> dict[str, Any]:
         with self._conn() as conn:
             r = conn.execute(
                 "SELECT *, data->'parts'->'info'->'data'->'values'->>'faculty' AS faculty, "
@@ -124,6 +133,15 @@ class CurriculumStore:
             "fail": sum(c["status"] == "fail" for c in checks),
         }
         out["events"] = [{k: _iso(v) for k, v in e.items()} for e in events]
+        version, steps, _ = self.flows.steps(FLOW, r.get("flow_version"))
+        out["flow"] = {"version": version, "steps": steps}
+        if user is not None:
+            roles = user.roles
+            out["allowed"] = {
+                "submit": can_act(roles, steps[SUBMIT]),
+                "review": can_act(roles, steps[REVIEW]),
+                "publish": can_act(roles, steps[PUBLISH]),
+            }
         return out
 
     def by_job(self, job_id: str) -> dict[str, Any] | None:
@@ -163,37 +181,48 @@ class CurriculumStore:
             raise HTTPException(400, f"action ต้องเป็น {', '.join(ACTIONS)}")
         with self._conn() as conn:
             row = conn.execute(
-                "SELECT id, job_id, status, faculty_checked FROM curriculum_drafts WHERE id = %s",
+                "SELECT id, job_id, status, faculty_checked, flow_version, name_th, "
+                "data->'parts'->'info'->'data'->'values'->>'faculty' AS faculty "
+                "FROM curriculum_drafts WHERE id = %s",
                 (draft_id,),
             ).fetchone()
         if row is None:
             raise HTTPException(404, "ไม่พบคู่มือหลักสูตร")
         status: str = row["status"]
+        # submit starts on the current flow; later steps keep the version it started with
+        version, steps, flow = self.flows.steps(
+            FLOW, None if action == "submit" else row["flow_version"]
+        )
         checked_map: dict[str, Any] = dict(row["faculty_checked"] or {})
+        due: str | None = None
         new_status = status
         extra_sql = ""
         if action == "submit":
-            _need(user, "curriculum_submit")
+            _need(user, steps[SUBMIT])
             _from(status, "import", action)
             new_status = "review"
             checked_map = {}
-            due = business_days_after(date.today(), REVIEW_BUSINESS_DAYS).isoformat()
-            extra_sql = f", submitted_at = now(), review_due_at = '{due}'"
+            days = steps[REVIEW]["days"]
+            due = business_days_after(today_th(), days).isoformat() if days else None
+            extra_sql = (
+                f", submitted_at = now(), flow_version = {int(version)}, review_due_at = "
+                + (f"'{due}'" if due else "NULL")
+            )
         elif action == "check":
-            _need(user, "curriculum_verify")
+            _need(user, steps[REVIEW])
             _from(status, "review", action)
             if section not in FACULTY_SECTIONS:
                 raise HTTPException(400, "section ต้องเป็น 3 หรือ 4")
             checked_map[section] = bool(checked)
             note = note or f"หมวด {section}: {'ตรวจแล้ว' if checked else 'ยกเลิกการติ๊ก'}"
         elif action == "return":
-            if not (user.can("curriculum_verify") or user.can("curriculum_submit")):
-                raise HTTPException(403, "ส่งคืนได้เฉพาะคณะหรือส่วนกลาง")
+            if not (can_act(user.roles, steps[REVIEW]) or can_act(user.roles, steps[SUBMIT])):
+                raise HTTPException(403, "ส่งคืนได้เฉพาะผู้ตรวจสอบหรือผู้ส่ง")
             _from(status, "review", action)
             new_status = "import"
             extra_sql = ", review_due_at = NULL"
         elif action == "verify":
-            _need(user, "curriculum_verify")
+            _need(user, steps[REVIEW])
             _from(status, "review", action)
             missing = [s for s in FACULTY_SECTIONS if not checked_map.get(s)]
             if missing:
@@ -206,12 +235,12 @@ class CurriculumStore:
             new_status = "verified"
             extra_sql = ", verified_at = now()"
         elif action == "publish":
-            _need(user, "curriculum_publish")
+            _need(user, steps[PUBLISH])
             _from(status, "verified", action)
             new_status = "published"
             extra_sql = ", published_at = now()"
         elif action == "unpublish":
-            _need(user, "curriculum_publish")
+            _need(user, steps[PUBLISH])
             _from(status, "published", action)
             new_status = "verified"
             extra_sql = ", published_at = NULL"
@@ -235,7 +264,76 @@ class CurriculumStore:
                     "VALUES (%s, %s, %s, %s, %s, %s)",
                     (draft_id, user.email, action, status, new_status, note),
                 )
-        return self.get(draft_id)
+        self._notify(row, action, user.email, steps, flow, due, note)
+        return self.get(draft_id, user)
+
+    # ---------- e-mail (outbox) ----------
+
+    def _sender(self, draft_id: int) -> str | None:
+        with self._conn() as conn:
+            r = conn.execute(
+                "SELECT by FROM curriculum_events WHERE draft_id = %s AND action = 'submit' "
+                "ORDER BY ts DESC, id DESC LIMIT 1",
+                (draft_id,),
+            ).fetchone()
+        return r["by"] if r else None
+
+    def _notify(self, row, action, by, steps, flow, due, note) -> None:
+        name = row["name_th"] or "คู่มือหลักสูตร"
+        ref = f"curriculum:{row['id']}"
+        box = Outbox(self.url, self.schema)
+        mails: list[tuple[list[str], str, str]] = []
+        if flow["notify_next"] and action in ("submit", "verify"):
+            step = steps[REVIEW] if action == "submit" else steps[PUBLISH]
+            to = self.flows.recipients(step["roles"], row["faculty"])
+            if action == "submit":
+                when = f" ภายในวันที่ {due}" if due else ""
+                mails.append((to, f"คู่มือหลักสูตรรอตรวจสอบ: {name}",
+                              f"{by} ส่ง{name}ให้ตรวจสอบหมวด 3–4{when}"))  # fmt: skip
+            else:
+                mails.append((to, f"คู่มือหลักสูตรตรวจสอบสำเร็จ รอเผยแพร่: {name}",
+                              f"{name} ตรวจสอบสำเร็จแล้ว ขั้นถัดไป: {step['label']}"))  # fmt: skip
+        if flow["notify_sender"] and action in ("verify", "return", "publish"):
+            sender = self._sender(row["id"])
+            if sender and sender != by:
+                what = {"verify": "ตรวจสอบสำเร็จแล้ว", "return": "ถูกส่งคืนเป็นร่าง",
+                        "publish": "เผยแพร่แล้ว"}[action]  # fmt: skip
+                body = f"{name} {what} โดย {by}" + (f"\nหมายเหตุ: {note}" if note else "")
+                mails.append(([sender], f"{name}: {what}", body))
+        for to, subject, body in mails:
+            if to:
+                box.send(to, subject, body, kind="workflow", by=by, ref=ref)
+
+    def remind_overdue(self) -> int:
+        """Reviews past their due date: remind step 2 once a day (outbox dedupe). Count sent."""
+        flow = self.flows.get(FLOW)
+        if not flow["remind_overdue"]:
+            return 0
+        today = today_th()
+        with self._conn() as conn:
+            rows = conn.execute(
+                "SELECT id, name_th, review_due_at, flow_version, "
+                "data->'parts'->'info'->'data'->'values'->>'faculty' AS faculty "
+                "FROM curriculum_drafts WHERE status = 'review' AND review_due_at < %s",
+                (today,),
+            ).fetchall()
+        box = Outbox(self.url, self.schema)
+        sent = 0
+        for r in rows:
+            _, steps, _ = self.flows.steps(FLOW, r["flow_version"])
+            to = self.flows.recipients(steps[REVIEW]["roles"], r["faculty"])
+            if not to:
+                continue
+            m = box.send(
+                to,
+                f"เกินกำหนดตรวจสอบ: {r['name_th'] or 'คู่มือหลักสูตร'}",
+                f"กำหนดตรวจสอบวันที่ {r['review_due_at'].isoformat()} ผ่านมาแล้ว",
+                kind="reminder",
+                ref=f"curriculum:{r['id']}",
+                dedupe_key=f"overdue:curriculum:{r['id']}:{today.isoformat()}",
+            )
+            sent += m is not None
+        return sent
 
     def _snapshot(self, job_id: str) -> dict[str, Any] | None:
         """Current parts (edits applied) + checks of the import job, like finalize does."""
@@ -255,9 +353,21 @@ class CurriculumStore:
         return {"job": job, "parts": parts, "checks": self.jobs.checks(job_id)}
 
 
-def _need(user: User, perm: str) -> None:
-    if not user.can(perm):
-        raise HTTPException(403, "บทบาทของคุณทำขั้นตอนนี้ไม่ได้")
+def _need(user: User, step: dict[str, Any]) -> None:
+    if not can_act(user.roles, step):
+        raise HTTPException(403, "บทบาทของคุณทำขั้นตอนนี้ไม่ได้ (ดูการตั้งค่าการอนุมัติ)")
+
+
+def reviewer_may_edit(url: str, schema: str | None, job_id: str, user: User) -> bool:
+    """While in review, step 2 of the draft's flow version may edit หมวด 3–4."""
+    with connect(url, schema) as conn:
+        r = conn.execute(
+            "SELECT flow_version FROM curriculum_drafts WHERE job_id = %s", (job_id,)
+        ).fetchone()
+    if r is None:
+        return False
+    _, steps, _ = FlowStore(url, schema).steps(FLOW, r["flow_version"])
+    return can_act(user.roles, steps[REVIEW])
 
 
 def _from(status: str, expected: str, action: str) -> None:

@@ -4,7 +4,7 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { can } from "@/lib/perm";
+import { canMenu } from "@/lib/nav";
 import { api, curricula, fmtTime, PART_LABELS, type Check, type Job, type Meta, type Part } from "@/lib/api";
 import { ConfPill, Ic, Markdown, Note, PageHead, Pill, Steps } from "@/components/ui";
 
@@ -45,7 +45,7 @@ export default function ReviewClient() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { data: session } = useSession();
-  const canWrite = can(session?.user?.roles, "import_write");
+  const canWrite = canMenu(session?.user?.perms, "c3", "add");
   const [job, setJob] = useState<Job | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("info");

@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from ocl_api.auth import PERMISSIONS, ROLES, User, hash_password, sign_token, verify_password
+from ocl_api.auth import PERM_MENU, ROLES, User, hash_password, sign_token, verify_password
 from ocl_api.main import create_app
 from tests.test_ingest_docx import build_docx
 
@@ -18,7 +18,7 @@ def test_password_and_permissions() -> None:
     h = hash_password("บัวศรี123")
     assert h.startswith("scrypt$") and verify_password("บัวศรี123", h)
     assert not verify_password("wrong", h) and not verify_password("x", None)
-    assert set(PERMISSIONS["import_write"]) <= set(ROLES)
+    assert PERM_MENU["import_write"] == ("c3", "add")
     assert User(email="a", roles=["faculty"]).can("import_read")
     assert not User(email="a", roles=["faculty"]).can("import_write")
     assert not User(email="a", roles=["student"]).can("import_read")
@@ -212,11 +212,11 @@ def test_table_decides_roles_and_suspension(
     ), "refresh is for the web's service token only"
 
 
-def test_menu_access_matches_the_web() -> None:
-    """auth.py mirrors apps/web/src/lib/nav.ts; a menu or role added on one side only fails here."""
+def test_menu_ids_match_the_web() -> None:
+    """perms.py mirrors the menus of apps/web/src/lib/nav.ts; a menu added on one side fails."""
     import re
 
-    from ocl_api.auth import MENU_INHERITS, MENUS, ROLE_ACCESS, can_menu
+    from ocl_api.perms import MENU_INHERITS, MENUS
 
     nav = (Path(__file__).parents[3] / "apps/web/src/lib/nav.ts").read_text(encoding="utf-8")
     web_menus: dict[str, list[str]] = {}
@@ -228,17 +228,75 @@ def test_menu_access_matches_the_web() -> None:
             web_menus.setdefault(mod, []).append(m.group(2))
     assert web_menus == MENUS
     assert dict(re.findall(r'id: "([a-z0-9]+)"[^}]*inherits: "([a-z0-9]+)"', nav)) == MENU_INHERITS
-    block = nav[nav.index("export const ROLE_ACCESS") :].split("};")[0]
-    web_access = {}
-    for role, mods, only in re.findall(
-        r"(\w+): \{ mods: \[([^\]]*)\](?:, only: \[([^\]]*)\])? \}", block
-    ):
-        ids = lambda s: re.findall(r'"([a-z0-9]+)"', s)  # noqa: E731
-        web_access[role] = (ids(mods), ids(only) if only else None)
-    assert web_access == ROLE_ACCESS
-    assert set(ROLE_ACCESS) == set(ROLES)
-    # spot checks against BRD 00 §3
-    assert can_menu(["teacher"], "p2") and not can_menu(["teacher"], "p1")
-    assert can_menu(["faculty"], "c3h") and not can_menu(["faculty"], "u1")
-    assert can_menu(["student"], "m1") and not can_menu(["exec"], "c1")
+    assert "ROLE_ACCESS" not in nav, "who sees what lives in the database now (FS-1a)"
+
+
+def test_default_permissions_follow_brd_roles() -> None:
+    """The seed reproduces BRD 00 §3 (modules per role) and the mock's role-edit defaults."""
+    from ocl_api.auth import can_menu
+    from ocl_api.perms import MENUS, default_table
+
+    def mods(roles: list[str]) -> str:
+        return " ".join(k for k, ids in MENUS.items() if any(can_menu(roles, m) for m in ids))
+
+    assert mods(["admin"]) == mods(["central"]) == "c p s q r u"
+    assert mods(["curator"]) == mods(["faculty"]) == "c p s q r"
+    assert mods(["evaluator"]) == "q" and mods(["exec"]) == "r" and mods(["student"]) == "m"
+    assert mods(["teacher"]) == "p s r" and mods(["advisor"]) == "s r" and mods([]) == ""
+    assert mods(["teacher", "student"]) == "p s r m", "several roles add up"
+    assert User(email="a", roles=["teacher"]).menus() == ["p2", "p4", "s4", "s5", "r0", "r7", "r8"]
     assert User(email="a", roles=["advisor"]).menus() == ["s5", "r0", "r8"]
+    assert set(default_table()) == set(ROLES)
+    # actions: the mock's defaults, except that the faculty reviewer does not import
+    assert can_menu(["faculty"], "c3h") and not can_menu(["faculty"], "c3", "add")
+    assert can_menu(["curator"], "c3", "add") and not can_menu(["curator"], "c1", "delete")
+    assert can_menu(["teacher"], "p2", "edit") and not can_menu(["teacher"], "p2", "approve")
+    assert not can_menu(["exec"], "r1", "edit") and can_menu(["exec"], "r1", "print")
+    assert can_menu(["admin"], "u3", "delete")
+
+
+def test_permissions_live_in_the_database(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, pg_url: str, schema: str
+) -> None:
+    from ocl_api.auth import clear_user_cache
+    from ocl_api.db import connect
+    from ocl_api.perms import default_table
+    from ocl_api.users import UserStore
+
+    c = _client(
+        tmp_path, monkeypatch, AUTH_SECRET=SECRET, DATABASE_URL=pg_url, DATABASE_SCHEMA=schema
+    )
+    with connect(pg_url, schema) as conn:
+        rows = conn.execute("SELECT role_id, menu, action FROM role_perms").fetchall()
+        groups = conn.execute("SELECT id, builtin FROM role_groups ORDER BY ord").fetchall()
+    seeded: dict = {}
+    for r in rows:
+        seeded.setdefault(r["role_id"], {}).setdefault(r["menu"], set()).add(r["action"])
+    assert seeded == default_table(), "migration 006 seeds exactly the defaults"
+    assert [g["id"] for g in groups] == list(ROLES) and all(g["builtin"] for g in groups)
+
+    UserStore(pg_url, schema).upsert(
+        "f@g.swu.ac.th", roles=["faculty"], buasri_id="f", password="pw"
+    )
+    fac = _bearer(["faculty"], sub="f@g.swu.ac.th")
+    svc = _bearer(["service"], sub="web")
+    login = c.post("/api/auth/credentials", json={"username": "f", "password": "pw"}, headers=svc)
+    assert login.json()["perms"]["c3"] == ["view", "print"], "the web gets menus at sign-in"
+    assert c.get("/api/imports", headers=fac).status_code == 200
+
+    # an administrator takes the import menu away from the faculty group
+    with connect(pg_url, schema) as conn:
+        conn.execute("DELETE FROM role_perms WHERE role_id = 'faculty' AND menu = 'c3'")
+    clear_user_cache()
+    assert c.get("/api/imports", headers=fac).status_code == 403
+    me = c.get("/api/auth/me", headers=fac).json()
+    assert "c3" not in me["menus"] and "c3h" not in me["perms"] and "c1" in me["menus"]
+    r = c.post("/api/auth/refresh", json={"email": "f@g.swu.ac.th"}, headers=svc).json()
+    assert "c3" not in r["perms"], "and the web's next re-check drops the menu"
+    # ... and gives it "add": now faculty may import
+    with connect(pg_url, schema) as conn:
+        conn.execute(
+            "INSERT INTO role_perms VALUES ('faculty', 'c3', 'view'), ('faculty', 'c3', 'add')"
+        )
+    clear_user_cache()
+    assert c.get("/api/auth/me", headers=fac).json()["permissions"]["import_write"] is True

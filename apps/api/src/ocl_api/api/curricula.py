@@ -54,9 +54,9 @@ def by_job(
 def get_curriculum(
     draft_id: int,
     cs: CurriculumStore = Depends(get_curricula),
-    _: User = Depends(REQUIRE_IMPORT_READ),
+    user: User = Depends(REQUIRE_IMPORT_READ),
 ) -> dict[str, Any]:
-    return cs.get(draft_id)
+    return cs.get(draft_id, user)
 
 
 @router.post("/{draft_id}/transition")

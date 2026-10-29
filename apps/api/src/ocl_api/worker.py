@@ -150,6 +150,22 @@ def _sum_llm(d: Path, parts: list[str]) -> dict[str, Any] | None:
     return total if seen else None
 
 
+REMINDER_EVERY = 3600  # seconds; each overdue item is e-mailed at most once a day (dedupe)
+
+
+def _remind(settings: Settings) -> None:
+    """Overdue reviews of the approval flows (US-U-05): queue the daily reminders."""
+    from ocl_api.curricula import CurriculumStore
+
+    try:
+        store = CurriculumStore(settings.database_url or "", settings.database_schema, None)
+        sent = store.remind_overdue()
+        if sent:
+            print(f"worker: {sent} overdue reminder(s) queued")
+    except Exception as e:  # a reminder must never stop the import queue
+        print(f"worker: reminders skipped ({e.__class__.__name__}: {e})")
+
+
 def run_loop(
     settings: Settings | None = None, *, poll_seconds: float = 2.0, once: bool = False
 ) -> int:
@@ -161,7 +177,11 @@ def run_loop(
         f"· model={settings.ollama_model}"
     )
     handled = 0
+    next_reminder = 0.0
     while True:
+        if settings.database_url and time.monotonic() >= next_reminder:
+            next_reminder = time.monotonic() + REMINDER_EVERY
+            _remind(settings)
         job = store.next_queued()
         if job:
             print(f"worker: job {job['id']} {job['filename']}")

@@ -12,8 +12,8 @@ from ocl_api.external import ExternalStore
 
 router = APIRouter(prefix="/api/external", tags=["external"])
 
-# staff pickers: คู่มือหลักสูตร (อาจารย์หลักสูตร), ผู้บันทึก/ผู้ยืนยันของการประเมิน, ผู้ใช้งาน
-REQUIRE_STAFF_PICKER = require_menu("c1", "q3", "u2")
+# staff pickers: คู่มือหลักสูตร (อาจารย์หลักสูตร), ผู้บันทึก/ผู้ยืนยันของการประเมิน, ผู้ใช้งาน (u3)
+REQUIRE_STAFF_PICKER = require_menu("c1", "q3", "u3")
 
 
 def get_external(settings: Settings = Depends(get_settings)) -> ExternalStore:

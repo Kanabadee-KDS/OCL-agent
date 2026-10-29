@@ -1,6 +1,6 @@
-// Menus and who sees them, mirrored from the customer's mock (samples/ui-mock.html: NAV,
-// ROLES.mods/only) and BRD 00 §3. A menu with `href` is built; the rest show as
-// "อยู่ระหว่างพัฒนา" until their FS phase (docs/plan.md). No imports: node --test runs it.
+// Menus of the customer's mock (samples/ui-mock.html: NAV). Who sees which menu comes from the
+// API as `perms` (role_perms, FS-1a), not from here. A menu with `href` is built; the rest show
+// as "อยู่ระหว่างพัฒนา" until their FS phase (docs/plan.md). No imports: node --test runs it.
 
 export type NavItem = {
   id: string; // the mock's menu id (c1, p2, ...); also the permission key of the menu
@@ -97,10 +97,10 @@ export const NAV: NavModule[] = [
   {
     k: "u", label: "บริหารจัดการสิทธิ์", icon: "lock", secs: [
       { cap: "บริหารกลุ่มสิทธิ์", items: [
-        { id: "u1", label: "กำหนดกลุ่มสิทธิ์การใช้งาน", route: "roles", phase: "FS-1" },
-        { id: "u2", label: "กำหนดการตั้งค่าการอนุมัติ", route: "approval", phase: "FS-1" },
+        { id: "u1", label: "กำหนดกลุ่มสิทธิ์การใช้งาน", route: "roles", href: "/roles" },
+        { id: "u2", label: "กำหนดการตั้งค่าการอนุมัติ", route: "approval", href: "/approval" },
       ] },
-      { cap: "บริหารผู้ใช้งาน", items: [{ id: "u3", label: "กำหนดผู้ใช้งาน", route: "users", phase: "FS-1" }] },
+      { cap: "บริหารผู้ใช้งาน", items: [{ id: "u3", label: "กำหนดผู้ใช้งาน", route: "users", href: "/users" }] },
     ],
   },
   {
@@ -113,47 +113,29 @@ export const NAV: NavModule[] = [
   },
 ];
 
-// mock ROLES: modules a role sees, optionally only some menus of them (BRD 00 §3)
-export const ROLE_ACCESS: Record<string, { mods: string[]; only?: string[] }> = {
-  admin: { mods: ["c", "p", "s", "q", "r", "u"] },
-  central: { mods: ["c", "p", "s", "q", "r", "u"] },
-  curator: { mods: ["c", "p", "s", "q", "r"] },
-  faculty: { mods: ["c", "p", "s", "q", "r"] },
-  evaluator: { mods: ["q"] },
-  teacher: { mods: ["p", "s", "r"], only: ["p2", "p4", "s4", "s5", "r0", "r7", "r8"] },
-  advisor: { mods: ["s", "r"], only: ["s5", "r0", "r8"] },
-  student: { mods: ["m"] },
-  exec: { mods: ["r"] },
-};
-
-function moduleOf(id: string): NavModule | undefined {
-  return NAV.find((m) => m.secs.some((s) => s.items.some((i) => i.id === id)));
-}
+/** Menu id -> actions the user holds (view, add, edit, delete, approve, print), from the API
+ *  (ocl_api.perms / role_perms) at sign-in and at every minute's re-check (auth.ts). */
+export type Perms = Readonly<Record<string, readonly string[]>>;
 
 function itemOf(id: string): NavItem | undefined {
   for (const m of NAV) for (const s of m.secs) for (const i of s.items) if (i.id === id) return i;
   return undefined;
 }
 
-/** Whether any of the user's roles shows menu `id` (a user may hold several roles). */
-export function canMenu(roles: readonly string[] | undefined, id: string): boolean {
+/** Whether the user holds `action` on menu `id` (the union of all their groups). */
+export function canMenu(perms: Perms | undefined, id: string, action = "view"): boolean {
   const item = itemOf(id);
   if (!item) return false;
-  if (item.inherits) return canMenu(roles, item.inherits);
-  const mod = moduleOf(id);
-  if (!mod) return false;
-  return (roles ?? []).some((r) => {
-    const a = ROLE_ACCESS[r];
-    return !!a && a.mods.includes(mod.k) && (!a.only || a.only.includes(id));
-  });
+  if (item.inherits) return canMenu(perms, item.inherits, action);
+  return !!perms?.[id]?.includes(action);
 }
 
 /** The menu tree trimmed to what the user may see; empty sections and modules dropped. */
-export function visibleNav(roles: readonly string[] | undefined): NavModule[] {
+export function visibleNav(perms: Perms | undefined): NavModule[] {
   return NAV.map((m) => ({
     ...m,
     secs: m.secs
-      .map((s) => ({ ...s, items: s.items.filter((i) => canMenu(roles, i.id)) }))
+      .map((s) => ({ ...s, items: s.items.filter((i) => canMenu(perms, i.id)) }))
       .filter((s) => s.items.length > 0),
   })).filter((m) => m.secs.length > 0);
 }
@@ -163,6 +145,9 @@ const PATH_MENU: [string, string][] = [
   ["/import/history", "c3h"],
   ["/import", "c3"],
   ["/curricula", "c1"],
+  ["/roles", "u1"],
+  ["/users", "u3"],
+  ["/approval", "u2"],
 ];
 
 /** The menu a path belongs to, for highlighting and for the per-page permission check. */
@@ -171,6 +156,6 @@ export function menuOfPath(path: string): string | undefined {
 }
 
 /** Built pages the user may open, in menu order: the first one is their landing page. */
-export function builtPages(roles: readonly string[] | undefined): NavItem[] {
-  return visibleNav(roles).flatMap((m) => m.secs.flatMap((s) => s.items.filter((i) => i.href)));
+export function builtPages(perms: Perms | undefined): NavItem[] {
+  return visibleNav(perms).flatMap((m) => m.secs.flatMap((s) => s.items.filter((i) => i.href)));
 }

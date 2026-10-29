@@ -8,7 +8,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const session = await auth();
   if (!session?.user?.email) redirect("/login");
   const roles = session.user.roles ?? [];
-  const user = { name: session.user.name ?? session.user.email, email: session.user.email, roles };
+  const user = {
+    name: session.user.name ?? session.user.email,
+    email: session.user.email,
+    roles,
+    perms: session.user.perms ?? {},
+    roleNames: session.user.roleNames ?? {},
+    activeRole: session.user.activeRole ?? null,
+  };
   return (
     <SessionProvider session={session} refetchInterval={60}>
       {/* the refetch stores the minute-by-minute user re-check (auth.ts jwt) in the cookie;

@@ -16,6 +16,9 @@ import psycopg
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
+from ocl_api.flow_defaults import seed_sql as flow_seed_sql
+from ocl_api.perms import scope_kind_sql, seed_sql
+
 MIGRATIONS: list[tuple[str, str]] = [
     (
         "001_import_jobs",
@@ -188,6 +191,112 @@ MIGRATIONS: list[tuple[str, str]] = [
             ON email_outbox (dedupe_key) WHERE dedupe_key IS NOT NULL;
         CREATE INDEX IF NOT EXISTS email_outbox_status_idx ON email_outbox (status, created_at);
         """,
+    ),
+    (
+        "006_role_perms",
+        """
+        -- permission groups and their per-menu actions (ocl_api.perms seeds the 9 of the mock)
+        CREATE TABLE IF NOT EXISTS role_groups (
+            id         text PRIMARY KEY,
+            name       text NOT NULL,
+            scope      text NOT NULL DEFAULT '',
+            builtin    boolean NOT NULL DEFAULT false,
+            ord        integer NOT NULL DEFAULT 0,
+            updated_by text,
+            updated_at timestamptz NOT NULL DEFAULT now()
+        );
+        CREATE TABLE IF NOT EXISTS role_perms (
+            role_id text NOT NULL REFERENCES role_groups (id) ON DELETE CASCADE,
+            menu    text NOT NULL,
+            action  text NOT NULL,
+            PRIMARY KEY (role_id, menu, action)
+        );
+        """
+        + seed_sql(),
+    ),
+    (
+        "007_role_admin",
+        """
+        -- what the role-edit page sets besides the menu actions, and who changed a group (NFR-15)
+        ALTER TABLE role_groups
+            ADD COLUMN IF NOT EXISTS scope_kind text NOT NULL DEFAULT 'all',
+            ADD COLUMN IF NOT EXISTS auto_from_teachers boolean NOT NULL DEFAULT false,
+            ADD COLUMN IF NOT EXISTS notify_on_change boolean NOT NULL DEFAULT true;
+        CREATE TABLE IF NOT EXISTS role_events (
+            id      bigserial PRIMARY KEY,
+            ts      timestamptz NOT NULL DEFAULT now(),
+            by      text,
+            role_id text NOT NULL,
+            action  text NOT NULL,
+            detail  jsonb NOT NULL DEFAULT '{}'::jsonb
+        );
+        CREATE INDEX IF NOT EXISTS role_events_role_idx ON role_events (role_id, ts);
+        """
+        + scope_kind_sql(),
+    ),
+    (
+        "008_users_admin",
+        """
+        -- what the users page manages (US-U-03): several units, external invitees with an end
+        -- date, the HURIS record a staff account came from, and who changed what (NFR-15)
+        ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS units      jsonb NOT NULL DEFAULT '[]'::jsonb,
+            ADD COLUMN IF NOT EXISTS kind       text NOT NULL DEFAULT 'internal',
+            ADD COLUMN IF NOT EXISTS pid        text,
+            ADD COLUMN IF NOT EXISTS expires_at date,
+            ADD COLUMN IF NOT EXISTS updated_by text,
+            ADD COLUMN IF NOT EXISTS updated_at timestamptz;
+        UPDATE users SET units = jsonb_build_array(unit)
+            WHERE unit IS NOT NULL AND unit <> '' AND units = '[]'::jsonb;
+        CREATE TABLE IF NOT EXISTS user_events (
+            id     bigserial PRIMARY KEY,
+            ts     timestamptz NOT NULL DEFAULT now(),
+            by     text,
+            email  text NOT NULL,
+            action text NOT NULL,
+            detail jsonb NOT NULL DEFAULT '{}'::jsonb
+        );
+        CREATE INDEX IF NOT EXISTS user_events_email_idx ON user_events (email, ts);
+        """,
+    ),
+    (
+        "009_flows",
+        """
+        -- approval flows (ocl_api.flows): every save is a new version, started work keeps its own
+        CREATE TABLE IF NOT EXISTS flows (
+            id             text PRIMARY KEY,
+            name           text NOT NULL,
+            version        integer NOT NULL DEFAULT 1,
+            fixed_steps    integer,
+            ord            integer NOT NULL DEFAULT 0,
+            notify_next    boolean NOT NULL DEFAULT true,
+            notify_sender  boolean NOT NULL DEFAULT true,
+            remind_overdue boolean NOT NULL DEFAULT true,
+            updated_by     text,
+            updated_at     timestamptz
+        );
+        CREATE TABLE IF NOT EXISTS flow_steps (
+            flow_id   text NOT NULL REFERENCES flows (id) ON DELETE CASCADE,
+            version   integer NOT NULL,
+            ord       integer NOT NULL,
+            roles     jsonb NOT NULL DEFAULT '[]'::jsonb,
+            position  text,
+            label     text NOT NULL,
+            action    text NOT NULL,
+            days      integer NOT NULL DEFAULT 0,
+            on_reject text NOT NULL DEFAULT 'sender',
+            PRIMARY KEY (flow_id, version, ord)
+        );
+        CREATE TABLE IF NOT EXISTS flow_versions (
+            flow_id text NOT NULL REFERENCES flows (id) ON DELETE CASCADE,
+            version integer NOT NULL,
+            by      text,
+            ts      timestamptz NOT NULL DEFAULT now(),
+            PRIMARY KEY (flow_id, version)
+        );
+        ALTER TABLE curriculum_drafts ADD COLUMN IF NOT EXISTS flow_version integer;
+        """
+        + flow_seed_sql(),
     ),
 ]
 

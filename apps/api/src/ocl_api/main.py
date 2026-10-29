@@ -9,7 +9,10 @@ from ocl_api import __version__
 from ocl_api.api.auth import router as auth_router
 from ocl_api.api.curricula import router as curricula_router
 from ocl_api.api.external import router as external_router
+from ocl_api.api.flows import router as flows_router
 from ocl_api.api.imports import router as imports_router
+from ocl_api.api.roles import router as roles_router
+from ocl_api.api.users import router as users_router
 from ocl_api.config import get_settings
 from ocl_api.ingest.pdf_reader import find_tessdata
 
@@ -27,6 +30,9 @@ def create_app() -> FastAPI:
     app.include_router(auth_router)
     app.include_router(curricula_router)
     app.include_router(external_router)
+    app.include_router(roles_router)
+    app.include_router(users_router)
+    app.include_router(flows_router)
     if s.database_url:
         from ocl_api.db import migrate
 

@@ -1,4 +1,6 @@
-// Mirror of apps/api/src/ocl_api/auth.py (ROLES / PERMISSIONS): keep both in sync.
+// Role names mirror apps/api/src/ocl_api/perms.py (ROLES); groups made on the roles page come
+// with their names in the session (roleNames). What a user may do is never decided here:
+// menus come as `session.user.perms` (lib/nav.ts canMenu), workflow steps from the API.
 export const ROLES: Record<string, string> = {
   admin: "ผู้ดูแลระบบ",
   central: "ผู้ดูแลส่วนกลาง",
@@ -10,13 +12,6 @@ export const ROLES: Record<string, string> = {
   student: "นิสิต",
   exec: "ผู้บริหาร",
 };
-export const PERMISSIONS: Record<string, string[]> = {
-  import_read: ["admin", "central", "curator", "faculty"],
-  import_write: ["admin", "central", "curator"],
-  users_manage: ["admin", "central"],
-};
-export const can = (roles: string[] | undefined, perm: string) => (roles ?? []).some((r) => PERMISSIONS[perm]?.includes(r));
-export const roleLabel = (roles: string[] | undefined) => (roles ?? []).map((r) => ROLES[r] ?? r).join(" · ") || "ยังไม่มีสิทธิ์";
-PERMISSIONS.curriculum_submit = ["admin", "central", "curator"];
-PERMISSIONS.curriculum_verify = ["admin", "faculty"];
-PERMISSIONS.curriculum_publish = ["admin", "central"];
+/** Group names for display; `names` (from the API) covers the groups made on the roles page. */
+export const roleLabel = (roles: string[] | undefined, names?: Record<string, string>) =>
+  (roles ?? []).map((r) => names?.[r] ?? ROLES[r] ?? r).join(" · ") || "ยังไม่มีสิทธิ์";

@@ -90,12 +90,16 @@ def cmd_users(args: argparse.Namespace) -> int:
     if not s.database_url:
         print("users need DATABASE_URL (Postgres)")
         return 1
+    from ocl_api.db import migrate
+
+    migrate(s.database_url, s.database_schema)  # the columns this command reads
     users = UserStore(s.database_url, s.database_schema)
     if args.action == "list":
         for u in users.list():
             print(
                 f"{u['email']:40} {u.get('buasri_id') or '-':14} "
-                f"{','.join(u['roles']) or '-':28} {'active' if u['active'] else 'DISABLED':8} "
+                f"{','.join(u['roles']) or '-':28} "
+                f"{'active' if u['usable'] else 'DISABLED' if not u['active'] else 'EXPIRED':8} "
                 f"{u.get('name') or ''}"
             )
         return 0
@@ -118,10 +122,14 @@ def cmd_users(args: argparse.Namespace) -> int:
             password=password,
             unit=args.unit,
         )
+        # the users page shows who changed an account; record the server command too
+        detail = {"roles": roles or None, "password_set": bool(password), "buasri": args.buasri}
+        users.log(args.email, f"cli:{getpass.getuser()}", f"cli_{args.action}", detail)
         print(json.dumps(u, ensure_ascii=False, indent=1))
         return 0
     if args.action in ("disable", "enable"):
         users.set_active(args.email, args.action == "enable")
+        users.log(args.email, f"cli:{getpass.getuser()}", f"cli_{args.action}", {})
         print(f"{args.email}: {'active' if args.action == 'enable' else 'disabled'}")
         return 0
     return 1
@@ -206,6 +214,22 @@ def cmd_outbox(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_flows(args: argparse.Namespace) -> int:
+    """Approval flows: queue today's overdue reminders now (the worker does it hourly)."""
+    from ocl_api.config import get_settings
+    from ocl_api.curricula import CurriculumStore
+    from ocl_api.db import migrate
+
+    s = get_settings()
+    if not s.database_url:
+        print("flows need DATABASE_URL (Postgres)")
+        return 1
+    migrate(s.database_url, s.database_schema)
+    sent = CurriculumStore(s.database_url, s.database_schema, None).remind_overdue()
+    print(f"overdue reminders queued: {sent}")
+    return 0
+
+
 def cmd_api(args: argparse.Namespace) -> int:
     import uvicorn
 
@@ -286,6 +310,10 @@ def main(argv: list[str] | None = None) -> int:
     ob.add_argument("--status", choices=["queued", "sent", "failed"])
     ob.add_argument("--limit", type=int, default=50)
     ob.set_defaults(func=cmd_outbox)
+
+    fl = sub.add_parser("flows", help="approval flows: queue overdue reminders now")
+    fl.add_argument("action", choices=["remind"])
+    fl.set_defaults(func=cmd_flows)
 
     db = sub.add_parser("db", help="database: migrate (apply schema) or status")
     db.add_argument("action", choices=["migrate", "status"])

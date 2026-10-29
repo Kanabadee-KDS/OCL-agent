@@ -4,10 +4,11 @@ The web app (Auth.js: Google @g.swu.ac.th or Buasri ID credentials) is the only 
 surface. It calls this API with a short-lived HS256 JWT signed with the shared
 AUTH_SECRET: `sub` = email, `name`, `roles`. Users and their roles live in the `users`
 table (migration 002); roles follow the 9 groups of the customer's mock, and a user may
-hold several. With a database, every request takes the roles from that table (cached
-USER_CACHE_TTL seconds), so a suspended user or a role change does not wait for the web
-session to expire. When AUTH_SECRET is not set (file-mode dev, tests) every request acts as
-an anonymous admin and /health reports auth=disabled.
+hold several. With a database, every request takes the roles from that table and the
+per-menu actions of those roles from `role_perms` (both cached USER_CACHE_TTL seconds), so a
+suspended user or a permission change does not wait for the web session to expire. When
+AUTH_SECRET is not set (file-mode dev, tests) every request acts as an anonymous admin and
+/health reports auth=disabled.
 """
 
 from __future__ import annotations
@@ -23,65 +24,31 @@ import jwt
 from fastapi import Depends, HTTPException, Request
 
 from ocl_api.config import Settings, get_settings
+from ocl_api.perms import (  # MENUS, MENU_INHERITS and ROLES are re-exported
+    ALL_MENUS,
+    Table,
+    default_table,
+    perms_for,
+)
+from ocl_api.perms import MENU_INHERITS as MENU_INHERITS
+from ocl_api.perms import MENUS as MENUS
+from ocl_api.perms import ROLES as ROLES
 
-ROLES: dict[str, str] = {
-    "admin": "ผู้ดูแลระบบ",
-    "central": "ผู้ดูแลส่วนกลาง",
-    "curator": "ผู้ตรวจสอบระดับหลักสูตร",
-    "faculty": "ผู้ตรวจสอบระดับส่วนงาน",
-    "evaluator": "ผู้ประเมินหลักสูตร",
-    "teacher": "อาจารย์ผู้สอน",
-    "advisor": "อาจารย์ที่ปรึกษา",
-    "student": "นิสิต",
-    "exec": "ผู้บริหาร",
-}
-# Menu-level permissions of the AI import feature (BRD 00 §3: M1 is open to admin,
-# central, curator and faculty; the faculty reviewer reads but does not import).
-PERMISSIONS: dict[str, set[str]] = {
-    "import_read": {"admin", "central", "curator", "faculty"},
-    "import_write": {"admin", "central", "curator"},
-    "users_manage": {"admin", "central"},
-    # คู่มือหลักสูตร workflow (BRD 01 §2)
-    "curriculum_submit": {"admin", "central", "curator"},
-    "curriculum_verify": {"admin", "faculty"},
-    "curriculum_publish": {"admin", "central"},
-}
-# Menu-level visibility, mirrored from the web's apps/web/src/lib/nav.ts (the mock's NAV and
-# ROLES.mods/only, BRD 00 §3); tests/test_auth.py fails when the two drift apart.
-MENUS: dict[str, list[str]] = {
-    "c": ["c1", "c1b", "c2", "c3", "c3h", "c5", "c4"],
-    "p": ["p1", "p2", "p4"],
-    "s": ["s1", "s2", "s2b", "s3", "s4", "s5", "s6"],
-    "q": ["q1", "q2", "q1b", "q3", "q4"],
-    "r": ["r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "ra", "rb", "rc"],
-    "u": ["u1", "u2", "u3"],
-    "m": ["m1", "m2"],
-}
-MENU_INHERITS: dict[str, str] = {"c3h": "c3"}  # pages beyond the mock follow their parent menu
-ROLE_ACCESS: dict[str, tuple[list[str], list[str] | None]] = {  # role: (modules, only these menus)
-    "admin": (["c", "p", "s", "q", "r", "u"], None),
-    "central": (["c", "p", "s", "q", "r", "u"], None),
-    "curator": (["c", "p", "s", "q", "r"], None),
-    "faculty": (["c", "p", "s", "q", "r"], None),
-    "evaluator": (["q"], None),
-    "teacher": (["p", "s", "r"], ["p2", "p4", "s4", "s5", "r0", "r7", "r8"]),
-    "advisor": (["s", "r"], ["s5", "r0", "r8"]),
-    "student": (["m"], None),
-    "exec": (["r"], None),
+# Older permission names, now a menu and an action in `role_perms` (FS-1a).
+PERM_MENU: dict[str, tuple[str, str]] = {
+    "import_read": ("c3", "view"),
+    "import_write": ("c3", "add"),
+    "users_manage": ("u3", "edit"),
 }
 SERVICE_ROLE = "service"
 TOKEN_TTL = 300  # seconds; the web signs a fresh token per request
-USER_CACHE_TTL = 30  # seconds a looked-up user is trusted before the table is read again
+USER_CACHE_TTL = 30  # seconds a looked-up user or the permission table is trusted
+
+DEFAULT_TABLE = default_table()
 
 
-def can_menu(roles: list[str], menu: str) -> bool:
-    menu = MENU_INHERITS.get(menu, menu)
-    mod = next((k for k, ids in MENUS.items() if menu in ids), None)
-    for r in roles:
-        mods, only = ROLE_ACCESS.get(r, ([], None))
-        if mod in mods and (only is None or menu in only):
-            return True
-    return False
+def can_menu(roles: list[str], menu: str, action: str = "view", table: Table | None = None) -> bool:
+    return action in perms_for(roles, DEFAULT_TABLE if table is None else table).get(menu, [])
 
 
 @dataclass
@@ -90,12 +57,21 @@ class User:
     name: str = ""
     roles: list[str] = field(default_factory=list)
     active: bool = True
+    # menu -> actions from the database; None = the built-in defaults (no database)
+    perms: dict[str, list[str]] | None = None
+
+    def menu_perms(self) -> dict[str, list[str]]:
+        return self.perms if self.perms is not None else perms_for(self.roles, DEFAULT_TABLE)
+
+    def can_do(self, menu: str, action: str = "view") -> bool:
+        return action in self.menu_perms().get(menu, [])
 
     def can(self, perm: str) -> bool:
-        return bool(PERMISSIONS.get(perm, set()) & set(self.roles))
+        """An older permission name; workflow steps live in the approval flows (flows.py)."""
+        return perm in PERM_MENU and self.can_do(*PERM_MENU[perm])
 
     def menus(self) -> list[str]:
-        return [m for ids in MENUS.values() for m in ids if can_menu(self.roles, m)]
+        return [m for m in ALL_MENUS if self.can_do(m)]
 
     def to_dict(self) -> dict[str, Any]:
         return {"email": self.email, "name": self.name, "roles": self.roles, "active": self.active}
@@ -149,10 +125,34 @@ def verify_token(secret: str, token: str) -> User:
 
 
 _user_cache: dict[tuple[str, str | None, str], tuple[float, dict[str, Any] | None]] = {}
+_table_cache: dict[tuple[str, str | None], tuple[float, Table]] = {}
 
 
 def clear_user_cache() -> None:
     _user_cache.clear()
+    _table_cache.clear()
+
+
+def permission_table(settings: Settings) -> Table:
+    """role -> menu -> actions from `role_perms`, or the defaults without a database."""
+    if not settings.database_url:
+        return DEFAULT_TABLE
+    from ocl_api.db import connect
+
+    key = (settings.database_url, settings.database_schema)
+    hit = _table_cache.get(key)
+    if hit and hit[0] > time.monotonic():
+        return hit[1]
+    table: Table = {}
+    with connect(settings.database_url, settings.database_schema) as conn:
+        for r in conn.execute("SELECT role_id, menu, action FROM role_perms"):
+            table.setdefault(r["role_id"], {}).setdefault(r["menu"], set()).add(r["action"])
+    _table_cache[key] = (time.monotonic() + USER_CACHE_TTL, table)
+    return table
+
+
+def user_perms(settings: Settings, roles: list[str]) -> dict[str, list[str]]:
+    return perms_for(roles, permission_table(settings))
 
 
 def _stored_user(settings: Settings, email: str) -> dict[str, Any] | None:
@@ -179,10 +179,14 @@ def current_user(request: Request, settings: Settings = Depends(get_settings)) -
     # The users table, not the token, decides: a suspended user is refused and a role
     # change applies within USER_CACHE_TTL, although the web session lives for 8 hours.
     stored = _stored_user(settings, user.email)
-    if stored is None or not stored["active"]:
+    if stored is None or not stored["usable"]:
         raise HTTPException(401, "บัญชีนี้ถูกระงับหรือไม่มีในระบบ")
+    roles = list(stored["roles"])
     return User(
-        email=stored["email"], name=stored["name"] or user.name, roles=list(stored["roles"])
+        email=stored["email"],
+        name=stored["name"] or user.name,
+        roles=roles,
+        perms=user_perms(settings, roles),
     )
 
 
@@ -199,11 +203,11 @@ def require(perm: str):
     return dep
 
 
-def require_menu(*menus: str):
-    """Endpoint guard by menu id (lib/nav.ts): the user must see at least one of `menus`."""
+def require_menu(*menus: str, action: str = "view"):
+    """Endpoint guard by menu id (lib/nav.ts): the user holds `action` on at least one."""
 
     def dep(user: User = Depends(current_user)) -> User:
-        if not any(can_menu(user.roles, m) for m in menus):
+        if not any(user.can_do(m, action) for m in menus):
             raise HTTPException(403, "บัญชีนี้ไม่มีสิทธิ์ในเมนูนี้")
         return user
 

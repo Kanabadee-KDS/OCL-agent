@@ -3,18 +3,14 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useSession } from "next-auth/react";
 import { curricula, fmtTime, PART_LABELS, STATUS_KIND, type CurriculumDetail } from "@/lib/api";
 import { Ic, Note, PageHead, Pill } from "@/components/ui";
-import { can } from "@/lib/perm";
 
 const STEPS: [string, string][] = [["import", "ร่างนำเข้าหลักสูตร"], ["review", "คณะตรวจสอบ"], ["verified", "ตรวจสอบสำเร็จ"], ["published", "เผยแพร่แล้ว"]];
 const ACTION_TH: Record<string, string> = { submit: "ส่งให้คณะตรวจสอบ", return: "ส่งคืนเป็นร่าง", check: "ติ๊กตรวจสอบหมวด", verify: "ตรวจสอบสำเร็จ", publish: "เปิดเผยแพร่", unpublish: "ปิดการเผยแพร่" };
 
 export function CurriculumClient() {
   const { id } = useParams<{ id: string }>();
-  const { data: session } = useSession();
-  const roles = session?.user?.roles;
   const [d, setD] = useState<CurriculumDetail | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [note, setNote] = useState("");
@@ -39,9 +35,11 @@ export function CurriculumClient() {
   const stepIdx = STEPS.findIndex(([k]) => k === d.status);
   const checked = d.faculty_checked ?? {};
   const bothChecked = Boolean(checked["3"] && checked["4"]);
-  const canSubmit = can(roles, "curriculum_submit");
-  const canVerify = can(roles, "curriculum_verify");
-  const canPublish = can(roles, "curriculum_publish");
+  // who acts at each step comes from the approval settings (flow `curriculum`), via the API
+  const canSubmit = d.allowed.submit;
+  const canVerify = d.allowed.review;
+  const canPublish = d.allowed.publish;
+  const stepWho = (i: number) => d.flow.steps[i]?.position || d.flow.steps[i]?.label || "";
   const locked = d.status === "verified" || d.status === "published";
   return (
     <>
@@ -70,7 +68,7 @@ export function CurriculumClient() {
             <>
               <div className="small">ร่างจากการนำเข้าด้วย AI · ส่วนกลาง/หลักสูตรตรวจและแก้ได้ทุกส่วนที่ <Link href={`/import/${d.job_id}`}>ข้อมูลที่นำเข้า</Link> แล้วส่งให้คณะตรวจสอบหมวด 3–4</div>
               <textarea className="inp" rows={2} style={{ height: "auto", padding: 8 }} placeholder="หมายเหตุถึงคณะ (ไม่บังคับ)" value={note} onChange={(e) => setNote(e.target.value)} />
-              <div><button className="btn primary" disabled={!canSubmit || busy} onClick={() => act("submit")}>ส่งให้คณะตรวจสอบ</button>{!canSubmit && <span className="small faint"> · เฉพาะผู้ดูแลส่วนกลาง/ผู้ตรวจสอบระดับหลักสูตร</span>}</div>
+              <div><button className="btn primary" disabled={!canSubmit || busy} onClick={() => act("submit")}>ส่งให้คณะตรวจสอบ</button>{!canSubmit && <span className="small faint"> · ขั้นนี้ไม่ใช่ของบทบาทคุณ (ดูการตั้งค่าการอนุมัติ)</span>}</div>
             </>
           )}
           {d.status === "review" && (
@@ -96,7 +94,7 @@ export function CurriculumClient() {
               <div className="row">
                 {d.status === "verified" && <button className="btn primary" disabled={!canPublish || busy} onClick={() => act("publish")}>เปิดเผยแพร่</button>}
                 {d.status === "published" && <button className="btn" disabled={!canPublish || busy} onClick={() => act("unpublish")}>ปิดการเผยแพร่</button>}
-                {!canPublish && <span className="small faint">เปิด/ปิดการเผยแพร่โดยผู้ดูแลส่วนกลาง</span>}
+                {!canPublish && <span className="small faint">{stepWho(2)} · ทำได้เฉพาะผู้ดำเนินการขั้นที่ 3 ตามการตั้งค่าการอนุมัติ</span>}
               </div>
             </>
           )}

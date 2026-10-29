@@ -20,7 +20,7 @@ from pydantic import BaseModel
 
 from ocl_api.auth import REQUIRE_IMPORT_READ, REQUIRE_IMPORT_WRITE, User, current_user
 from ocl_api.config import Settings, get_settings
-from ocl_api.curricula import FACULTY_EDITABLE_PARTS
+from ocl_api.curricula import FACULTY_EDITABLE_PARTS, reviewer_may_edit
 from ocl_api.jobs import ALL_PARTS, PARTS, JobStore, make_store
 from ocl_api.worker import process_job
 
@@ -162,8 +162,10 @@ def _check_edit_allowed(store: JobStore, job_id: str, key: str, user: User) -> N
         raise HTTPException(409, "คู่มือหลักสูตรนี้ตรวจสอบสำเร็จแล้ว ถูกล็อก แก้ได้ผ่าน สมอ.08 เท่านั้น")
     if user.can("import_write"):
         return
-    if status == "review" and user.can("curriculum_verify") and key in FACULTY_EDITABLE_PARTS:
-        return
+    if status == "review" and key in FACULTY_EDITABLE_PARTS:
+        s = get_settings()
+        if s.database_url and reviewer_may_edit(s.database_url, s.database_schema, job_id, user):
+            return
     raise HTTPException(403, "บัญชีนี้ไม่มีสิทธิ์แก้ไขส่วนนี้")
 
 

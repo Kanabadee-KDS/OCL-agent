@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { can } from "@/lib/perm";
+import { canMenu } from "@/lib/nav";
 import { api, fmtBytes, fmtTime, hasSummary, JOB_STATUS_TH as STATUS_TH, PART_LABELS, providerLabel, type Job } from "@/lib/api";
 import { Ic, Note, PageHead, Pill, Steps } from "@/components/ui";
 
@@ -15,7 +15,7 @@ const RECENT = 8; // rows on this page; the rest are on /import/history
 export default function ImportPage() {
   const router = useRouter();
   const { data: session } = useSession();
-  const canWrite = can(session?.user?.roles, "import_write");
+  const canWrite = canMenu(session?.user?.perms, "c3", "add");
   const [provider, setProvider] = useState<"ollama" | "none" | "gemini">("ollama");
   const [target, setTarget] = useState("");
   const [file, setFile] = useState<File | null>(null);

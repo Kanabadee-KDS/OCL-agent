@@ -2,16 +2,20 @@
 
 import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { Ic, Note } from "@/components/ui";
-import { roleLabel } from "@/lib/perm";
-import { canMenu, menuOfPath, visibleNav, NAV } from "@/lib/nav";
+import { ROLES, roleLabel } from "@/lib/perm";
+import { canMenu, menuOfPath, visibleNav, NAV, type Perms } from "@/lib/nav";
 import { LogoutButton } from "@/components/logout";
 
 const menuLabel = (id: string) =>
   NAV.flatMap((m) => m.secs.flatMap((s) => s.items)).find((i) => i.id === id)?.label ?? id;
 
-export type ShellUser = { name: string; email: string; roles: string[] };
+export type ShellUser = {
+  name: string; email: string; roles: string[]; perms: Perms;
+  roleNames: Record<string, string>; activeRole: string | null;
+};
 
 const NAV_KEY = "ocl.nav.collapsed"; // per-browser convenience only
 const SMALL = "(max-width:1024px)"; // same breakpoint as design.css off-canvas nav
@@ -45,13 +49,24 @@ export function Shell({ user, children }: { user: ShellUser; children: React.Rea
   const small = useSyncExternalStore(subscribeSmall, () => window.matchMedia(SMALL).matches, () => false);
   const [open, setOpen] = useState(false);
   const path = usePathname();
-  const nav = visibleNav(user.roles);
+  const nav = visibleNav(user.perms);
+  const roleText = user.activeRole ? roleLabel([user.activeRole], user.roleNames) : roleLabel(user.roles, user.roleNames);
+  const roleStyle = { background: "var(--red-soft)", borderColor: "transparent", color: "var(--red-ink)", fontWeight: 600 };
+  const { update } = useSession();
+  const router = useRouter();
+  const [switching, setSwitching] = useState(false);
+  async function switchRole(role: string) {
+    setSwitching(true);
+    await update({ activeRole: role || null });
+    router.refresh();
+    setSwitching(false);
+  }
   const activeMenu = menuOfPath(path);
   // a module starts open when it holds the current page; the user can open/close any module
   const [modOpen, setModOpen] = useState<Record<string, boolean>>({});
   const isOpen = (k: string, hasActive: boolean) => modOpen[k] ?? hasActive;
-  // per-page permission (the API checks again on every call): pages of a menu the roles do not see
-  const denied = activeMenu !== undefined && !canMenu(user.roles, activeMenu);
+  // per-page permission (the API checks again on every call): pages of a menu the user may not view
+  const denied = activeMenu !== undefined && !canMenu(user.perms, activeMenu);
   function toggle() {
     if (small) setOpen((o) => !o);
     else setCollapsedStore(!collapsed);
@@ -124,7 +139,7 @@ export function Shell({ user, children }: { user: ShellUser; children: React.Rea
         </nav>
         <div className="nav-foot">
           <span>OCR Agent</span>
-          <span>{roleLabel(user.roles)}</span>
+          <span>{roleText}</span>
         </div>
       </aside>
       <div className="main">
@@ -146,9 +161,26 @@ export function Shell({ user, children }: { user: ShellUser; children: React.Rea
             <span className="kbd">Enter</span>
           </label>
           <div style={{ flex: 1 }} />
-          <span className="btn role-btn" title={user.email} style={{ background: "var(--red-soft)", borderColor: "transparent", color: "var(--red-ink)", fontWeight: 600 }}>
-            {user.name} · {roleLabel(user.roles)}
-          </span>
+          {user.roles.length > 1 ? (
+            // US-U-04: a user with several groups works as one of them; the menus follow
+            <label className="btn role-btn" title={`${user.email} · สลับบทบาท`} style={roleStyle}>
+              {user.name} ·
+              <select
+                aria-label="สลับบทบาท"
+                value={user.activeRole ?? ""}
+                disabled={switching}
+                onChange={(e) => switchRole(e.target.value)}
+                style={{ border: 0, background: "transparent", color: "inherit", font: "inherit", fontWeight: 600, cursor: "pointer" }}
+              >
+                <option value="">ทุกบทบาท</option>
+                {user.roles.map((r) => <option key={r} value={r}>{user.roleNames[r] ?? ROLES[r] ?? r}</option>)}
+              </select>
+            </label>
+          ) : (
+            <span className="btn role-btn" title={user.email} style={roleStyle}>
+              {user.name} · {roleText}
+            </span>
+          )}
           <span className="av" title={user.email} style={{ background: "var(--nav)", color: "#fff" }}>{initials}</span>
           <LogoutButton />
         </header>
@@ -157,7 +189,7 @@ export function Shell({ user, children }: { user: ShellUser; children: React.Rea
             <section className="card pad stack" style={{ maxWidth: 720 }}>
               <h1 className="h1">ไม่มีสิทธิ์ในเมนูนี้</h1>
               <Note kind="warn">
-                บัญชี {user.email} มีบทบาท {roleLabel(user.roles)} ซึ่งไม่ครอบคลุมเมนู &ldquo;{menuLabel(activeMenu ?? "")}&rdquo; ติดต่อผู้ดูแลส่วนกลางหากต้องการสิทธิ์เพิ่ม
+                บัญชี {user.email} มีบทบาท {roleText} ซึ่งไม่ครอบคลุมเมนู &ldquo;{menuLabel(activeMenu ?? "")}&rdquo; ติดต่อผู้ดูแลส่วนกลางหากต้องการสิทธิ์เพิ่ม
               </Note>
               <Link href="/" className="btn" style={{ alignSelf: "flex-start" }}>กลับหน้าแรก</Link>
             </section>

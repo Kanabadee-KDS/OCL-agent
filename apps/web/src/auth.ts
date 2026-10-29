@@ -16,7 +16,11 @@ export async function apiToken(claims: { sub: string; name?: string; roles: stri
     .sign(secret());
 }
 
-type ApiUser = { email: string; name: string; roles: string[]; active: boolean };
+type Perms = Record<string, string[]>; // menu id -> actions (ocl_api.perms)
+type ApiUser = {
+  email: string; name: string; roles: string[]; active: boolean; perms: Perms;
+  role_names: Record<string, string>; active_role: string | null;
+};
 
 async function apiCall(path: "lookup" | "credentials" | "refresh", body: Record<string, string>): Promise<Response> {
   const token = await apiToken({ sub: "web", name: "web", roles: ["service"] });
@@ -39,9 +43,9 @@ async function apiAuth(path: "lookup" | "credentials", body: Record<string, stri
 const RECHECK_SECONDS = 60;
 
 /** Current user, "gone" when suspended or removed, null when the API cannot tell (keep the session). */
-async function recheck(email: string): Promise<ApiUser | "gone" | null> {
+async function recheck(email: string, role?: string | null): Promise<ApiUser | "gone" | null> {
   try {
-    const r = await apiCall("refresh", { email });
+    const r = await apiCall("refresh", role ? { email, role } : { email });
     if (r.status === 404) return "gone";
     return r.ok ? ((await r.json()) as ApiUser) : null;
   } catch {
@@ -63,7 +67,7 @@ export const authConfig: NextAuthConfig = {
       credentials: { username: { label: "บัวศรีไอดี" }, password: { label: "รหัสผ่าน", type: "password" } },
       async authorize(c) {
         const u = await apiAuth("credentials", { username: String(c?.username ?? ""), password: String(c?.password ?? "") });
-        return u ? { id: u.email, email: u.email, name: u.name, roles: u.roles } : null;
+        return u ? { id: u.email, email: u.email, name: u.name, roles: u.roles, perms: u.perms, roleNames: u.role_names } : null;
       },
     }),
   ],
@@ -72,23 +76,37 @@ export const authConfig: NextAuthConfig = {
       if (account?.provider === "google") {
         const u = await apiAuth("lookup", { email: user.email ?? "" });
         if (!u) return "/login?error=NotRegistered";
-        (user as { roles?: string[] }).roles = u.roles;
+        Object.assign(user, { roles: u.roles, perms: u.perms, roleNames: u.role_names });
         user.name = u.name || user.name;
       }
       return true;
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       const now = Math.floor(Date.now() / 1000);
       if (user) {
-        token.roles = (user as { roles?: string[] }).roles ?? [];
+        const u = user as { roles?: string[]; perms?: Perms; roleNames?: Record<string, string> };
+        token.roles = u.roles ?? [];
+        token.perms = u.perms ?? {};
+        token.roleNames = u.roleNames ?? {};
+        token.activeRole = null;
         token.checkedAt = now;
         return token;
       }
-      if (!token.email || now - Number(token.checkedAt ?? 0) < RECHECK_SECONDS) return token;
-      const u = await recheck(token.email);
+      // role switch from the top bar (useSession().update): re-read the menus of that group now
+      if (trigger === "update" && session && "activeRole" in session) {
+        token.activeRole = (session as { activeRole?: string | null }).activeRole || null;
+        token.checkedAt = 0;
+      }
+      // sessions signed before FS-1a carry no menus: re-check them at once
+      const fresh = token.perms && now - Number(token.checkedAt ?? 0) < RECHECK_SECONDS;
+      if (!token.email || fresh) return token;
+      const u = await recheck(token.email, token.activeRole as string | null | undefined);
       if (u === "gone") return null; // Auth.js clears the session cookie
       if (u) {
         token.roles = u.roles;
+        token.perms = u.perms;
+        token.roleNames = u.role_names;
+        token.activeRole = u.active_role;
         token.name = u.name || token.name;
       }
       token.checkedAt = now;
@@ -96,6 +114,9 @@ export const authConfig: NextAuthConfig = {
     },
     async session({ session, token }) {
       session.user.roles = (token.roles as string[] | undefined) ?? [];
+      session.user.perms = (token.perms as Perms | undefined) ?? {};
+      session.user.roleNames = (token.roleNames as Record<string, string> | undefined) ?? {};
+      session.user.activeRole = (token.activeRole as string | null | undefined) ?? null;
       return session;
     },
   },
