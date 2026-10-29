@@ -14,7 +14,8 @@ Who acts comes from the approval flow `curriculum` (flows.py, set on the approva
 The administrators may act on any step. E-mails (outbox) follow the flow's switches: the next
 step is told, the sender hears of each outcome, and an overdue review is reminded once a day.
 After "verified" the data is locked: edits only through สมอ.08 (BR-06), not in this POC.
-Every transition is a row in `curriculum_events` and refreshes the draft's snapshot
+Every transition is a row in `curriculum_events`. The data itself lives in the draft's
+sections (sections.py, หมวด 0–5) and is edited there under the same rules; the import job's
 from the import job's parts (with the reviewer's edits applied).
 """
 
@@ -30,6 +31,15 @@ from ocl_api.db import Jsonb, connect
 from ocl_api.flows import FlowStore, can_act, today_th
 from ocl_api.jobs import PARTS
 from ocl_api.mail import Outbox
+from ocl_api.sections import (
+    REVIEW_EDITABLE,
+    SECTIONS,
+    master_columns,
+    sections_of_part,
+    to_parts,
+    with_part,
+    write_all,
+)
 
 FLOW = "curriculum"
 SUBMIT, REVIEW, PUBLISH = 0, 1, 2  # step index in the flow
@@ -41,7 +51,6 @@ STATUSES: dict[str, str] = {
     "published": "เผยแพร่แล้ว",
 }
 FACULTY_SECTIONS = ("3", "4")  # หมวด 3 PLO/KSEC · หมวด 4 Curriculum Mapping
-FACULTY_EDITABLE_PARTS = {"plo", "ksec", "mapping"}
 ACTIONS = {
     "submit": "ส่งให้คณะตรวจสอบ",
     "return": "ส่งคืนเป็นร่าง",
@@ -86,8 +95,10 @@ class CurriculumStore:
                 """
                 SELECT d.id, d.job_id, d.program_code, d.name_th, d.level, d.start_year, d.status,
                        d.faculty_checked, d.review_due_at, d.finalized_at, d.updated_at,
-                       d.data->'parts'->'info'->'data'->'values'->>'faculty' AS faculty,
-                       d.data->'parts'->'info'->'data'->'values'->>'revision_type' AS revision_type,
+                       d.faculty, d.created_by,
+                       (SELECT s.data->'info'->'values'->>'revision_type'
+                          FROM curriculum_sections s
+                          WHERE s.draft_id = d.id AND s.section = '0') AS revision_type,
                        (SELECT jsonb_build_object('ts', e.ts, 'by', e.by,
                                                   'action', e.action, 'note', e.note)
                           FROM curriculum_events e WHERE e.draft_id = d.id
@@ -102,9 +113,9 @@ class CurriculumStore:
     def get(self, draft_id: int, user: User | None = None) -> dict[str, Any]:
         with self._conn() as conn:
             r = conn.execute(
-                "SELECT *, data->'parts'->'info'->'data'->'values'->>'faculty' AS faculty, "
-                "data->'parts'->'info'->'data'->'values'->>'revision_type' AS revision_type "
-                "FROM curriculum_drafts WHERE id = %s",
+                "SELECT d.*, (SELECT s.data->'info'->'values'->>'revision_type' "
+                "FROM curriculum_sections s WHERE s.draft_id = d.id AND s.section = '0') "
+                "AS revision_type FROM curriculum_drafts d WHERE d.id = %s",
                 (draft_id,),
             ).fetchone()
             if r is None:
@@ -114,17 +125,32 @@ class CurriculumStore:
                 "WHERE draft_id = %s ORDER BY ts, id",
                 (draft_id,),
             ).fetchall()
+            srows = conn.execute(
+                "SELECT section, data, updated_by, updated_at FROM curriculum_sections "
+                "WHERE draft_id = %s",
+                (draft_id,),
+            ).fetchall()
         out = self._row(r)
         data = r["data"] or {}
-        parts = data.get("parts") or {}
+        imported = data.get("parts") or {}  # finalize snapshot: when each part was confirmed
+        current = to_parts({x["section"]: x["data"] for x in srows})
         out["parts"] = {
             k: {
-                "count": _count(parts.get(k, {}).get("data") or {}),
-                "confirmed_at": parts.get(k, {}).get("confirmed_at"),
-                "edited": parts.get(k, {}).get("edited"),
+                "count": _count(current.get(k) or {}),
+                "confirmed_at": (imported.get(k) or {}).get("confirmed_at"),
+                "edited": (imported.get(k) or {}).get("edited"),
             }
             for k in PARTS
-            if k in parts
+            if k in current
+        }
+        out["sections"] = {
+            x["section"]: {
+                "label": SECTIONS[x["section"]],
+                "parts": sorted(x["data"]),
+                "updated_by": x["updated_by"],
+                "updated_at": _iso(x["updated_at"]),
+            }
+            for x in sorted(srows, key=lambda x: x["section"])
         }
         checks = data.get("checks") or []
         out["checks"] = {
@@ -142,7 +168,139 @@ class CurriculumStore:
                 "review": can_act(roles, steps[REVIEW]),
                 "publish": can_act(roles, steps[PUBLISH]),
             }
+            out["editable"] = [
+                n for n in SECTIONS if _edit_problem(r["status"], steps, user, n, None) is None
+            ]
         return out
+
+    # ---------- sections (หมวด 0–5) ----------
+
+    def create(self, name_th: str, level: str | None, faculty: str | None, user: User) -> dict:
+        """เพิ่มหลักสูตร: a blank draft, filled on the form instead of from a book."""
+        name_th = name_th.strip()
+        if not name_th:
+            raise HTTPException(400, "ต้องมีชื่อหลักสูตร")
+        _, steps, _ = self.flows.steps(FLOW)
+        _need(user, steps[SUBMIT])
+        blank: dict[str, dict[str, Any]] = {n: {} for n in SECTIONS}
+        blank["0"] = {"info": {"values": {"name_th": name_th, "level": level, "faculty": faculty}}}
+        with self._conn() as conn, conn.transaction():
+            r = conn.execute(
+                "INSERT INTO curriculum_drafts (job_id, name_th, level, faculty, data, created_by) "
+                "VALUES (NULL, %s, %s, %s, '{}'::jsonb, %s) RETURNING id",
+                (name_th, level, faculty, user.email),
+            ).fetchone()
+            write_all(conn, r["id"], blank, user.email, "เพิ่มหลักสูตร")
+            conn.execute(
+                "INSERT INTO curriculum_events "
+                "(draft_id, by, action, from_status, to_status, note) "
+                "VALUES (%s, %s, 'create', NULL, 'import', %s)",
+                (r["id"], user.email, "เพิ่มหลักสูตรโดยไม่นำเข้าจากเล่ม"),
+            )
+        return self.get(r["id"], user)
+
+    def sections(self, draft_id: int) -> dict[str, Any]:
+        with self._conn() as conn:
+            rows = conn.execute(
+                "SELECT section, data, updated_by, updated_at FROM curriculum_sections "
+                "WHERE draft_id = %s ORDER BY section",
+                (draft_id,),
+            ).fetchall()
+        if not rows:
+            raise HTTPException(404, "ไม่พบคู่มือหลักสูตร")
+        return {
+            x["section"]: {
+                "label": SECTIONS[x["section"]],
+                "data": x["data"],
+                "updated_by": x["updated_by"],
+                "updated_at": _iso(x["updated_at"]),
+            }
+            for x in rows
+        }
+
+    def save_section(
+        self, draft_id: int, n: str, data: dict[str, Any], user: User, why: str | None = None
+    ) -> dict[str, Any]:
+        """Replace one section, if this user may change it in the draft's current state."""
+        if n not in SECTIONS:
+            raise HTTPException(404, "ไม่มีหมวดนี้")
+        with self._conn() as conn, conn.transaction():
+            d = conn.execute(
+                "SELECT id, status, flow_version FROM curriculum_drafts WHERE id = %s FOR UPDATE",
+                (draft_id,),
+            ).fetchone()
+            if d is None:
+                raise HTTPException(404, "ไม่พบคู่มือหลักสูตร")
+            old = conn.execute(
+                "SELECT data FROM curriculum_sections WHERE draft_id = %s AND section = %s",
+                (draft_id, n),
+            ).fetchone()
+            old_data = old["data"] if old else {}
+            _, steps, _ = self.flows.steps(FLOW, d["flow_version"])
+            problem = _edit_problem(d["status"], steps, user, n, (old_data, data))
+            if problem:
+                raise HTTPException(*problem)
+            if data == old_data:
+                return self.sections(draft_id)[n]
+            conn.execute(
+                "INSERT INTO curriculum_sections (draft_id, section, data, updated_by) "
+                "VALUES (%s, %s, %s, %s) ON CONFLICT (draft_id, section) DO UPDATE SET "
+                "data = EXCLUDED.data, updated_by = EXCLUDED.updated_by, updated_at = now()",
+                (draft_id, n, Jsonb(data), user.email),
+            )
+            conn.execute(
+                "INSERT INTO curriculum_section_history (draft_id, section, by, why, data) "
+                "VALUES (%s, %s, %s, %s, %s)",
+                (draft_id, n, user.email, why or "แก้ไข", Jsonb(data)),
+            )
+            conn.execute(
+                "INSERT INTO curriculum_events "
+                "(draft_id, by, action, from_status, to_status, note) "
+                "VALUES (%s, %s, 'edit', %s, %s, %s)",
+                (draft_id, user.email, d["status"], d["status"], f"แก้{SECTIONS[n]}"),
+            )
+            if n == "0":
+                cols = master_columns({"0": data})
+                conn.execute(
+                    "UPDATE curriculum_drafts SET program_code = %s, "
+                    "name_th = coalesce(%s, name_th), "
+                    "level = %s, start_year = %s, faculty = %s, updated_at = now() WHERE id = %s",
+                    (cols["program_code"], cols["name_th"], cols["level"], cols["start_year"],
+                     cols["faculty"], draft_id),
+                )  # fmt: skip
+            else:
+                conn.execute(
+                    "UPDATE curriculum_drafts SET updated_at = now() WHERE id = %s", (draft_id,)
+                )
+        return self.sections(draft_id)[n]
+
+    def check_part(self, job_id: str, key: str, user: User) -> None:
+        """An edit on the import's review page after finalize: allowed under the section rules."""
+        d = self._draft_of_job(job_id)
+        if d is None:
+            return
+        _, steps, _ = self.flows.steps(FLOW, d["flow_version"])
+        for n in sections_of_part(key):
+            problem = _edit_problem(d["status"], steps, user, n, None, part=key)
+            if problem:
+                raise HTTPException(*problem)
+
+    def sync_part(self, job_id: str, key: str, data: Any, user: User) -> None:
+        """Until the section editors exist (FS-2c), the import page's edits reach the sections."""
+        d = self._draft_of_job(job_id)
+        if d is None:
+            return
+        current = self.sections(d["id"])
+        for n in sections_of_part(key):
+            new = with_part(current[n]["data"], key, data, n)
+            self.save_section(d["id"], n, new, user, why=f"แก้จากหน้าตรวจงานนำเข้า ({key})")
+
+    def _draft_of_job(self, job_id: str) -> dict[str, Any] | None:
+        with self._conn() as conn:
+            return conn.execute(
+                "SELECT id, status, flow_version FROM curriculum_drafts WHERE job_id = %s",
+                (job_id,),
+            ).fetchone()
 
     def by_job(self, job_id: str) -> dict[str, Any] | None:
         with self._conn() as conn:
@@ -181,8 +339,7 @@ class CurriculumStore:
             raise HTTPException(400, f"action ต้องเป็น {', '.join(ACTIONS)}")
         with self._conn() as conn:
             row = conn.execute(
-                "SELECT id, job_id, status, faculty_checked, flow_version, name_th, "
-                "data->'parts'->'info'->'data'->'values'->>'faculty' AS faculty "
+                "SELECT id, job_id, status, faculty_checked, flow_version, name_th, faculty "
                 "FROM curriculum_drafts WHERE id = %s",
                 (draft_id,),
             ).fetchone()
@@ -244,19 +401,12 @@ class CurriculumStore:
             _from(status, "published", action)
             new_status = "verified"
             extra_sql = ", published_at = NULL"
-        snapshot = (
-            self._snapshot(row["job_id"]) if action in ("submit", "verify", "return") else None
-        )
         with self._conn() as conn:
             with conn.transaction():
                 conn.execute(
                     f"UPDATE curriculum_drafts SET status = %s, faculty_checked = %s, "
-                    f"updated_at = now(){extra_sql}"
-                    + (", data = %s" if snapshot is not None else "")
-                    + " WHERE id = %s",
-                    (new_status, Jsonb(checked_map))
-                    + ((Jsonb(snapshot),) if snapshot is not None else ())
-                    + (draft_id,),
+                    f"updated_at = now(){extra_sql} WHERE id = %s",
+                    (new_status, Jsonb(checked_map), draft_id),
                 )
                 conn.execute(
                     "INSERT INTO curriculum_events "
@@ -312,8 +462,7 @@ class CurriculumStore:
         today = today_th()
         with self._conn() as conn:
             rows = conn.execute(
-                "SELECT id, name_th, review_due_at, flow_version, "
-                "data->'parts'->'info'->'data'->'values'->>'faculty' AS faculty "
+                "SELECT id, name_th, review_due_at, flow_version, faculty "
                 "FROM curriculum_drafts WHERE status = 'review' AND review_due_at < %s",
                 (today,),
             ).fetchall()
@@ -335,39 +484,39 @@ class CurriculumStore:
             sent += m is not None
         return sent
 
-    def _snapshot(self, job_id: str) -> dict[str, Any] | None:
-        """Current parts (edits applied) + checks of the import job, like finalize does."""
-        try:
-            job = self.jobs.read(job_id)
-        except KeyError:
-            return None
-        parts = {}
-        for key in job.get("parts", PARTS):
-            p = self.jobs.read_part(job_id, key)
-            if p:
-                parts[key] = {
-                    "data": p["data"],
-                    "confirmed_at": p["confirmed_at"],
-                    "edited": p["edited"],
-                }
-        return {"job": job, "parts": parts, "checks": self.jobs.checks(job_id)}
-
 
 def _need(user: User, step: dict[str, Any]) -> None:
     if not can_act(user.roles, step):
         raise HTTPException(403, "บทบาทของคุณทำขั้นตอนนี้ไม่ได้ (ดูการตั้งค่าการอนุมัติ)")
 
 
-def reviewer_may_edit(url: str, schema: str | None, job_id: str, user: User) -> bool:
-    """While in review, step 2 of the draft's flow version may edit หมวด 3–4."""
-    with connect(url, schema) as conn:
-        r = conn.execute(
-            "SELECT flow_version FROM curriculum_drafts WHERE job_id = %s", (job_id,)
-        ).fetchone()
-    if r is None:
-        return False
-    _, steps, _ = FlowStore(url, schema).steps(FLOW, r["flow_version"])
-    return can_act(user.roles, steps[REVIEW])
+def _edit_problem(
+    status: str,
+    steps: list[dict[str, Any]],
+    user: User,
+    n: str,
+    change: tuple[dict, dict] | None,
+    part: str | None = None,
+) -> tuple[int, str] | None:
+    """Why `user` may not change section `n` now (status code, message), or None.
+
+    ร่าง: step 1 of the flow (who prepares and submits) · คณะตรวจสอบ: step 2, หมวด 3–4 only and
+    inside หมวด 4 the Mapping only (BRD 01 §2) · ตรวจสอบสำเร็จ/เผยแพร่: nobody, via สมอ.08."""
+    if status in ("verified", "published"):
+        return 409, "คู่มือหลักสูตรนี้ตรวจสอบสำเร็จแล้ว ถูกล็อก แก้ได้ผ่าน สมอ.08 เท่านั้น"
+    if status == "import":
+        return None if can_act(user.roles, steps[SUBMIT]) else (403, "บทบาทของคุณแก้ร่างนี้ไม่ได้")
+    if not can_act(user.roles, steps[REVIEW]) or n not in REVIEW_EDITABLE:
+        return 403, "ระหว่างคณะตรวจสอบ แก้ได้เฉพาะหมวด 3–4 โดยผู้ตรวจของคณะ"
+    allowed = REVIEW_EDITABLE[n]
+    if allowed is not None:
+        if part is not None and part not in allowed:
+            return 403, "หมวด 4 ระหว่างคณะตรวจสอบ แก้ได้เฉพาะ Curriculum Mapping"
+        if change is not None:
+            old, new = change
+            if any(old.get(k) != new.get(k) for k in set(old) | set(new) if k not in allowed):
+                return 403, "หมวด 4 ระหว่างคณะตรวจสอบ แก้ได้เฉพาะ Curriculum Mapping"
+    return None
 
 
 def _from(status: str, expected: str, action: str) -> None:

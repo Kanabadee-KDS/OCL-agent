@@ -120,7 +120,7 @@ export const fmtTime = (iso: string | null | undefined) => {
 
 // ---------- คู่มือหลักสูตร workflow ----------
 export type CurriculumRow = {
-  id: number; job_id: string; program_code: string | null; name_th: string | null; level: string | null; start_year: number | null;
+  id: number; job_id: string | null; program_code: string | null; name_th: string | null; level: string | null; start_year: number | null;
   status: "import" | "review" | "verified" | "published"; status_th: string; faculty_checked: Record<string, boolean>;
   review_due_at: string | null; finalized_at: string | null; updated_at: string | null; faculty: string | null; revision_type: string | null;
   last_event: { ts: string; by: string; action: string; note: string | null } | null;
@@ -133,12 +133,17 @@ export type CurriculumDetail = CurriculumRow & {
   // the approval flow `curriculum` (version this draft follows) and what this user may do in it
   flow: { version: number; steps: FlowStep[] };
   allowed: { submit: boolean; review: boolean; publish: boolean };
+  // หมวด 0–5 of the คู่มือ (ocl_api.sections) and which of them this user may change now
+  sections: Record<string, { label: string; parts: string[]; updated_by: string | null; updated_at: string | null }>;
+  editable: string[];
 };
 export type CurriculumList = { counts: Record<string, number>; items: CurriculumRow[]; statuses: Record<string, string>; actions: Record<string, string> };
 export const curricula = {
   list: () => fetch(`${API_BASE}/api/curricula`, { cache: "no-store" }).then(j<CurriculumList>),
   get: (id: number | string) => fetch(`${API_BASE}/api/curricula/${id}`, { cache: "no-store" }).then(j<CurriculumDetail>),
   byJob: (jobId: string) => fetch(`${API_BASE}/api/curricula/by-job/${jobId}`, { cache: "no-store" }).then(j<{ id: number; status: string }>),
+  create: (body: { name_th: string; level?: string | null; faculty?: string | null }) =>
+    fetch(`${API_BASE}/api/curricula`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then(j<CurriculumDetail>),
   transition: (id: number | string, body: { action: string; note?: string; section?: string; checked?: boolean }) =>
     fetch(`${API_BASE}/api/curricula/${id}/transition`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then(j<CurriculumDetail>),
 };

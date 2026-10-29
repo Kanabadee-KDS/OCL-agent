@@ -101,7 +101,7 @@ LOGIN_SCREENS = {"login", "login-ext"}  # drawn before sign-in, not in the route
 # Pages of the running web app (apps/web) and the mock page each one implements.
 BUILT: dict[str, str] = {
     "login": "มีแล้ว (บัวศรีไอดี+รหัสผ่าน · Google รอ OAuth client)",
-    "cur": "บางส่วน (รายการ + ตัวนับสถานะ · ยังไม่มีปุ่มเพิ่มหลักสูตร)",
+    "cur": "บางส่วน (รายการ + ตัวนับสถานะ + เพิ่มหลักสูตร · ข้อมูลหมวด 0–5 ของคู่มือเอง FS-2a)",
     "cur-edit": "บางส่วน (ดูข้อมูลที่นำเข้า · ยังไม่มีฟอร์มหมวด 0–5)",
     "fac-plo": "บางส่วน (workflow ส่งคณะตรวจในหน้าคู่มือ)",
     "fac-plo-edit": "บางส่วน (ติ๊กหมวด 3–4 · แก้ PLO/KSEC/Mapping)",

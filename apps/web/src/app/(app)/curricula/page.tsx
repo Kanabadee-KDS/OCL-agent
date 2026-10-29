@@ -2,9 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { canMenu } from "@/lib/nav";
 import { curricula, fmtTime, STATUS_KIND, type CurriculumList, type CurriculumRow } from "@/lib/api";
 import { Ic, Note, PageHead, Pill } from "@/components/ui";
-import { DataTable, Filters, Kpi, KpiRow, SearchBox, SelectFilter, type Column } from "@/components/kit";
+import { DataTable, Field, Filters, Kpi, KpiRow, Modal, SearchBox, SelectFilter, useToast, type Column } from "@/components/kit";
+
+const LEVELS = ["ปริญญาตรี", "ประกาศนียบัตรบัณฑิต", "ปริญญาโท", "ประกาศนียบัตรบัณฑิตชั้นสูง", "ปริญญาเอก"];
 import { options } from "@/lib/table";
 
 const KPI_SUB: Record<string, string> = {
@@ -60,6 +65,20 @@ export default function CurriculaPage() {
   const [err, setErr] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [f, setF] = useState({ status: "", faculty: "", level: "" });
+  const { data: session } = useSession();
+  const router = useRouter();
+  const toast = useToast();
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState({ name_th: "", level: "ปริญญาตรี", faculty: "" });
+  async function add() {
+    try {
+      const d = await curricula.create({ ...draft, faculty: draft.faculty || null });
+      toast("เพิ่มหลักสูตรแล้ว");
+      router.push(`/curricula/${d.id}`);
+    } catch (e) {
+      toast((e as Error).message, "err");
+    }
+  }
   useEffect(() => { curricula.list().then(setData).catch((e) => setErr((e as Error).message)); }, []);
   const items = data?.items ?? [];
   const set = (k: keyof typeof f) => (v: string) => setF((o) => ({ ...o, [k]: v }));
@@ -69,7 +88,12 @@ export default function CurriculaPage() {
         crumb={["บริหารข้อมูลหลักสูตร", "คู่มือหลักสูตร"]}
         title="คู่มือหลักสูตร"
         sub="สถานะของคู่มือหลักสูตรที่นำเข้าจากเล่มด้วย AI: ร่าง → คณะตรวจสอบ (5 วันทำการ แก้ได้เฉพาะหมวด 3–4) → ตรวจสอบสำเร็จ (ล็อก) → เผยแพร่"
-        actions={<Link href="/import" className="btn primary"><Ic name="ai" size={17} /> นำเข้าจากเล่มด้วย AI</Link>}
+        actions={
+          <>
+            {canMenu(session?.user?.perms, "c1", "add") && <button type="button" className="btn" onClick={() => setAdding(true)}><Ic name="plus" size={17} /> เพิ่มหลักสูตร</button>}
+            <Link href="/import" className="btn primary"><Ic name="ai" size={17} /> นำเข้าจากเล่มด้วย AI</Link>
+          </>
+        }
       />
       {err && <Note kind="warn">{err}</Note>}
       {!data && !err && <div className="card pad">กำลังโหลด…</div>}
@@ -99,6 +123,19 @@ export default function CurriculaPage() {
           />
         </>
       )}
+      <Modal
+        open={adding}
+        title="เพิ่มหลักสูตร"
+        onClose={() => setAdding(false)}
+        foot={<><button type="button" className="btn" onClick={() => setAdding(false)}>ยกเลิก</button><button type="button" className="btn primary" disabled={!draft.name_th.trim()} onClick={add}>สร้างร่าง</button></>}
+      >
+        <div className="stack">
+          <Field label="ชื่อหลักสูตร (ภาษาไทย)">{(id) => <input id={id} className="inp" value={draft.name_th} onChange={(e) => setDraft((o) => ({ ...o, name_th: e.target.value }))} placeholder="เช่น หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชา..." />}</Field>
+          <Field label="ระดับการศึกษา">{(id) => <select id={id} className="inp" value={draft.level} onChange={(e) => setDraft((o) => ({ ...o, level: e.target.value }))}>{LEVELS.map((l) => <option key={l}>{l}</option>)}</select>}</Field>
+          <Field label="คณะ/ส่วนงาน">{(id) => <><input id={id} className="inp" list="faculties" value={draft.faculty} onChange={(e) => setDraft((o) => ({ ...o, faculty: e.target.value }))} /><datalist id="faculties">{options(data?.items ?? [], (c) => c.faculty).map((x) => <option key={x} value={x} />)}</datalist></>}</Field>
+          <Note kind="info">ร่างใหม่ยังไม่มีข้อมูล · กรอกหมวด 0–5 ในฟอร์มของคู่มือ หรือใช้ &ldquo;นำเข้าจากเล่มด้วย AI&rdquo; เพื่อเติมจากเล่มหลักสูตร</Note>
+        </div>
+      </Modal>
     </>
   );
 }

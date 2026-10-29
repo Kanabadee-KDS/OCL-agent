@@ -18,6 +18,7 @@ import psycopg
 
 from ocl_api.db import Jsonb, connect
 from ocl_api.jobs import PARTS, JobStore, _changed_fields, now_iso, safe_filename
+from ocl_api.sections import from_parts, master_columns, write_all
 
 
 class PgJobStore(JobStore):
@@ -244,25 +245,30 @@ class PgJobStore(JobStore):
                     "confirmed_at": part["confirmed_at"],
                     "edited": part["edited"],
                 }
-        iv = ((snapshot.get("info") or {}).get("data") or {}).get("values") or {}
-        with self._conn() as conn:
-            conn.execute(
+        sections = from_parts({k: p["data"] for k, p in snapshot.items()})
+        cols = master_columns(sections)
+        with self._conn() as conn, conn.transaction():
+            r = conn.execute(
                 """
                 INSERT INTO curriculum_drafts
-                    (job_id, program_code, name_th, level, start_year, data)
-                VALUES (%s, %s, %s, %s, %s, %s)
+                    (job_id, program_code, name_th, level, start_year, faculty, data)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (job_id) DO UPDATE SET
                     program_code = EXCLUDED.program_code, name_th = EXCLUDED.name_th,
                     level = EXCLUDED.level, start_year = EXCLUDED.start_year,
-                    data = EXCLUDED.data, updated_at = now()
+                    faculty = EXCLUDED.faculty, data = EXCLUDED.data, updated_at = now()
+                RETURNING id
                 """,
                 (
                     job_id,
-                    iv.get("program_code"),
-                    iv.get("name_th"),
-                    iv.get("level"),
-                    iv.get("start_year"),
+                    cols["program_code"],
+                    cols["name_th"],
+                    cols["level"],
+                    cols["start_year"],
+                    cols["faculty"],
                     Jsonb({"job": job, "parts": snapshot, "checks": self.checks(job_id)}),
                 ),
-            )
+            ).fetchone()
+            # the import fills the draft's sections; from here on they are edited there
+            write_all(conn, r["id"], sections, "import", f"บันทึกเข้าระบบจากงาน {job_id}")
         return job

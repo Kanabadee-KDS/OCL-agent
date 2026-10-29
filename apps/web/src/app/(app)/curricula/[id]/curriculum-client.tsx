@@ -7,7 +7,7 @@ import { curricula, fmtTime, PART_LABELS, STATUS_KIND, type CurriculumDetail } f
 import { Ic, Note, PageHead, Pill } from "@/components/ui";
 
 const STEPS: [string, string][] = [["import", "ร่างนำเข้าหลักสูตร"], ["review", "คณะตรวจสอบ"], ["verified", "ตรวจสอบสำเร็จ"], ["published", "เผยแพร่แล้ว"]];
-const ACTION_TH: Record<string, string> = { submit: "ส่งให้คณะตรวจสอบ", return: "ส่งคืนเป็นร่าง", check: "ติ๊กตรวจสอบหมวด", verify: "ตรวจสอบสำเร็จ", publish: "เปิดเผยแพร่", unpublish: "ปิดการเผยแพร่" };
+const ACTION_TH: Record<string, string> = { create: "เพิ่มหลักสูตร", edit: "แก้ไขข้อมูล", submit: "ส่งให้คณะตรวจสอบ", return: "ส่งคืนเป็นร่าง", check: "ติ๊กตรวจสอบหมวด", verify: "ตรวจสอบสำเร็จ", publish: "เปิดเผยแพร่", unpublish: "ปิดการเผยแพร่" };
 
 export function CurriculumClient() {
   const { id } = useParams<{ id: string }>();
@@ -50,8 +50,8 @@ export function CurriculumClient() {
         sub={<>{d.level ?? "–"} · {d.faculty ?? "–"} · เริ่มใช้ {d.start_year ?? "–"} · รหัส สกอ. {d.program_code ?? "–"} · <Pill kind={STATUS_KIND[d.status]}>{d.status_th}</Pill>{d.review_due_at && d.status === "review" && <> · กำหนดตรวจภายใน {d.review_due_at}</>}</>}
         actions={
           <>
-            <Link href={`/import/${d.job_id}`} className="btn"><Ic name="eye" size={16} /> เปิดข้อมูลที่นำเข้า (10 ส่วน)</Link>
-            <Link href={`/import/${d.job_id}/done`} className="btn"><Ic name="chart" size={16} /> สรุปผลการนำเข้า</Link>
+            {d.job_id && <Link href={`/import/${d.job_id}`} className="btn"><Ic name="eye" size={16} /> เปิดข้อมูลที่นำเข้า (10 ส่วน)</Link>}
+            {d.job_id && <Link href={`/import/${d.job_id}/done`} className="btn"><Ic name="chart" size={16} /> สรุปผลการนำเข้า</Link>}
           </>
         }
       />
@@ -66,7 +66,7 @@ export function CurriculumClient() {
           <h2 className="h2">ขั้นตอนถัดไป</h2>
           {d.status === "import" && (
             <>
-              <div className="small">ร่างจากการนำเข้าด้วย AI · ส่วนกลาง/หลักสูตรตรวจและแก้ได้ทุกส่วนที่ <Link href={`/import/${d.job_id}`}>ข้อมูลที่นำเข้า</Link> แล้วส่งให้คณะตรวจสอบหมวด 3–4</div>
+              <div className="small">{d.job_id ? <>ร่างจากการนำเข้าด้วย AI · ผู้เตรียมร่างแก้ได้ทุกหมวดที่ <Link href={`/import/${d.job_id}`}>ข้อมูลที่นำเข้า</Link></> : "ร่างที่เพิ่มเอง · ฟอร์มกรอกหมวด 0–5 เปิดใช้ในงานถัดไป"} แล้วส่งให้คณะตรวจสอบหมวด 3–4</div>
               <textarea className="inp" rows={2} style={{ height: "auto", padding: 8 }} placeholder="หมายเหตุถึงคณะ (ไม่บังคับ)" value={note} onChange={(e) => setNote(e.target.value)} />
               <div><button className="btn primary" disabled={!canSubmit || busy} onClick={() => act("submit")}>ส่งให้คณะตรวจสอบ</button>{!canSubmit && <span className="small faint"> · ขั้นนี้ไม่ใช่ของบทบาทคุณ (ดูการตั้งค่าการอนุมัติ)</span>}</div>
             </>
@@ -74,11 +74,11 @@ export function CurriculumClient() {
           {d.status === "review" && (
             <>
               <div className="small">ผู้ตรวจสอบระดับส่วนงานตรวจหมวด 3 (PLO · KSEC) และหมวด 4 (Curriculum Mapping) แก้ได้เฉพาะ 2 หมวดนี้ ส่วนอื่นดูอย่างเดียว</div>
-              {[["3", "หมวด 3 PLO / KSEC", `/import/${d.job_id}`], ["4", "หมวด 4 Curriculum Mapping", `/import/${d.job_id}`]].map(([s, label, href]) => (
+              {[["3", "หมวด 3 PLO / KSEC", d.job_id ? `/import/${d.job_id}` : ""], ["4", "หมวด 4 Curriculum Mapping", d.job_id ? `/import/${d.job_id}` : ""]].map(([s, label, href]) => (
                 <label key={s} className="row card pad" style={{ padding: 10, gap: 10, cursor: canVerify ? "pointer" : "default", background: checked[s] ? "var(--ok-soft, #eef7ee)" : "var(--surface-2)" }}>
                   <input type="checkbox" checked={Boolean(checked[s])} disabled={!canVerify || busy} onChange={(e) => act("check", { section: s, checked: e.target.checked })} />
                   <span style={{ flex: 1 }}>{label} <span className="small faint">· ตรวจสอบหมวดนี้แล้ว</span></span>
-                  <Link href={href} className="btn xs" onClick={(e) => e.stopPropagation()}>เปิดตรวจ</Link>
+                  {href && <Link href={href} className="btn xs" onClick={(e) => e.stopPropagation()}>เปิดตรวจ</Link>}
                 </label>
               ))}
               <textarea className="inp" rows={2} style={{ height: "auto", padding: 8 }} placeholder="หมายเหตุ (จำเป็นเมื่อส่งคืน)" value={note} onChange={(e) => setNote(e.target.value)} />
@@ -100,7 +100,21 @@ export function CurriculumClient() {
           )}
         </section>
         <section className="card pad stack">
-          <h2 className="h2">ข้อมูลที่บันทึก (snapshot ล่าสุด)</h2>
+          <h2 className="h2">ข้อมูลคู่มือหลักสูตร</h2>
+          <div className="tbl-wrap">
+            <table className="tbl">
+              <thead><tr><th>หมวด</th><th>แก้ล่าสุด</th><th></th></tr></thead>
+              <tbody>
+                {Object.entries(d.sections).map(([n, s]) => (
+                  <tr key={n}>
+                    <td className="small">{s.label}</td>
+                    <td className="small">{s.updated_at ? `${fmtTime(s.updated_at)} · ${({ import: "จากการนำเข้า", system: "แปลงจากข้อมูลเดิม" } as Record<string, string>)[s.updated_by ?? ""] ?? s.updated_by}` : "–"}</td>
+                    <td>{d.editable.includes(n) ? <Pill kind="info">คุณแก้ได้</Pill> : <Pill kind="grey">ดูอย่างเดียว</Pill>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <div className="small faint">ผลตรวจความสอดคล้อง: <Pill kind="ok">ผ่าน {d.checks.pass}</Pill> <Pill kind="warn">ควรตรวจ {d.checks.warn}</Pill> <Pill kind="red">พบปัญหา {d.checks.fail}</Pill></div>
           <div className="tbl-wrap">
             <table className="tbl">
@@ -120,7 +134,7 @@ export function CurriculumClient() {
           <table className="tbl">
             <thead><tr><th>วันเวลา</th><th>ผู้ดำเนินการ</th><th>การดำเนินการ</th><th>สถานะ</th><th>หมายเหตุ</th></tr></thead>
             <tbody>
-              <tr><td className="small num">{fmtTime(d.finalized_at)}</td><td className="small">นำเข้าด้วย AI</td><td>บันทึกเข้าระบบ (ร่างนำเข้าหลักสูตร)</td><td className="small">import</td><td className="small">งาน {d.job_id}</td></tr>
+              {d.job_id && <tr><td className="small num">{fmtTime(d.finalized_at)}</td><td className="small">นำเข้าด้วย AI</td><td>บันทึกเข้าระบบ (ร่างนำเข้าหลักสูตร)</td><td className="small">import</td><td className="small">งาน {d.job_id}</td></tr>}
               {d.events.map((e, i) => (
                 <tr key={i}><td className="small num">{fmtTime(e.ts)}</td><td className="small">{e.by}</td><td>{ACTION_TH[e.action] ?? e.action}</td><td className="small">{e.from_status} → {e.to_status}</td><td className="small">{e.note ?? ""}</td></tr>
               ))}

@@ -37,6 +37,9 @@ def create_app() -> FastAPI:
         from ocl_api.db import migrate
 
         migrate(s.database_url, s.database_schema)
+        from ocl_api.sections import backfill
+
+        backfill(s.database_url, s.database_schema)  # drafts made before migration 010
 
     @app.get("/health")
     def health() -> dict[str, object]:

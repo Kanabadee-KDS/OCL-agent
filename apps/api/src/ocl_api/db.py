@@ -298,6 +298,38 @@ MIGRATIONS: list[tuple[str, str]] = [
         """
         + flow_seed_sql(),
     ),
+    (
+        "010_curriculum_sections",
+        """
+        -- the คู่มือหลักสูตร's own data (ocl_api.sections): หมวด 0–5, filled by import or by hand
+        ALTER TABLE curriculum_drafts ALTER COLUMN job_id DROP NOT NULL;
+        ALTER TABLE curriculum_drafts
+            ADD COLUMN IF NOT EXISTS faculty    text,
+            ADD COLUMN IF NOT EXISTS created_by text;
+        UPDATE curriculum_drafts
+            SET faculty = data->'parts'->'info'->'data'->'values'->>'faculty'
+            WHERE faculty IS NULL;
+        CREATE TABLE IF NOT EXISTS curriculum_sections (
+            draft_id   bigint NOT NULL REFERENCES curriculum_drafts (id) ON DELETE CASCADE,
+            section    text NOT NULL,
+            data       jsonb NOT NULL DEFAULT '{}'::jsonb,
+            updated_by text,
+            updated_at timestamptz NOT NULL DEFAULT now(),
+            PRIMARY KEY (draft_id, section)
+        );
+        CREATE TABLE IF NOT EXISTS curriculum_section_history (
+            id       bigserial PRIMARY KEY,
+            draft_id bigint NOT NULL REFERENCES curriculum_drafts (id) ON DELETE CASCADE,
+            section  text NOT NULL,
+            ts       timestamptz NOT NULL DEFAULT now(),
+            by       text,
+            why      text,
+            data     jsonb NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS curriculum_section_history_idx
+            ON curriculum_section_history (draft_id, section, ts);
+        """,
+    ),
 ]
 
 
