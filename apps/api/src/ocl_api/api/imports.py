@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import threading
 from pathlib import Path
 from typing import Any
@@ -18,9 +19,9 @@ from fastapi import (
 from fastapi.responses import FileResponse, PlainTextResponse
 from pydantic import BaseModel
 
-from ocl_api.auth import REQUIRE_IMPORT_READ, REQUIRE_IMPORT_WRITE, User, current_user
+from ocl_api.auth import REQUIRE_IMPORT_READ, REQUIRE_IMPORT_WRITE, User, current_user, require_menu
 from ocl_api.config import Settings, get_settings
-from ocl_api.jobs import ALL_PARTS, PARTS, JobStore, make_store
+from ocl_api.jobs import ALL_PARTS, PARTS, JobStore, make_store, now_iso
 from ocl_api.worker import process_job
 
 router = APIRouter(prefix="/api/imports", tags=["imports"])
@@ -161,6 +162,50 @@ def _check_edit_allowed(store: JobStore, job_id: str, user: User) -> None:
         raise HTTPException(403, "บัญชีนี้ไม่มีสิทธิ์แก้ไขส่วนนี้")
 
 
+class Reextract(BaseModel):
+    parts: list[str] | None = None  # None = every part
+    provider: str
+
+
+@router.post("/{job_id}/reextract")
+def reextract(
+    job_id: str,
+    body: Reextract,
+    background: BackgroundTasks,
+    store: JobStore = Depends(get_store),
+    settings: Settings = Depends(get_settings),
+    user: User = Depends(REQUIRE_IMPORT_WRITE),
+) -> dict[str, Any]:
+    """สกัดใหม่ (FS-3e · US-M1-12): the whole book or some parts, with any reading method. The
+    book is not read again; the parts extracted again must be confirmed again."""
+    try:
+        job = store.read(job_id)
+    except KeyError as e:
+        raise HTTPException(404, "ไม่พบงานนำเข้า") from e
+    _check_edit_allowed(store, job_id, user)
+    if job["status"] not in ("review", "failed"):
+        raise HTTPException(409, "สกัดใหม่ได้เมื่องานรอตรวจสอบหรือล้มเหลว")
+    if body.provider not in ("ollama", "gemini", "none"):
+        raise HTTPException(400, "provider ต้องเป็น ollama, gemini หรือ none")
+    if body.provider == "gemini" and not settings.gemini_api_key:
+        raise HTTPException(400, "Gemini ยังไม่ได้ตั้งค่า API key ในระบบนี้")
+    parts = body.parts or list(job["parts"])
+    if not parts or any(p not in job["parts"] for p in parts):
+        raise HTTPException(400, "ส่วนที่เลือกไม่อยู่ในงานนี้")
+    job["provider"] = body.provider
+    job["reextract"] = {
+        "parts": parts,
+        "provider": body.provider,
+        "by": user.email,
+        "at": now_iso(),
+    }
+    store.write(job)
+    job = store.set_status(job_id, "queued", f"รอสกัดใหม่ {len(parts)} ส่วน")
+    if settings.inline_worker:
+        background.add_task(_run_inline, job_id, settings)
+    return _job_view(job)
+
+
 @router.post("/{job_id}/finalize")
 def finalize(
     job_id: str, store: JobStore = Depends(get_store), _: User = Depends(REQUIRE_IMPORT_WRITE)
@@ -219,6 +264,74 @@ def get_source(
     return {"page": page, "pages": doc.get("pages"), "blocks": blocks, "page_image": image}
 
 
+# Markdown editor (FS-3f · US-M1-17): the whole book, its chapters and the 10 parts
+REQUIRE_MD_EDIT = require_menu("c3", action="edit")
+MD_EDITABLE = re.compile(r"^(ingest/book\.md|ingest/sections/[^/]+\.md|extract/md/[^/]+\.md)$")
+
+
+class MarkdownEdit(BaseModel):
+    path: str
+    content: str
+
+
+@router.get("/{job_id}/markdown")
+def markdown_files(
+    job_id: str, store: JobStore = Depends(get_store), _: User = Depends(REQUIRE_IMPORT_READ)
+) -> dict[str, Any]:
+    try:
+        root = store.dir(job_id)
+    except KeyError as e:
+        raise HTTPException(404, "ไม่พบงานนำเข้า") from e
+    files = [p.relative_to(root).as_posix() for p in sorted(root.glob("ingest/book.md"))]
+    files += [p.relative_to(root).as_posix() for p in sorted(root.glob("ingest/sections/*.md"))]
+    files += [p.relative_to(root).as_posix() for p in sorted(root.glob("extract/md/*.md"))]
+    log_path = root / "edits" / "manual-log.json"
+    log = json.loads(log_path.read_text(encoding="utf-8")) if log_path.exists() else []
+    return {
+        "files": [{"path": f, "edited": (root / "edits" / "manual" / f).is_file()} for f in files],
+        "log": log[-50:],
+    }
+
+
+@router.put("/{job_id}/markdown")
+def save_markdown(
+    job_id: str,
+    body: MarkdownEdit,
+    store: JobStore = Depends(get_store),
+    user: User = Depends(REQUIRE_MD_EDIT),
+) -> dict[str, Any]:
+    """Keep an edited Markdown file beside the original (both stay; the edit wins on read);
+    the previous text goes to edits/manual-history. Read-only once in the system (FS-2c)."""
+    if not MD_EDITABLE.match(body.path):
+        raise HTTPException(400, "แก้ได้เฉพาะไฟล์ Markdown ของเล่ม หมวด และ 10 ส่วน")
+    try:
+        root = store.dir(job_id).resolve()
+    except KeyError as e:
+        raise HTTPException(404, "ไม่พบงานนำเข้า") from e
+    if store.draft_state(job_id) is not None:
+        raise HTTPException(409, "บันทึกเข้าระบบแล้ว แก้ข้อมูลที่หน้าคู่มือหลักสูตร")
+    original = (root / body.path).resolve()
+    if root not in original.parents or not original.is_file():
+        raise HTTPException(404, "ไม่พบไฟล์")
+    manual = root / "edits" / "manual" / body.path
+    before = (
+        manual.read_text(encoding="utf-8")
+        if manual.is_file()
+        else original.read_text(encoding="utf-8")
+    )
+    stamp = now_iso().replace(":", "")
+    hist = root / "edits" / "manual-history" / f"{body.path}.{stamp}.md"
+    hist.parent.mkdir(parents=True, exist_ok=True)
+    hist.write_text(before, encoding="utf-8")
+    manual.parent.mkdir(parents=True, exist_ok=True)
+    manual.write_text(body.content, encoding="utf-8")
+    log_path = root / "edits" / "manual-log.json"
+    log = json.loads(log_path.read_text(encoding="utf-8")) if log_path.exists() else []
+    log.append({"ts": now_iso(), "by": user.email, "path": body.path, "chars": len(body.content)})
+    log_path.write_text(json.dumps(log, ensure_ascii=False, indent=1), encoding="utf-8")
+    return markdown_files(job_id, store, user)
+
+
 @router.get("/{job_id}/files/{path:path}")
 def get_file(
     job_id: str,
@@ -232,8 +345,11 @@ def get_file(
     except KeyError as e:
         raise HTTPException(404, "ไม่พบงานนำเข้า") from e
     target = (root / path).resolve()
+    manual = (root / "edits" / "manual" / path).resolve()
+    if MD_EDITABLE.match(path) and root in manual.parents and manual.is_file():
+        target = manual  # the Markdown editor's version wins (FS-3f)
     # Markdown of a part the reviewer edited is re-rendered under edits/md/ and wins
-    if path.startswith("extract/md/"):
+    elif path.startswith("extract/md/"):
         edited = (root / "edits" / "md" / path[len("extract/md/") :]).resolve()
         if root in edited.parents and edited.is_file():
             target = edited

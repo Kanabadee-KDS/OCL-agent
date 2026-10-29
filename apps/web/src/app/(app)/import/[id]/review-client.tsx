@@ -7,6 +7,8 @@ import { useSession } from "next-auth/react";
 import { canMenu } from "@/lib/nav";
 import { api, curricula, fmtTime, PART_LABELS, type Check, type Job, type Meta, type Part } from "@/lib/api";
 import { ConfPill, Ic, Markdown, Note, PageHead, Pill, Steps } from "@/components/ui";
+import { ReextractDialog } from "./reextract";
+import { MarkdownEditor } from "./markdown";
 
 const ORDER = ["info", "teachers", "plan", "plo", "ksec", "structure", "modules", "courses", "mapping", "appr"];
 type Tab = string; // part key | "check" | "preview"
@@ -61,8 +63,14 @@ export default function ReviewClient() {
   const [openDesc, setOpenDesc] = useState<Record<string, boolean>>({});
   // workflow state of the curriculum draft made from this job (after "บันทึกเข้าระบบ")
   const [draft, setDraft] = useState<{ id: number; status: string } | null>(null);
+  const [reex, setReex] = useState(false);
+  const [poll, setPoll] = useState(0); // a new round of polling after สกัดใหม่
+  const [mdEdit, setMdEdit] = useState<string | null>(null);
+  const [mdRev, setMdRev] = useState(0);
+  const [mdFiles, setMdFiles] = useState<{ path: string; edited: boolean }[]>([]);
   // once saved into the system the คู่มือหลักสูตร owns the data (FS-2a/2c): this page only reads
   const canWrite = canImport && !draft;
+  const canMd = canWrite && canMenu(session?.user?.perms, "c3", "edit");
   const done = job?.status === "done";
   useEffect(() => {
     if (!done) return;
@@ -84,7 +92,7 @@ export default function ReviewClient() {
     };
     tick();
     return () => { alive = false; };
-  }, [id]);
+  }, [id, poll]);
 
   const inReview = job && (job.status === "review" || job.status === "done");
 
@@ -108,6 +116,7 @@ export default function ReviewClient() {
       if (alive) setChecks(cs);
       if (ORDER.includes(tab)) await loadPart(tab);
       if (tab === "preview") {
+        api.markdown(id).then((m) => alive && setMdFiles(m.files)).catch(() => {});
         const xs = await Promise.all(
           ["1-program_info.md", "8-teachers.md", "9-admission_plan.md", "2-course_structure.md", "4-plos.md", "4b-ksec.md", "3b-modules.md", "3-courses_list.md", "5-curriculum_mapping.md", "7-approval.md"].map((n) => api.fileText(id, `extract/md/${n}`).then((t) => [n, t] as const)),
         );
@@ -115,7 +124,7 @@ export default function ReviewClient() {
       }
     })();
     return () => { alive = false; };
-  }, [inReview, tab, id, loadPart]);
+  }, [inReview, tab, id, loadPart, mdRev]);
 
   useEffect(() => {
     if (!inReview || !page) return;
@@ -210,7 +219,7 @@ export default function ReviewClient() {
         sub={`${job.filename} · เทียบกับต้นฉบับทางซ้าย แก้ไขได้ทันที รายการที่ความมั่นใจต่ำจะถูกไฮไลต์`}
         actions={
           <>
-            <button className="btn" disabled title="อยู่ใน R1"><Ic name="refresh" size={17} /> สกัดใหม่</button>
+            <button className="btn" disabled={!canWrite || !["review", "failed"].includes(job.status)} title={!canWrite ? "บันทึกเข้าระบบแล้วหรือไม่มีสิทธิ์" : undefined} onClick={() => setReex(true)}><Ic name="refresh" size={17} /> สกัดใหม่</button>
             <button className="btn" onClick={() => setTab("preview")}><Ic name="eye" size={17} /> Preview แบบเล่ม</button>
             {job.status === "done" ? (
               <Link href={`/import/${id}/done`} className="btn primary"><Ic name="chart" size={17} /> ดูสรุปผล (บันทึกแล้ว)</Link>
@@ -226,6 +235,7 @@ export default function ReviewClient() {
         }
       />
       <Steps current={job.status === "done" ? 4 : 2} />
+      {reex && <ReextractDialog job={job} current={tab} onClose={() => setReex(false)} onStarted={(j) => { setReex(false); setJob(j); setPoll((n) => n + 1); }} />}
       {err && <Note kind="warn">{err}</Note>}
       {draft && (
         <Note kind="info">บันทึกเข้าระบบเป็นคู่มือหลักสูตรแล้ว หน้านี้แสดงข้อมูลที่นำเข้าแบบอ่านอย่างเดียว · กรอกและแก้ที่ <Link href={`/curricula/${draft.id}/edit`}>ข้อมูลคู่มือหลักสูตร</Link>{(draft.status === "verified" || draft.status === "published") && " (ตรวจสอบสำเร็จแล้ว ข้อมูลถูกล็อก แก้ได้ผ่าน สมอ.08)"}</Note>
@@ -254,11 +264,20 @@ export default function ReviewClient() {
             <section className="stack">
               {["1-program_info.md", "8-teachers.md", "9-admission_plan.md", "2-course_structure.md", "4-plos.md", "4b-ksec.md", "3b-modules.md", "3-courses_list.md", "5-curriculum_mapping.md", "7-approval.md"].map((n) => (
                 <div key={n} className="card pad stack">
-                  <div className="between"><b>{n}</b><a className="btn sm" href={api.fileUrl(id, `extract/md/${n}`)} target="_blank">เปิดไฟล์</a></div>
+                  <div className="between"><b>{n}{mdFiles.find((f) => f.path === `extract/md/${n}`)?.edited && <Pill kind="info">แก้ด้วยมือ</Pill>}</b><div className="row" style={{ gap: 6 }}>{canMd && <button type="button" className="btn sm" onClick={() => setMdEdit(`extract/md/${n}`)}>แก้ Markdown</button>}<a className="btn sm" href={api.fileUrl(id, `extract/md/${n}`)} target="_blank">เปิดไฟล์</a></div></div>
                   {preview[n] ? <Markdown text={preview[n]} /> : <div className="small faint">กำลังโหลด…</div>}
                 </div>
               ))}
-              <div className="card pad between"><b>เล่มทั้งเล่ม (Markdown)</b><a className="btn sm" href={api.fileUrl(id, "ingest/book.md")} target="_blank">book.md</a></div>
+              <div className="card pad stack">
+                <div className="between"><b>เล่มทั้งเล่มและรายหมวด (Markdown)</b><Link className="btn sm" href={`/import/${id}/print`}>พิมพ์ Preview / PDF</Link></div>
+                {mdFiles.filter((f) => f.path.startsWith("ingest/")).map((f) => (
+                  <div key={f.path} className="between small">
+                    <span>{f.path}{f.edited && <> <Pill kind="info">แก้ด้วยมือ</Pill></>}</span>
+                    <div className="row" style={{ gap: 6 }}>{canMd && <button type="button" className="btn xs" onClick={() => setMdEdit(f.path)}>แก้</button>}<a className="btn xs" href={api.fileUrl(id, f.path)} target="_blank">เปิด</a></div>
+                  </div>
+                ))}
+              </div>
+              {mdEdit && <MarkdownEditor jobId={id} path={mdEdit} onClose={() => setMdEdit(null)} onSaved={() => { setMdEdit(null); setMdRev((n) => n + 1); }} />}
             </section>
           )}
           {ORDER.includes(tab) && !part && <div className="card pad">กำลังโหลด…</div>}

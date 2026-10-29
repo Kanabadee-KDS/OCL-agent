@@ -3,7 +3,7 @@
 // หมวด 3 (PLO/Sub-PLO · KSEC · ตารางสรุป) and หมวด 4 (โครงสร้าง · Curriculum Mapping · รายวิชา)
 // of the คู่มือหลักสูตร (BRD 01 §4, US-M1-08). In review the faculty may change the Mapping
 // only; the API refuses anything else (ocl_api.curricula._edit_problem).
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getPath, setPath } from "@/lib/form";
 import {
@@ -12,6 +12,7 @@ import {
 } from "@/lib/curriculum";
 import { Note, Pill } from "@/components/ui";
 import { Tabs } from "@/components/kit";
+import { coursesApi, type LatestVersion } from "@/lib/api";
 
 type Data = Record<string, unknown>;
 
@@ -109,6 +110,8 @@ export function Section4({ data, onChange, readOnly, mappingOnly, draftId, plos,
   data: Data; onChange: (d: Data) => void; readOnly: boolean; mappingOnly: boolean; draftId: string; plos: Plo[]; totalCredits: number | null;
 }) {
   const [tab, setTab] = useState<"tree" | "map" | "courses">("tree");
+  const [latest, setLatest] = useState<Record<string, LatestVersion>>({});
+  useEffect(() => { coursesApi.versionsFor(draftId).then(setLatest).catch(() => setLatest({})); }, [draftId]);
   const tree = (getPath(data, "structure.tree") as Node[] | undefined) ?? [];
   const courses = (getPath(data, "courses.courses") as Course[] | undefined) ?? [];
   const rows = mappingRows(courses, (getPath(data, "mapping.ksec_rows") as KsecRow[] | undefined) ?? []);
@@ -209,13 +212,15 @@ export function Section4({ data, onChange, readOnly, mappingOnly, draftId, plos,
       {tab === "courses" && (
         <div className="tbl-wrap">
           <table className="tbl">
-            <thead><tr><th>รหัส</th><th>ชื่อรายวิชา</th><th>หน่วยกิต</th><th>ชุดวิชา/กลุ่มตามเล่ม</th><th>กลุ่มในโครงสร้าง</th></tr></thead>
+            <thead><tr><th>รหัส</th><th>ชื่อรายวิชา</th><th>หน่วยกิต</th><th>Version</th><th>ชุดวิชา/กลุ่มตามเล่ม</th><th>กลุ่มในโครงสร้าง</th></tr></thead>
             <tbody>
               {courses.map((c, i) => (
                 <tr key={i}>
                   <td className="num small">{c.code_th}{c.code_en ? ` · ${c.code_en}` : ""}</td>
                   <td>{c.name_th}<div className="small faint">{c.name_en}</div></td>
                   <td className="small">{c.credit_text ?? c.credits}</td>
+                  <td className="small"><VersionCell c={c} l={latest[c.code_th ?? ""]} readOnly={fixedRO}
+                    take={(l) => putCourses(courses.map((x, k) => (k === i ? { ...x, version: l.latest, name_th: l.name_th ?? x.name_th, name_en: l.name_en, credits: l.credits, credit_text: l.credit_text, description_th: l.description_th, description_en: l.description_en } : x)))} /></td>
                   <td className="small">{c.group}</td>
                   <td>
                     <select className="inp" aria-label={`${c.code_th}: กลุ่มในโครงสร้าง`} disabled={fixedRO} value={nodeOf(c, tree) ?? ""}
@@ -226,11 +231,26 @@ export function Section4({ data, onChange, readOnly, mappingOnly, draftId, plos,
                   </td>
                 </tr>
               ))}
-              {!courses.length && <tr><td colSpan={5} className="small faint">ยังไม่มีรายวิชา · เพิ่มที่ &ldquo;เปิดกลุ่ม&rdquo; ในแท็บโครงสร้าง</td></tr>}
+              {!courses.length && <tr><td colSpan={6} className="small faint">ยังไม่มีรายวิชา · เพิ่มที่ &ldquo;เปิดกลุ่ม&rdquo; ในแท็บโครงสร้าง</td></tr>}
             </tbody>
           </table>
         </div>
       )}
     </section>
+  );
+}
+
+/** รหัส-Version of a course against the central database (FS-3a): a draft may take a newer
+ *  Version; a verified curriculum keeps its own until a สมอ.08 (FS-3 Q2 ก). */
+function VersionCell({ c, l, readOnly, take }: { c: Course; l?: LatestVersion; readOnly: boolean; take: (l: LatestVersion) => void }) {
+  if (!c.version) return <span className="faint">{l ? "ยังไม่ผูก" : "ไม่มีในฐานกลาง"}</span>;
+  return (
+    <span className="row" style={{ gap: 4, flexWrap: "nowrap" }}>
+      <b className="num">v{c.version}</b>
+      {l && l.latest > c.version && <>
+        <Pill kind="warn">มี v{l.latest}</Pill>
+        {!readOnly && <button type="button" className="btn xs" onClick={() => take(l)}>ใช้ Version ล่าสุด</button>}
+      </>}
+    </span>
   );
 }

@@ -52,6 +52,7 @@ async function j<T>(r: Response): Promise<T> {
   }
   return r.json() as Promise<T>;
 }
+const enc = encodeURIComponent;
 
 export const api = {
   health: () => fetch(`${API_BASE}/health`).then(j<Record<string, unknown>>),
@@ -72,12 +73,19 @@ export const api = {
       body: JSON.stringify({ data, confirm, by: "poc" }),
     }).then(j<Part>),
   finalize: (id: string) => fetch(`${API_BASE}/api/imports/${id}/finalize`, { method: "POST" }).then(j<Job>),
+  // สกัดใหม่ (FS-3e): parts null = every part; the parts read again must be confirmed again
+  reextract: (id: string, parts: string[] | null, provider: string) =>
+    fetch(`${API_BASE}/api/imports/${id}/reextract`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ parts, provider }) }).then(j<Job>),
   checks: (id: string) => fetch(`${API_BASE}/api/imports/${id}/checks`, { cache: "no-store" }).then(j<Check[]>),
   source: (id: string, page: number) =>
     fetch(`${API_BASE}/api/imports/${id}/source?page=${page}`, { cache: "no-store" }).then(
       j<{ page: number; pages: number | null; blocks: Array<Record<string, unknown>>; page_image: string | null }>,
     ),
   fileUrl: (id: string, path: string) => `${API_BASE}/api/imports/${id}/files/${path}`,
+  // Markdown editor (FS-3f): the book, its chapters and the 10 parts; the edit wins on read
+  markdown: (id: string) => fetch(`${API_BASE}/api/imports/${id}/markdown`, { cache: "no-store" }).then(j<{ files: { path: string; edited: boolean }[]; log: { ts: string; by: string; path: string; chars: number }[] }>),
+  saveMarkdown: (id: string, path: string, content: string) =>
+    fetch(`${API_BASE}/api/imports/${id}/markdown`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path, content }) }).then(j<{ files: { path: string; edited: boolean }[] }>),
   fileText: (id: string, path: string) => fetch(`${API_BASE}/api/imports/${id}/files/${path}`, { cache: "no-store" }).then((r) => (r.ok ? r.text() : "")),
 };
 
@@ -206,7 +214,6 @@ export type UserRow = {
 export type UserDetail = UserRow & { events: RoleEvent[] };
 export type UserOptions = { roles: { id: string; name: string }[]; units: string[]; units_sample: boolean };
 export type Staff = { pid: string; title_short: string | null; name_th: string; faculty: string | null; department: string | null; email: string | null };
-const enc = encodeURIComponent;
 export const usersApi = {
   options: () => fetch(`${API_BASE}/api/users/options`, { cache: "no-store" }).then(j<UserOptions>),
   list: () => fetch(`${API_BASE}/api/users`, { cache: "no-store" }).then(j<{ items: UserRow[] }>),
@@ -263,6 +270,94 @@ export const curriculumForm = {
   bookUrl: (id: number | string) => `${API_BASE}/api/curricula/${id}/book`,
   teacherCheck: (id: number | string) => fetch(`${API_BASE}/api/curricula/${id}/teachers/check`, { cache: "no-store" }).then(j<TeacherCheck>),
 };
-export type CatalogCourse = { code_th: string; code_en: string | null; name_th: string | null; name_en: string | null; credits: number | null; credit_text: string | null; description_th: string | null; from: string | null };
+export type CatalogCourse = {
+  code_th: string; code_en: string | null; name_th: string | null; name_en: string | null; credits: number | null; credit_text: string | null;
+  description_th: string | null; description_en: string | null; unit: string | null; course_type: string | null; module: string | null; version: number;
+};
 export const courseCatalog = (q: string, exclude: number | string) =>
   fetch(`${API_BASE}/api/curricula/courses/catalog?q=${encodeURIComponent(q)}&exclude=${exclude}`, { cache: "no-store" }).then(j<CatalogCourse[]>);
+
+// ---------- ฐานข้อมูลรายวิชากลาง (FS-3a · US-M1-18) ----------
+export type CourseFields = {
+  code_th: string; code_en: string | null; name_th: string | null; name_en: string | null; transcript_th: string | null; transcript_en: string | null;
+  credit_text: string | null; course_type: string | null; module: string | null; unit: string | null; major: string | null; reg_no: string | null;
+  telebank: string | null; status: string; note: string | null; description_th: string | null; description_en: string | null;
+};
+export type CourseVersion = { version: number; kind: string; year: number | null; name_th: string; name_en: string | null; credit_text: string | null; description_th: string | null; source: string | null; created_by: string | null; created_at: string };
+export type CourseRow = CourseFields & {
+  latest: number; label: string; kind: string; year: number | null; credits: number | null; updated_by: string | null; updated_at: string | null;
+  used_in: { draft_id: number; name_th: string | null; status: string; version: number | null }[];
+};
+export type CourseDetail = CourseRow & { versions: CourseVersion[] };
+export type CourseList = { items: CourseRow[]; counts: Record<string, number>; options: { types: string[]; statuses: string[]; units: string[] } };
+export type LatestVersion = { latest: number; status: string; name_th: string | null; name_en: string | null; credits: number | null; credit_text: string | null; description_th: string | null; description_en: string | null };
+export const coursesApi = {
+  list: () => fetch(`${API_BASE}/api/courses`, { cache: "no-store" }).then(j<CourseList>),
+  get: (code: string) => fetch(`${API_BASE}/api/courses/${enc(code)}`, { cache: "no-store" }).then(j<CourseDetail>),
+  create: (body: Partial<CourseFields>) => fetch(`${API_BASE}/api/courses`, json("POST", body)).then(j<CourseDetail>),
+  update: (code: string, body: Partial<CourseFields> & { new_version: boolean }) => fetch(`${API_BASE}/api/courses/${enc(code)}`, json("PUT", body)).then(j<CourseDetail>),
+  remove: async (code: string) => { const r = await fetch(`${API_BASE}/api/courses/${enc(code)}`, { method: "DELETE" }); if (!r.ok) await j(r); },
+  // from a curriculum (หมวด 4): a ร่างรายวิชา Version 1, and the latest Version of each course it uses
+  newFor: (draftId: number | string, body: { code_th: string; name_th: string; code_en?: string | null; name_en?: string | null; credit_text?: string | null }) =>
+    fetch(`${API_BASE}/api/curricula/${draftId}/courses`, json("POST", body)).then(j<CatalogCourse>),
+  versionsFor: (draftId: number | string) => fetch(`${API_BASE}/api/curricula/${draftId}/courses/versions`, { cache: "no-store" }).then(j<Record<string, LatestVersion>>),
+};
+
+// ---------- ทะเบียนบุคคลภายนอก (FS-3b · US-M1-19) ----------
+export type PersonWork = { title: string; type: string; year: string | null };
+export type PersonFields = {
+  kind: string; title_full: string | null; title_short: string | null; position: string | null; name_th: string | null; name_en: string | null;
+  national_id: string | null; org: string | null; email: string | null; tel: string | null; education: string[][]; works: PersonWork[]; active: boolean;
+};
+export type Person = PersonFields & { id: string; highest: string | null; updated_at: string; updated_by: string | null; used_in: { draft_id: number; name_th: string | null; status: string }[] };
+export type PersonList = { items: Person[]; counts: { all: number; active: number; used: number }; options: { kinds: string[]; levels: string[]; work_types: string[] } };
+export type PersonPick = { xid: string; name: string; rank: string | null; highest_level: string | null; org: string | null; kind: string };
+export const personsApi = {
+  list: () => fetch(`${API_BASE}/api/persons`, { cache: "no-store" }).then(j<PersonList>),
+  get: (id: string) => fetch(`${API_BASE}/api/persons/${enc(id)}`, { cache: "no-store" }).then(j<Person>),
+  save: (id: string | null, body: PersonFields) => fetch(`${API_BASE}/api/persons${id ? `/${enc(id)}` : ""}`, json(id ? "PUT" : "POST", body)).then(j<Person>),
+  remove: async (id: string) => { const r = await fetch(`${API_BASE}/api/persons/${enc(id)}`, { method: "DELETE" }); if (!r.ok) await j(r); },
+  search: (q: string) => fetch(`${API_BASE}/api/curricula/persons?q=${enc(q)}`, { cache: "no-store" }).then(j<PersonPick[]>),
+};
+
+// ---------- สมอ.08 (FS-3c · US-M1-09 10) ----------
+export type SmoTeacher = { name?: string; rank?: string | null; pid?: string | null; xid?: string | null; highest_level?: string | null; responsible?: boolean; group?: string | null; chair?: boolean; [k: string]: unknown };
+export type SmoChange = { change: "เพิ่ม" | "แก้ไข" | "นำออก"; before: SmoTeacher | null; after: SmoTeacher | null };
+export type SmoBrief = {
+  id: string; draft_id: number; name_th: string | null; status: "draft" | "pending" | "returned" | "approved"; status_th: string; step: number; steps_total: number;
+  step_label: string; types_th: string[]; start: string; created_by: string; created_at: string; faculty: string | null;
+};
+export type SmoDetail = SmoBrief & {
+  types: string[]; scope: { kind: "mother" | "child"; branch?: string }; fields: Record<string, string>; details: Record<string, string>; reason: string | null;
+  teachers: { before?: SmoTeacher[]; after?: SmoTeacher[] }; changes: SmoChange[]; steps: FlowStep[];
+  curriculum: { id: number; name_th: string | null; name_en: string | null; status: string; faculty: string | null; edition_year: number | string | null };
+  events: { ts: string; by: string; action: string; step: number | null; note: string | null }[];
+  files: { id: number; name: string; size: number; by: string; ts: string }[]; can_edit: boolean; can_act: boolean;
+};
+export type SmoOptions = { curricula: { id: number; name_th: string; status: string; edition_year: number | string | null; faculty: string | null; branches: string[] }[]; types: Record<string, string>; statuses: Record<string, string>; steps: FlowStep[] };
+export const smoApi = {
+  list: () => fetch(`${API_BASE}/api/smo`, { cache: "no-store" }).then(j<{ items: SmoBrief[]; counts: Record<string, number> }>),
+  options: () => fetch(`${API_BASE}/api/smo/options`, { cache: "no-store" }).then(j<SmoOptions>),
+  create: (draftId: number) => fetch(`${API_BASE}/api/smo`, json("POST", { draft_id: draftId })).then(j<SmoDetail>),
+  get: (id: string) => fetch(`${API_BASE}/api/smo/${enc(id)}`, { cache: "no-store" }).then(j<SmoDetail>),
+  save: (id: string, body: { types: string[]; scope: SmoDetail["scope"]; fields: Record<string, string>; after: SmoTeacher[]; details: Record<string, string>; reason: string }) =>
+    fetch(`${API_BASE}/api/smo/${enc(id)}`, json("PUT", body)).then(j<SmoDetail>),
+  act: (id: string, action: "submit" | "approve" | "return", note?: string) => fetch(`${API_BASE}/api/smo/${enc(id)}/${action}`, json("POST", { note })).then(j<SmoDetail>),
+  upload: (id: string, file: File) => { const f = new FormData(); f.append("file", file); return fetch(`${API_BASE}/api/smo/${enc(id)}/files`, { method: "POST", body: f }).then(j<SmoDetail>); },
+  fileUrl: (id: string, fid: number) => `${API_BASE}/api/smo/${enc(id)}/files/${fid}`,
+};
+
+// ---------- จับคู่ข้อมูล (FS-3d · US-M1-13) ----------
+export type TeacherMatch = {
+  index: number; name: string | null; rank?: string | null; highest_level?: string | null; state: "linked" | "one" | "many" | "external" | "none"; pid?: string; xid?: string;
+  candidates?: { pid: string; name: string; rank: string | null; highest_level: string | null; faculty: string | null; differs: boolean }[];
+  externals?: { xid: string; name: string; org: string | null }[];
+};
+export type CourseMatch = { index: number; code_th: string; name_th: string | null; credit_text: string | null; state: "linked" | "no_code" | "new" | "same" | "changed"; version: number | null; central: { version: number; name_th: string; credit_text: string | null } | null };
+export type MatchData = { teachers: TeacherMatch[]; courses: CourseMatch[]; editable: { "0": boolean; "4": boolean }; matched?: number };
+export const matchApi = {
+  get: (id: number | string) => fetch(`${API_BASE}/api/curricula/${id}/match`, { cache: "no-store" }).then(j<MatchData>),
+  teachers: (id: number | string, choices: { index: number; pid?: string; xid?: string; quals?: "huris" | "book" }[]) =>
+    fetch(`${API_BASE}/api/curricula/${id}/match/teachers`, json("POST", { choices })).then(j<MatchData>),
+  courses: (id: number | string, choices: { index: number; accept: boolean }[]) => fetch(`${API_BASE}/api/curricula/${id}/match/courses`, json("POST", { choices })).then(j<MatchData>),
+};

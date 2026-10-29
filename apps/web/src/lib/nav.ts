@@ -25,15 +25,15 @@ export const NAV: NavModule[] = [
       { cap: "คู่มือหลักสูตร", items: [
         { id: "c1", label: "คู่มือหลักสูตร", route: "cur", href: "/curricula" },
         { id: "c1b", label: "ตรวจสอบและบันทึก PLO โดยคณะ", route: "fac-plo", tag: "ใหม่", href: "/curricula/review" },
-        { id: "c2", label: "งานปรับปรุงแก้ไขหลักสูตร (สมอ.08)", route: "smo", phase: "FS-3" },
+        { id: "c2", label: "งานปรับปรุงแก้ไขหลักสูตร (สมอ.08)", route: "smo", href: "/smo" },
       ] },
       { cap: "นำเข้าข้อมูลเล่มหลักสูตรด้วย AI", items: [
         { id: "c3", label: "นำเข้าข้อมูลเล่มหลักสูตร", route: "import", href: "/import" },
         { id: "c3h", label: "ประวัติการนำเข้าทั้งหมด", route: "import", href: "/import/history", inherits: "c3" },
       ] },
       { cap: "ข้อมูลหลัก (Master)", items: [
-        { id: "c5", label: "บริหารรายวิชา", route: "course-master", tag: "ใหม่", phase: "FS-3" },
-        { id: "c4", label: "บริหารบุคคลภายนอก", route: "ext-person", tag: "ใหม่", phase: "FS-3" },
+        { id: "c5", label: "บริหารรายวิชา", route: "course-master", tag: "ใหม่", href: "/courses" },
+        { id: "c4", label: "บริหารบุคคลภายนอก", route: "ext-person", tag: "ใหม่", href: "/persons" },
       ] },
     ],
   },
@@ -152,6 +152,9 @@ const PATH_MENU: [string, string][] = [
   ["/import", "c3"],
   ["/curricula/review", "c1b"],
   ["/curricula", "c1"],
+  ["/courses", "c5"],
+  ["/persons", "c4"],
+  ["/smo", "c2"],
   ["/roles", "u1"],
   ["/users", "u3"],
   ["/approval", "u2"],

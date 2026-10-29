@@ -14,6 +14,7 @@ import { Note, PageHead, Pill } from "@/components/ui";
 import { BackLink, useToast } from "@/components/kit";
 import { Field, type Ctx } from "./fields";
 import { Section3, Section4 } from "./sections34";
+import { MatchDialog } from "./match";
 import type { Plo } from "@/lib/curriculum";
 
 const ORDER = ["0", "1", "2", "3", "4", "5"];
@@ -29,6 +30,7 @@ export default function CurriculumEditPage() {
   const [draft, setDraft] = useState<Record<string, unknown>>({});
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [matching, setMatching] = useState(false);
 
   const reload = useCallback(async () => {
     const [dd, ss] = await Promise.all([curricula.get(id), curriculumForm.sections(id)]);
@@ -98,8 +100,9 @@ export default function CurriculumEditPage() {
         crumb={["บริหารข้อมูลหลักสูตร", "คู่มือหลักสูตร", d.name_th ?? ""]}
         title={d.name_th ?? "คู่มือหลักสูตร"}
         sub={<><Pill kind={STATUS_KIND[d.status]}>{d.status_th}</Pill> · กรอกทีละหมวด ช่องที่มี * จำเป็นก่อนส่งให้คณะตรวจสอบ</>}
-        actions={<Link className="btn" href={`/curricula/${id}/preview`} title={dirty ? "Preview แสดงข้อมูลที่บันทึกแล้ว บันทึกร่างก่อนเพื่อให้เห็นการแก้ล่าสุด" : undefined}>Preview แบบเล่ม / PDF</Link>}
+        actions={<><button type="button" className="btn" onClick={() => (dirty ? toast("บันทึกร่างของหมวดนี้ก่อนจับคู่ข้อมูล", "err") : setMatching(true))}>จับคู่ข้อมูลกับระบบ</button><Link className="btn" href={`/curricula/${id}/preview`} title={dirty ? "Preview แสดงข้อมูลที่บันทึกแล้ว บันทึกร่างก่อนเพื่อให้เห็นการแก้ล่าสุด" : undefined}>Preview แบบเล่ม / PDF</Link></>}
       />
+      {matching && <MatchDialog draftId={id} onClose={() => setMatching(false)} onSaved={() => { reload().then((ss) => setDraft(ss[cur]?.data ?? {})).catch(() => {}); }} />}
       <div className="grid" style={{ gridTemplateColumns: "240px minmax(0,1fr)", alignItems: "start" }}>
         <nav className="card pad stack" aria-label="หมวดของคู่มือ" style={{ gap: 4, position: "sticky", top: 80 }}>
           {ORDER.map((n) => {

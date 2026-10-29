@@ -348,6 +348,119 @@ MIGRATIONS: list[tuple[str, str]] = [
         "-- แดชบอร์ดหลักสูตร (FS-2f): the menu d1 for the groups the mock shows it to\n"
         + menu_seed_sql("d1"),
     ),
+    (
+        "013_courses",
+        """
+        -- ฐานข้อมูลรายวิชากลาง (FS-3a · US-M1-18, mock CUR23): one row per course code, its
+        -- content per Version (code shown as รหัส-Version); a curriculum keeps the Version it uses
+        CREATE TABLE IF NOT EXISTS courses (
+            code_th       text PRIMARY KEY,
+            code_en       text,
+            transcript_th text,
+            transcript_en text,
+            course_type   text,
+            module        text,
+            unit          text,
+            major         text,
+            reg_no        text,
+            telebank      text,
+            status        text NOT NULL DEFAULT 'ใช้งาน',
+            note          text,
+            latest        int NOT NULL DEFAULT 1,
+            created_by    text,
+            created_at    timestamptz NOT NULL DEFAULT now(),
+            updated_by    text,
+            updated_at    timestamptz NOT NULL DEFAULT now()
+        );
+        CREATE TABLE IF NOT EXISTS course_versions (
+            code_th        text NOT NULL REFERENCES courses (code_th) ON DELETE CASCADE,
+            version        int NOT NULL,
+            kind           text NOT NULL,
+            year           int,
+            name_th        text NOT NULL,
+            name_en        text,
+            credits        int,
+            credit_text    text,
+            description_th text,
+            description_en text,
+            source         text,
+            created_by     text,
+            created_at     timestamptz NOT NULL DEFAULT now(),
+            PRIMARY KEY (code_th, version)
+        );
+        """,
+    ),
+    (
+        "014_ext_persons",
+        """
+        -- ทะเบียนบุคคลภายนอก (FS-3b · US-M1-19): people not in HURIS whom curricula list as
+        -- teachers (หมวด 0.2 rows carry `xid`); edited here once, copied to every curriculum
+        CREATE TABLE IF NOT EXISTS ext_persons (
+            id          text PRIMARY KEY,
+            kind        text NOT NULL,
+            title_full  text,
+            title_short text,
+            position    text,
+            name_th     text NOT NULL,
+            name_en     text,
+            national_id text,
+            org         text,
+            email       text,
+            tel         text,
+            education   jsonb NOT NULL DEFAULT '[]'::jsonb,
+            works       jsonb NOT NULL DEFAULT '[]'::jsonb,
+            active      boolean NOT NULL DEFAULT true,
+            created_by  text,
+            created_at  timestamptz NOT NULL DEFAULT now(),
+            updated_by  text,
+            updated_at  timestamptz NOT NULL DEFAULT now()
+        );
+        """,
+    ),
+    (
+        "015_smo08",
+        """
+        -- งานปรับปรุงแก้ไขหลักสูตร สมอ.08 (FS-3c · US-M1-09 10): a request on a verified
+        -- curriculum, approved step by step by the flow smo08; once approved its teacher list
+        -- replaces หมวด 0.2 (BR-06: the only way to change a verified curriculum)
+        CREATE TABLE IF NOT EXISTS smo_requests (
+            id           text PRIMARY KEY,
+            draft_id     bigint NOT NULL REFERENCES curriculum_drafts (id),
+            status       text NOT NULL DEFAULT 'draft',
+            step         int NOT NULL DEFAULT 0,
+            flow_version int,
+            types        jsonb NOT NULL DEFAULT '[]'::jsonb,
+            scope        jsonb NOT NULL DEFAULT '{"kind": "mother"}'::jsonb,
+            fields       jsonb NOT NULL DEFAULT '{}'::jsonb,
+            teachers     jsonb NOT NULL DEFAULT '{}'::jsonb,
+            details      jsonb NOT NULL DEFAULT '{}'::jsonb,
+            reason       text,
+            created_by   text NOT NULL,
+            created_at   timestamptz NOT NULL DEFAULT now(),
+            updated_at   timestamptz NOT NULL DEFAULT now(),
+            submitted_at timestamptz,
+            approved_at  timestamptz
+        );
+        CREATE TABLE IF NOT EXISTS smo_events (
+            id         bigserial PRIMARY KEY,
+            request_id text NOT NULL REFERENCES smo_requests (id) ON DELETE CASCADE,
+            ts         timestamptz NOT NULL DEFAULT now(),
+            by         text,
+            action     text NOT NULL,
+            step       int,
+            note       text
+        );
+        CREATE TABLE IF NOT EXISTS smo_files (
+            id         bigserial PRIMARY KEY,
+            request_id text NOT NULL REFERENCES smo_requests (id) ON DELETE CASCADE,
+            name       text NOT NULL,
+            path       text NOT NULL,
+            size       bigint NOT NULL,
+            by         text,
+            ts         timestamptz NOT NULL DEFAULT now()
+        );
+        """,
+    ),
 ]
 
 

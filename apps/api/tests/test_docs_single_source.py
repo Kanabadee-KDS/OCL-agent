@@ -26,3 +26,9 @@ def test_manual_states_the_current_number_of_test_cases():
     m = re.search(r"`test-script_ocl\.csv` \((\d+) กรณีทั้งหมด", manual)
     assert m, "the manual names the case count of test-script_ocl.csv"
     assert int(m.group(1)) == len(rows)
+    # the table of categories counts each one (it drifted once: K said 10 with 17 in the CSV)
+    from collections import Counter
+
+    per = Counter(r[0].split("-")[0] for r in rows)
+    table = dict(re.findall(r"^\| (?:\*\*)?([A-Z]) [^|]*\| [^|]*\| (\d+) \|", manual, re.M))
+    assert {k: int(v) for k, v in table.items()} == dict(per)

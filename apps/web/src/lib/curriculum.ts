@@ -9,7 +9,7 @@ export type KsecItem = { code: string; category: string; subtype?: string | null
  *  plan and PLO: the same code appears once per `plan`, each with that plan's PLO text. */
 export type KsecPlo = { code: string; plan?: string | null; text?: string; items: KsecItem[]; [k: string]: unknown };
 export type Node = { number: string; name: string; level?: number; credits?: number | null; module?: boolean; description?: string | null; children?: Node[] };
-export type Course = { code_th?: string; code_en?: string | null; name_th?: string; name_en?: string | null; credits?: number | null; credit_text?: string | null; group?: string | null; node?: string | null; [k: string]: unknown };
+export type Course = { code_th?: string; version?: number | null; code_en?: string | null; name_th?: string; name_en?: string | null; credits?: number | null; credit_text?: string | null; group?: string | null; node?: string | null; [k: string]: unknown };
 export type KsecRow = { course_code: string; course_name?: string; group?: string; plos: string[]; by_column: Record<string, string[]>; ksec_codes: string[] };
 
 export const CATS = ["K", "S", "E", "C"] as const;

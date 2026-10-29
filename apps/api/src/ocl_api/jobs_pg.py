@@ -17,7 +17,7 @@ from typing import Any
 import psycopg
 
 from ocl_api.db import Jsonb, connect
-from ocl_api.jobs import PARTS, JobStore, _changed_fields, now_iso, safe_filename
+from ocl_api.jobs import PARTS, JobStore, _changed_fields, _drop_manual_md, now_iso, safe_filename
 from ocl_api.sections import from_parts, master_columns, write_all
 
 
@@ -166,6 +166,21 @@ class PgJobStore(JobStore):
             if row["confirmed_at"]
             else None,
         }
+
+    def reset_parts(self, job_id: str, keys: list[str], by: str = "") -> None:
+        """สกัดใหม่ (FS-3e): drop the edits and confirmations of these parts (history kept)."""
+        entry = {"ts": now_iso(), "by": by, "reextract": True}
+        with self._conn() as conn:
+            conn.execute(
+                "UPDATE import_parts SET edited = NULL, confirmed_at = NULL, "
+                "history = history || %s, updated_at = now() WHERE job_id = %s AND key = ANY(%s)",
+                (Jsonb([entry]), job_id, keys),
+            )
+        _drop_manual_md(self.dir(job_id), keys)
+        job = self.read(job_id)
+        for key in keys:
+            job["confirmed"].pop(key, None)
+        self.write(job)
 
     def save_part(
         self, job_id: str, key: str, data: dict[str, Any], *, confirm: bool, by: str = ""

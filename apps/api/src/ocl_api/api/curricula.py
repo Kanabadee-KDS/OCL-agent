@@ -115,6 +115,16 @@ def course_catalog(
     return cs.course_catalog(q, exclude)
 
 
+@router.get("/persons")
+def person_search(
+    q: str = "", cs: CurriculumStore = Depends(get_curricula), _: User = Depends(REQUIRE_VIEW)
+) -> list[dict[str, Any]]:
+    """หมวด 0.2: pick an external person from the register (FS-3b), not typed in a curriculum."""
+    from ocl_api.persons import PersonStore
+
+    return PersonStore(cs.url, cs.schema).search(q)
+
+
 @router.get("/by-job/{job_id}")
 def by_job(
     job_id: str,
@@ -210,6 +220,129 @@ def download_book(
 ) -> FileResponse:
     path, name = cs.book_path(draft_id, settings.data_dir)
     return FileResponse(path, media_type="application/pdf", filename=name)
+
+
+class NewCourse(BaseModel):
+    code_th: str
+    name_th: str
+    code_en: str | None = None
+    name_en: str | None = None
+    credit_text: str | None = None
+
+
+@router.post("/{draft_id}/courses", status_code=201)
+def new_course(
+    draft_id: int,
+    body: NewCourse,
+    cs: CurriculumStore = Depends(get_curricula),
+    user: User = Depends(scoped),
+) -> dict[str, Any]:
+    """สร้างรายวิชาใหม่ from a group of หมวด 4 (US-M1-20): a ร่างรายวิชา in the central database
+    (FS-3a), by whoever may change this curriculum's courses now."""
+    from ocl_api.courses import CourseError, CourseStore
+
+    d = cs.get(draft_id, user)
+    if "4" not in d["editable"] or d["limited"].get("4"):
+        raise HTTPException(403, "สถานะนี้เพิ่มรายวิชาในหลักสูตรไม่ได้")
+    try:
+        c = CourseStore(cs.url, cs.schema).create(body.model_dump(), user.email, status="ร่างรายวิชา")
+    except CourseError as e:
+        raise HTTPException(e.status, str(e)) from e
+    return {
+        k: c.get(k)
+        for k in ("code_th", "code_en", "name_th", "name_en", "credits", "credit_text", "label")
+    } | {"version": 1}
+
+
+@router.get("/{draft_id}/courses/versions")
+def course_versions(
+    draft_id: int, cs: CurriculumStore = Depends(get_curricula), _: User = Depends(scoped)
+) -> dict[str, Any]:
+    """Each course of หมวด 4 against the central database: the latest Version, and its content
+    so a draft can take it (FS-3 Q2 ก: a verified curriculum keeps its Version)."""
+    from ocl_api.courses import CourseStore
+
+    rows = (cs.sections(draft_id).get("4", {}).get("data", {}).get("courses") or {}).get(
+        "courses"
+    ) or []
+    store = CourseStore(cs.url, cs.schema)
+    latest = store.latest([str(c.get("code_th") or "") for c in rows if c.get("code_th")])
+    out = {}
+    for code, x in latest.items():
+        v = store.version(code, x["latest"]) or {}
+        out[code] = x | {
+            k: v.get(k)
+            for k in (
+                "name_th",
+                "name_en",
+                "credits",
+                "credit_text",
+                "description_th",
+                "description_en",
+            )
+        }
+    return out
+
+
+class MatchChoices(BaseModel):
+    choices: list[dict[str, Any]]
+
+
+@router.get("/{draft_id}/match")
+def match_proposals(
+    draft_id: int, cs: CurriculumStore = Depends(get_curricula), user: User = Depends(scoped)
+) -> dict[str, Any]:
+    """จับคู่ (US-M1-13): proposals only; nothing is stored until a person confirms."""
+    from ocl_api.matching import Matcher
+
+    d = cs.get(draft_id, user)
+    secs = cs.sections(draft_id)
+    m = Matcher(cs.url, cs.schema)
+    return {
+        "teachers": m.teachers(secs["0"]["data"]),
+        "courses": m.courses(secs["4"]["data"]),
+        "editable": {
+            "0": "0" in d["editable"],
+            "4": "4" in d["editable"] and not d["limited"].get("4"),
+        },
+    }
+
+
+@router.post("/{draft_id}/match/teachers")
+def match_teachers(
+    draft_id: int,
+    body: MatchChoices,
+    cs: CurriculumStore = Depends(get_curricula),
+    user: User = Depends(scoped),
+) -> dict[str, Any]:
+    from ocl_api.matching import Matcher
+
+    s0, n = Matcher(cs.url, cs.schema).apply_teachers(
+        cs.sections(draft_id)["0"]["data"], body.choices
+    )
+    if n:
+        cs.save_section(draft_id, "0", s0, user, why=f"จับคู่อาจารย์กับ HURIS/ทะเบียน {n} คน")
+    return {"matched": n} | match_proposals(draft_id, cs, user)
+
+
+@router.post("/{draft_id}/match/courses")
+def match_courses(
+    draft_id: int,
+    body: MatchChoices,
+    cs: CurriculumStore = Depends(get_curricula),
+    user: User = Depends(scoped),
+) -> dict[str, Any]:
+    from ocl_api.matching import Matcher
+
+    d = cs.get(draft_id, user)
+    if "4" not in d["editable"] or d["limited"].get("4"):  # before the central database changes
+        raise HTTPException(403, "สถานะนี้แก้รายวิชาในหลักสูตรไม่ได้")
+    s4, n = Matcher(cs.url, cs.schema).apply_courses(
+        cs.sections(draft_id)["4"]["data"], body.choices, user
+    )
+    if n:
+        cs.save_section(draft_id, "4", s4, user, why=f"จับคู่รายวิชากับฐานข้อมูลกลาง {n} วิชา")
+    return {"matched": n} | match_proposals(draft_id, cs, user)
 
 
 @router.get("/{draft_id}/teachers/check")

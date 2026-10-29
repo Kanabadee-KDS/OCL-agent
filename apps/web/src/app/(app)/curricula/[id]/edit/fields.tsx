@@ -3,7 +3,8 @@
 // Field editors of the คู่มือหลักสูตร form, one per `kind` of the API's spec
 // (ocl_api.curriculum_form). Values are read and written by the field's `path`.
 import { Fragment, useEffect, useState } from "react";
-import { curriculumForm, usersApi, type FormField, type Staff, type TeacherCheck } from "@/lib/api";
+import Link from "next/link";
+import { curriculumForm, personsApi, usersApi, type FormField, type PersonPick, type Staff, type TeacherCheck } from "@/lib/api";
 import { asInput, columnTotals, fromInput, getPath } from "@/lib/form";
 import { Note, Pill } from "@/components/ui";
 import { Check, Pulled, useToast } from "@/components/kit";
@@ -159,6 +160,8 @@ function TeachersEditor({ value, onChange, ctx }: { value: unknown; onChange: (v
   const ro = ctx.readOnly;
   const [q, setQ] = useState("");
   const [found, setFound] = useState<Staff[]>([]);
+  const [xq, setXq] = useState("");
+  const [xfound, setXfound] = useState<PersonPick[]>([]);
   const [check, setCheck] = useState<TeacherCheck | null>(null);
   const toast = useToast();
   useEffect(() => {
@@ -166,7 +169,13 @@ function TeachersEditor({ value, onChange, ctx }: { value: unknown; onChange: (v
     const t = setTimeout(() => { usersApi.staff(q).then((r) => setFound(r.items)).catch(() => setFound([])); }, 250);
     return () => clearTimeout(t);
   }, [q]);
+  useEffect(() => {
+    if (xq.trim().length < 2) return;
+    const t = setTimeout(() => { personsApi.search(xq).then(setXfound).catch(() => setXfound([])); }, 250);
+    return () => clearTimeout(t);
+  }, [xq]);
   const shown = q.trim().length >= 2 ? found : [];
+  const xshown = xq.trim().length >= 2 ? xfound : [];
   const renumber = (list: Row[]) => list.map((r, i) => ({ ...r, order: i + 1 }));
   const set = (i: number, key: string, v: unknown) => onChange(rows.map((r, k) => (k === i ? { ...r, [key]: v } : r)));
   const move = (i: number, by: -1 | 1) => {
@@ -191,7 +200,7 @@ function TeachersEditor({ value, onChange, ctx }: { value: unknown; onChange: (v
             {rows.map((r, i) => (
               <tr key={i}>
                 <td className="num">{i + 1}</td>
-                <td><input className="inp" aria-label={`อาจารย์ ${i + 1}: ชื่อ`} disabled={ro} value={asInput(r.name, "text")} onChange={(e) => set(i, "name", e.target.value)} />{typeof r.pid === "string" && <span className="small faint"> {r.pid}</span>}</td>
+                <td><input className="inp" aria-label={`อาจารย์ ${i + 1}: ชื่อ`} disabled={ro} value={asInput(r.name, "text")} onChange={(e) => set(i, "name", e.target.value)} />{typeof r.pid === "string" && <span className="small faint"> {r.pid}</span>}{typeof r.xid === "string" && <span className="small faint"> บุคคลภายนอก {r.xid}</span>}</td>
                 <td><input className="inp" aria-label={`อาจารย์ ${i + 1}: ตำแหน่ง`} disabled={ro} value={asInput(r.rank, "text")} onChange={(e) => set(i, "rank", e.target.value)} /></td>
                 <td><select className="inp" aria-label={`อาจารย์ ${i + 1}: คุณวุฒิ`} disabled={ro} value={asInput(r.highest_level, "text")} onChange={(e) => set(i, "highest_level", e.target.value || null)}><option value="">—</option>{LEVELS.map((l) => <option key={l}>{l}</option>)}</select></td>
                 <td><input type="checkbox" aria-label={`อาจารย์ ${i + 1}: ผู้รับผิดชอบ`} disabled={ro} checked={r.responsible === true} onChange={(e) => set(i, "responsible", e.target.checked)} /></td>
@@ -216,8 +225,15 @@ function TeachersEditor({ value, onChange, ctx }: { value: unknown; onChange: (v
         <div className="stack" style={{ gap: 4 }}>
           <div className="row" style={{ gap: 8 }}>
             <input className="inp" style={{ maxWidth: 320 }} aria-label="ค้นบุคลากรจาก HURIS" placeholder="เพิ่มจาก HURIS: พิมพ์ชื่อหรือรหัสบุคลากร" value={q} onChange={(e) => setQ(e.target.value)} />
-            <button type="button" className="btn xs" onClick={() => onChange(renumber([...rows, { name: "", responsible: false }]))}>เพิ่มเอง (บุคคลภายนอก)</button>
+            <input className="inp" style={{ maxWidth: 320 }} aria-label="ค้นทะเบียนบุคคลภายนอก" placeholder="เพิ่มบุคคลภายนอก: พิมพ์ชื่อหรือหน่วยงาน" value={xq} onChange={(e) => setXq(e.target.value)} />
           </div>
+          {xshown.map((x) => (
+            <button key={x.xid} type="button" className="card" style={{ padding: "6px 10px", textAlign: "left", cursor: "pointer" }}
+              onClick={() => { onChange(renumber([...rows, { name: x.name, rank: x.rank, xid: x.xid, highest_level: x.highest_level, org: x.org, responsible: false, group: null }])); setXq(""); }}>
+              <b>{x.name}</b> <span className="small faint">{x.xid} · {x.kind} · {x.org}</span>
+            </button>
+          ))}
+          {xq.trim().length >= 2 && !xshown.length && <span className="small faint">ไม่พบในทะเบียน · เพิ่มที่เมนู <Link href="/persons">บริหารบุคคลภายนอก</Link> ก่อน</span>}
           {shown.map((s) => (
             <button key={s.pid} type="button" className="card" style={{ padding: "6px 10px", textAlign: "left", cursor: "pointer" }} onClick={() => addStaff(s)}>
               <b>{s.title_short}{s.name_th}</b> <span className="small faint">{s.pid} · {s.faculty}</span>

@@ -221,6 +221,22 @@ class JobStore:
         self.recompute(job_id)
         return self.read_part(job_id, key) or {}
 
+    def reset_parts(self, job_id: str, keys: list[str], by: str = "") -> None:
+        """สกัดใหม่ (FS-3e): drop the edits and confirmations of these parts (history kept)."""
+        for key in keys:
+            p = self.edit_path(job_id, key)
+            if p.exists():
+                prev = json.loads(p.read_text(encoding="utf-8"))
+                hist = prev.get("history", []) + [{"ts": now_iso(), "by": by, "reextract": True}]
+                p.write_text(
+                    json.dumps({"history": hist}, ensure_ascii=False, indent=1), encoding="utf-8"
+                )
+        _drop_manual_md(self.dir(job_id), keys)
+        job = self.read(job_id)
+        for key in keys:
+            job["confirmed"].pop(key, None)
+        self.write(job)
+
     def recompute(self, job_id: str) -> list[dict[str, Any]]:
         """Re-run the validators over every part *with the user's edits applied* and
         re-render the Markdown of the edited parts, so the checks tab and the preview
@@ -241,10 +257,11 @@ class JobStore:
         self._write_checks(job_id, checks)
         out = self.dir(job_id) / "edits"
         (out / "md").mkdir(parents=True, exist_ok=True)
-        for key in edited:
-            if key in RENDERERS:
-                name, render = RENDERERS[key]
+        for key, (name, render) in RENDERERS.items():
+            if key in edited:
                 (out / "md" / name).write_text(render(data[key]), encoding="utf-8")
+            else:  # not edited (any more, after สกัดใหม่): the extraction's own Markdown shows
+                (out / "md" / name).unlink(missing_ok=True)
         job = self.read(job_id)
         job["checks_recomputed_at"] = now_iso()
         job["edited_parts"] = edited
@@ -274,6 +291,17 @@ class JobStore:
         job["finished_at"] = now_iso()
         self.write(job)
         return job
+
+
+def _drop_manual_md(root: Path, keys: list[str]) -> None:
+    """สกัดใหม่: a part's Markdown edited by hand no longer matches; the history keeps it."""
+    from ocl_api.extract.render import RENDERERS
+
+    for key in keys:
+        if key in RENDERERS:
+            (root / "edits" / "manual" / "extract" / "md" / RENDERERS[key][0]).unlink(
+                missing_ok=True
+            )
 
 
 def _changed_fields(before: Any, after: Any, path: str = "") -> list[str]:

@@ -56,36 +56,45 @@ def process_job(store: JobStore, job_id: str, settings: Settings | None = None) 
             return job
         d = store.dir(job_id)
         t_all = time.perf_counter()
-        store.set_status(job_id, "ingesting", PROGRESS["ingest"], started_at=now_iso())
+        # สกัดใหม่ (FS-3e): the book was read already; extract only the chosen parts again
+        again = job.get("reextract") if (d / "ingest").exists() else None
+        if again is None:
+            store.set_status(job_id, "ingesting", PROGRESS["ingest"], started_at=now_iso())
         try:
             t0 = time.perf_counter()
-            rep = ingest(
-                d / job["source"],
-                d / "ingest",
-                ocr=settings.ocr,
-                ocr_language=settings.ocr_language,
+            rep = (
+                None
+                if again
+                else ingest(
+                    d / job["source"],
+                    d / "ingest",
+                    ocr=settings.ocr,
+                    ocr_language=settings.ocr_language,
+                )
             )
             job = store.read(job_id)
-            job["timings"]["ingest"] = round(time.perf_counter() - t0, 2)
-            job["counts"]["ingest"] = {
-                k: rep[k]
-                for k in (
-                    "pages",
-                    "tables",
-                    "images",
-                    "chapters",
-                    "appendices",
-                    "scanned_pages",
-                    "ocr_pages",
-                )
-            }
+            if rep is not None:
+                job["timings"]["ingest"] = round(time.perf_counter() - t0, 2)
+                job["counts"]["ingest"] = {
+                    k: rep[k]
+                    for k in (
+                        "pages",
+                        "tables",
+                        "images",
+                        "chapters",
+                        "appendices",
+                        "scanned_pages",
+                        "ocr_pages",
+                    )
+                }
             store.write(job)
 
             gateway = _gateway(job["provider"], settings)
             store.set_status(job_id, "extracting", PROGRESS["structure"])
             # run part by part so the progress line follows the mock's messages
             parts = job["parts"]
-            for key in parts:
+            run = [k for k in (again or {}).get("parts") or parts if k in parts]
+            for key in run:
                 store.set_status(job_id, "extracting", PROGRESS.get(key, key))
                 t0 = time.perf_counter()
                 extract(
@@ -102,8 +111,15 @@ def process_job(store: JobStore, job_id: str, settings: Settings | None = None) 
             # final combined checks/report over all parts
             report = extract(d / "ingest", parts=parts, gateway=None, out_dir=d / "extract-parser")
             _merge_checks(d, parts)
-            store.sync_parts_from_files(job_id, parts)
+            store.sync_parts_from_files(job_id, run)
+            if again:
+                # the parts read again go back to unconfirmed; the other parts keep their edits
+                store.reset_parts(job_id, run, again.get("by", ""))
+                store.recompute(job_id)
             job = store.read(job_id)
+            if again:
+                job.setdefault("reextracts", []).append({**again, "done_at": now_iso()})
+                job.pop("reextract", None)
             job["counts"]["parts"] = {k: v.get("count") for k, v in report["parts"].items()}
             job["llm"] = _sum_llm(d, parts)
             job["timings"]["total"] = round(time.perf_counter() - t_all, 2)

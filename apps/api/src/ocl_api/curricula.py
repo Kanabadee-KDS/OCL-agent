@@ -43,15 +43,6 @@ from ocl_api.sections import (
 
 FLOW = "curriculum"
 BOOK_MAX = 50 * 1024 * 1024  # the mock's limit for the approved book
-COURSE_KEYS = (
-    "code_th",
-    "code_en",
-    "name_th",
-    "name_en",
-    "credits",
-    "credit_text",
-    "description_th",
-)
 SUBMIT, REVIEW, PUBLISH = 0, 1, 2  # step index in the flow
 
 STATUSES: dict[str, str] = {
@@ -440,30 +431,20 @@ class CurriculumStore:
         return {"responsible": len(resp), "required": need, "issues": issues, "duplicates": dups}
 
     def course_catalog(self, q: str = "", exclude: int | None = None) -> list[dict[str, Any]]:
-        """Courses already in the system's curricula, the stand-in for the central course
-        database (CUR23) until FS-3 builds it with versions (plan FS-2, answer Q3 ก)."""
-        needle = "".join(q.split()).lower()
-        seen: dict[str, dict[str, Any]] = {}
-        with self._conn() as conn:
-            rows = conn.execute(
-                "SELECT s.draft_id, d.name_th, s.data->'courses'->'courses' AS courses "
-                "FROM curriculum_sections s JOIN curriculum_drafts d ON d.id = s.draft_id "
-                "WHERE s.section = '4' ORDER BY s.draft_id"
-            ).fetchall()
-        mine = set()
-        for r in rows:
-            for c in r["courses"] or []:
-                code = str(c.get("code_th") or "").strip()
-                if not code:
-                    continue
-                if r["draft_id"] == exclude:
-                    mine.add(code)
-                    continue
-                text = "".join(f"{code}{c.get('code_en') or ''}{c.get('name_th') or ''}".split())
-                if needle and needle not in text.lower():
-                    continue
-                seen.setdefault(code, {k: c.get(k) for k in COURSE_KEYS} | {"from": r["name_th"]})
-        return [c for code, c in sorted(seen.items()) if code not in mine][:50]
+        """What หมวด 4 may pick: the central course database (FS-3a), without the codes this
+        curriculum already has."""
+        from ocl_api.courses import CourseStore
+
+        mine: list[str] = []
+        if exclude is not None:
+            with self._conn() as conn:
+                r = conn.execute(
+                    "SELECT data FROM curriculum_sections WHERE draft_id = %s AND section = '4'",
+                    (exclude,),
+                ).fetchone()
+            courses = (((r or {}).get("data") or {}).get("courses") or {}).get("courses") or []
+            mine = [str(c.get("code_th") or "").strip() for c in courses]
+        return CourseStore(self.url, self.schema).catalog(q, mine)
 
     def by_job(self, job_id: str) -> dict[str, Any] | None:
         with self._conn() as conn:

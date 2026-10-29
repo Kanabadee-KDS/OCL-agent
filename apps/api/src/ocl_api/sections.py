@@ -123,6 +123,20 @@ def write_all(conn, draft_id: int, sections: dict[str, dict[str, Any]], by: str,
         )
 
 
+def write_one(conn, draft_id: int, n: str, data: dict[str, Any], by: str, why: str) -> None:
+    """Replace one section and log it (changes made by the system: links, สมอ.08)."""
+    conn.execute(
+        "UPDATE curriculum_sections SET data = %s, updated_by = %s, updated_at = now() "
+        "WHERE draft_id = %s AND section = %s",
+        (Jsonb(data), by, draft_id, n),
+    )
+    conn.execute(
+        "INSERT INTO curriculum_section_history (draft_id, section, by, why, data) "
+        "VALUES (%s, %s, %s, %s, %s)",
+        (draft_id, n, by, why, Jsonb(data)),
+    )
+
+
 def backfill(url: str, schema: str | None) -> int:
     """Drafts made before migration 010 get their sections from the finalize snapshot."""
     from ocl_api.db import connect
