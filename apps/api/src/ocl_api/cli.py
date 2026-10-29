@@ -192,10 +192,11 @@ def cmd_outbox(args: argparse.Namespace) -> int:
             return 1
         print(json.dumps(m, ensure_ascii=False, indent=1))
         return 0
-    from datetime import datetime
-    from zoneinfo import ZoneInfo
+    from datetime import datetime, timedelta, timezone
 
-    bkk = ZoneInfo("Asia/Bangkok")  # NFR-15: times are shown in Thai time
+    # NFR-15: Thai time. A fixed +07:00 (Thailand has no daylight saving) needs no tzdata,
+    # which the slim API image may not carry.
+    bkk = timezone(timedelta(hours=7))
     for m in box.list(args.status, args.limit):
         at = datetime.fromisoformat(m["created_at"]).astimezone(bkk).strftime("%Y-%m-%d %H:%M")
         print(
