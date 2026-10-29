@@ -7,8 +7,8 @@ const display = Anuphan({ subsets: ["thai", "latin"], weight: ["400", "500", "60
 const body = IBM_Plex_Sans_Thai({ subsets: ["thai", "latin"], weight: ["400", "500", "600"], variable: "--f-body-next" });
 
 export const metadata: Metadata = {
-  title: "OCL Agent · นำเข้าข้อมูลเล่มหลักสูตรด้วย AI (POC)",
-  description: "ระบบบริหารจัดการหลักสูตรและการรับรองสมรรถนะดิจิทัล (Skill Transcript) — POC โมดูลนำเข้าด้วย AI",
+  title: "ระบบบริหารจัดการหลักสูตรและการรับรองสมรรถนะดิจิทัล · มศว",
+  description: "ระบบบริหารจัดการหลักสูตรและการรับรองสมรรถนะดิจิทัล (Skill Transcript) มหาวิทยาลัยศรีนครินทรวิโรฒ",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

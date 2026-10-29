@@ -37,3 +37,8 @@
 @media (min-width: 1025px) {
   .app.nav-collapsed .nav { display: none; }
 }
+
+/* menus not built yet (lib/nav.ts phase) */
+.nav-item.soon{opacity:.6;cursor:default}
+.nav-item.soon:hover{background:transparent}
+.nav-item .soon-tag{margin-left:auto;font-size:10.5px;color:var(--nav-muted);white-space:nowrap}

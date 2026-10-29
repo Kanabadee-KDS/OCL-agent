@@ -2,9 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  async redirects() {
-    return [{ source: "/", destination: "/import", permanent: false }];
-  },
+  // "/" is the landing page of every role (app/(app)/page.tsx), no longer a redirect to /import
 };
 
 export default nextConfig;

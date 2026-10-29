@@ -21,6 +21,8 @@ const ICONS: Record<string, string> = {
   send: '<path d="M4 12l16-8-6 16-2-7z"/>',
   download: '<path d="M12 4v12M7 11l5 5 5-5"/><path d="M4 20h16"/>',
   menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
+  lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/>',
 };
 
 export function Ic({ name, size = 18, width = 1.8 }: { name: string; size?: number; width?: number }) {

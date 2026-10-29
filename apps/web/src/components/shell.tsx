@@ -2,25 +2,14 @@
 
 import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { Ic } from "@/components/ui";
+import { usePathname } from "next/navigation";
+import { Ic, Note } from "@/components/ui";
 import { roleLabel } from "@/lib/perm";
+import { canMenu, menuOfPath, visibleNav, NAV } from "@/lib/nav";
 import { LogoutButton } from "@/components/logout";
 
-const NAV = [
-  {
-    label: "บริหารข้อมูลหลักสูตร",
-    icon: "book",
-    secs: [
-      { cap: "คู่มือหลักสูตร", items: [["คู่มือหลักสูตร", "/curricula"], ["ตรวจสอบและบันทึก PLO โดยคณะ", null], ["งานปรับปรุงแก้ไขหลักสูตร (สมอ.08)", null]] },
-      { cap: "นำเข้าข้อมูลเล่มหลักสูตรด้วย AI", items: [["นำเข้าข้อมูลเล่มหลักสูตร", "/import"], ["ประวัติการนำเข้าทั้งหมด", "/import/history"]] },
-      { cap: "ข้อมูลหลัก (Master)", items: [["บริหารรายวิชา", null], ["บริหารบุคคลภายนอก", null]] },
-    ],
-  },
-  { label: "แผนการจัดการเรียนรู้รายวิชา/ชุดวิชา", icon: "plan", secs: [] },
-  { label: "Skill Transcript", icon: "skill", secs: [] },
-  { label: "ประเมินผลหลักสูตรตามเกณฑ์มาตรฐาน", icon: "qa", secs: [] },
-  { label: "รายงาน", icon: "chart", secs: [] },
-] as const;
+const menuLabel = (id: string) =>
+  NAV.flatMap((m) => m.secs.flatMap((s) => s.items)).find((i) => i.id === id)?.label ?? id;
 
 export type ShellUser = { name: string; email: string; roles: string[] };
 
@@ -55,6 +44,14 @@ export function Shell({ user, children }: { user: ShellUser; children: React.Rea
   const collapsed = useSyncExternalStore(subscribeCollapsed, getCollapsed, () => false);
   const small = useSyncExternalStore(subscribeSmall, () => window.matchMedia(SMALL).matches, () => false);
   const [open, setOpen] = useState(false);
+  const path = usePathname();
+  const nav = visibleNav(user.roles);
+  const activeMenu = menuOfPath(path);
+  // a module starts open when it holds the current page; the user can open/close any module
+  const [modOpen, setModOpen] = useState<Record<string, boolean>>({});
+  const isOpen = (k: string, hasActive: boolean) => modOpen[k] ?? hasActive;
+  // per-page permission (the API checks again on every call): pages of a menu the roles do not see
+  const denied = activeMenu !== undefined && !canMenu(user.roles, activeMenu);
   function toggle() {
     if (small) setOpen((o) => !o);
     else setCollapsedStore(!collapsed);
@@ -70,44 +67,64 @@ export function Shell({ user, children }: { user: ShellUser; children: React.Rea
             <b style={{ fontFamily: "var(--f-display)", fontSize: 13, color: "#fff", lineHeight: 1.35 }}>
               ระบบบริหารจัดการหลักสูตรและการรับรองสมรรถนะดิจิทัล
             </b>
-            <span style={{ fontSize: 11, color: "var(--nav-muted)" }}>(Skill Transcript) · มศว · POC</span>
+            <span style={{ fontSize: 11, color: "var(--nav-muted)" }}>(Skill Transcript) · มหาวิทยาลัยศรีนครินทรวิโรฒ</span>
           </div>
         </div>
         <nav className="nav-body">
-          {NAV.map((m) => (
-            <div key={m.label}>
-              <button className={`nav-mod ${m.secs.length ? "open has-active" : ""}`} disabled={!m.secs.length}>
-                <Ic name={m.icon} size={20} />
-                <span>{m.label}</span>
-                <span className="chev"><Ic name="chev" size={15} width={2} /></span>
-              </button>
-              {m.secs.length > 0 && (
-                <div style={{ padding: "2px 0 8px" }}>
-                  {m.secs.map((s) => (
-                    <div key={s.cap}>
-                      <div className="nav-cap">{s.cap}</div>
-                      {s.items.map(([t, href]) =>
-                        href ? (
-                          <Link key={t} href={href} className="nav-item active" onClick={() => setOpen(false)}>
-                            <span>{t}</span>
-                            <span className="tag">POC</span>
-                          </Link>
-                        ) : (
-                          <button key={t} className="nav-item" disabled title="อยู่ใน R1">
-                            <span>{t}</span>
-                          </button>
-                        ),
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
+          <Link href="/" className={`nav-mod ${path === "/" ? "has-active" : ""}`} onClick={() => setOpen(false)}>
+            <Ic name="home" size={20} />
+            <span>หน้าแรก</span>
+          </Link>
+          {nav.map((m) => {
+            const hasActive = m.secs.some((s) => s.items.some((i) => i.id === activeMenu));
+            const opened = isOpen(m.k, hasActive);
+            return (
+              <div key={m.k}>
+                <button
+                  type="button"
+                  className={`nav-mod ${opened ? "open" : ""} ${hasActive ? "has-active" : ""}`}
+                  aria-expanded={opened}
+                  onClick={() => setModOpen((s) => ({ ...s, [m.k]: !opened }))}
+                >
+                  <Ic name={m.icon} size={20} />
+                  <span>{m.label}</span>
+                  <span className="chev"><Ic name="chev" size={15} width={2} /></span>
+                </button>
+                {opened && (
+                  <div style={{ padding: "2px 0 8px" }}>
+                    {m.secs.map((s) => (
+                      <div key={s.cap}>
+                        <div className="nav-cap">{s.cap}</div>
+                        {s.items.map((i) =>
+                          i.href ? (
+                            <Link
+                              key={i.id}
+                              href={i.href}
+                              className={`nav-item ${i.id === activeMenu ? "active" : ""}`}
+                              aria-current={i.id === activeMenu ? "page" : undefined}
+                              onClick={() => setOpen(false)}
+                            >
+                              <span>{i.label}</span>
+                              {i.tag && <span className="tag">{i.tag}</span>}
+                            </Link>
+                          ) : (
+                            <button key={i.id} type="button" className="nav-item soon" disabled title={`อยู่ระหว่างพัฒนา (${i.phase})`}>
+                              <span>{i.label}</span>
+                              {i.tag ? <span className="tag">{i.tag}</span> : <span className="soon-tag">เร็ว ๆ นี้</span>}
+                            </button>
+                          ),
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </nav>
         <div className="nav-foot">
-          <span>OCL Agent</span>
-          <span>POC · sprint 1</span>
+          <span>OCR Agent</span>
+          <span>{roleLabel(user.roles)}</span>
         </div>
       </aside>
       <div className="main">
@@ -135,7 +152,19 @@ export function Shell({ user, children }: { user: ShellUser; children: React.Rea
           <span className="av" title={user.email} style={{ background: "var(--nav)", color: "#fff" }}>{initials}</span>
           <LogoutButton />
         </header>
-        <div className="content">{children}</div>
+        <div className="content">
+          {denied ? (
+            <section className="card pad stack" style={{ maxWidth: 720 }}>
+              <h1 className="h1">ไม่มีสิทธิ์ในเมนูนี้</h1>
+              <Note kind="warn">
+                บัญชี {user.email} มีบทบาท {roleLabel(user.roles)} ซึ่งไม่ครอบคลุมเมนู &ldquo;{menuLabel(activeMenu ?? "")}&rdquo; ติดต่อผู้ดูแลส่วนกลางหากต้องการสิทธิ์เพิ่ม
+              </Note>
+              <Link href="/" className="btn" style={{ alignSelf: "flex-start" }}>กลับหน้าแรก</Link>
+            </section>
+          ) : (
+            children
+          )}
+        </div>
       </div>
     </div>
   );
