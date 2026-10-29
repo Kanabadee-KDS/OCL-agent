@@ -1,7 +1,7 @@
 // node --test src/lib/table.test.ts
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { filterRows, matches, options, pageList, paginate, sortRows } from "./table.ts";
+import { filterRows, matches, options, pageList, paginate, sortRows, toCsv } from "./table.ts";
 
 type C = { name: string; fac: string; year: number | null };
 const rows: C[] = [
@@ -48,4 +48,10 @@ test("page list keeps both ends and the neighbourhood of the current page", () =
 
 test("filter options are distinct and sorted", () => {
   assert.deepEqual(options(rows, (r) => r.fac), ["คณะวิทยาศาสตร์", "คณะเศรษฐศาสตร์", "คณะสังคมศาสตร์"]);
+});
+
+test("CSV opens in Excel with Thai, quotes and line breaks intact", () => {
+  const out = toCsv(["ชื่อ", "หมายเหตุ"], [["หลักสูตร \"ก\"", "บรรทัด 1\nบรรทัด 2"], [null, 3]]);
+  assert.ok(out.startsWith("\uFEFF"));
+  assert.equal(out.slice(1), '"ชื่อ","หมายเหตุ"\r\n"หลักสูตร ""ก""","บรรทัด 1\nบรรทัด 2"\r\n"","3"\r\n');
 });

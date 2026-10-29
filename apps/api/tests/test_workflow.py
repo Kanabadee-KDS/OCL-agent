@@ -49,6 +49,7 @@ def client(pg_url: str, schema: str, tmp_path: Path, monkeypatch: pytest.MonkeyP
     users.upsert("central@g.swu.ac.th", roles=["central"])
     users.upsert("dean@g.swu.ac.th", roles=["faculty"])
     users.upsert("cur@g.swu.ac.th", roles=["curator"])
+    curator_teaches(pg_url, schema)
     return TestClient(app)
 
 
@@ -72,7 +73,34 @@ def _import_and_finalize(c: TestClient, tmp_path: Path, headers: dict[str, str])
         headers=headers,
     )
     assert c.post(f"/api/imports/{jid}/finalize", headers=headers).json()["status"] == "done"
+    curator_into_teachers(c, jid, headers)
     return jid
+
+
+def curator_into_teachers(c: TestClient, jid: str, headers: dict[str, str]) -> None:
+    """The test curator is one of the curriculum's teachers (0.2): inside their ขอบเขตข้อมูล."""
+    did = c.get(f"/api/curricula/by-job/{jid}", headers=headers).json()["id"]
+    s0 = c.get(f"/api/curricula/{did}/sections", headers=headers).json()["0"]["data"]
+    t = s0.setdefault("teachers", {}).setdefault("teachers", [])
+    t.append({"name": "อาจารย์ผู้ตรวจระดับหลักสูตร", "pid": CUR_PID, "responsible": True})
+    assert (
+        c.put(f"/api/curricula/{did}/sections/0", json={"data": s0}, headers=headers).status_code
+        == 200
+    )
+
+
+CUR_PID = "SWU-CUR-01"
+
+
+def curator_teaches(pg_url: str, schema: str, email: str = "cur@g.swu.ac.th") -> None:
+    """Give the test curator the HURIS id that _import_and_finalize puts among the teachers."""
+    from ocl_api.db import connect
+
+    with connect(pg_url, schema) as conn:
+        conn.execute("UPDATE users SET pid = %s WHERE email = %s", (CUR_PID, email))
+    from ocl_api.auth import clear_user_cache
+
+    clear_user_cache()
 
 
 def test_workflow_end_to_end(client: TestClient, tmp_path: Path) -> None:
@@ -91,6 +119,7 @@ def test_workflow_end_to_end(client: TestClient, tmp_path: Path) -> None:
     # finalize again does not create a second draft
     c.post(f"/api/imports/{jid}/finalize", headers=CENTRAL)
     assert c.get("/api/curricula", headers=CENTRAL).json()["counts"]["import"] == 1
+    curator_into_teachers(c, jid, CENTRAL)  # finalizing again rewrote the sections from the job
 
     t = f"/api/curricula/{did}/transition"
     # faculty cannot submit; verify before review is refused
@@ -102,25 +131,17 @@ def test_workflow_end_to_end(client: TestClient, tmp_path: Path) -> None:
         and r["review_due_at"] == business_days_after(date.today(), 5).isoformat()
     )
 
-    # while in review the faculty may edit หมวด 3–4 only; central still can; courses are off-limits to faculty
+    # while in review the faculty edits หมวด 3–4 on the curriculum (Mapping only inside 4);
+    # the import's review page is closed once the job is saved into the system
+    sec = f"/api/curricula/{did}/sections"
+    s3 = c.get(sec, headers=FACULTY).json()["3"]["data"]
+    assert c.put(f"{sec}/3", json={"data": s3}, headers=FACULTY).status_code == 200
+    s4 = c.get(sec, headers=FACULTY).json()["4"]["data"]
+    no_courses = {**s4, "courses": {"courses": []}}
+    assert c.put(f"{sec}/4", json={"data": no_courses}, headers=FACULTY).status_code == 403
     plo = c.get(f"/api/imports/{jid}/parts/plo", headers=FACULTY).json()
-    assert (
-        c.put(
-            f"/api/imports/{jid}/parts/plo",
-            json={"data": plo["data"], "confirm": False},
-            headers=FACULTY,
-        ).status_code
-        == 200
-    )
-    crs = c.get(f"/api/imports/{jid}/parts/courses", headers=FACULTY).json()
-    assert (
-        c.put(
-            f"/api/imports/{jid}/parts/courses",
-            json={"data": crs["data"], "confirm": False},
-            headers=FACULTY,
-        ).status_code
-        == 403
-    )
+    closed = c.put(f"/api/imports/{jid}/parts/plo", json={"data": plo["data"]}, headers=FACULTY)
+    assert closed.status_code == 409 and "หน้าคู่มือหลักสูตร" in closed.json()["detail"]
 
     # verify needs both sections checked
     assert c.post(t, json={"action": "verify"}, headers=FACULTY).status_code == 409
@@ -135,23 +156,17 @@ def test_workflow_end_to_end(client: TestClient, tmp_path: Path) -> None:
     assert r["status"] == "verified" and r["verified_at"]
 
     # locked after verification, for everyone
-    assert (
-        c.put(
-            f"/api/imports/{jid}/parts/plo",
-            json={"data": plo["data"], "confirm": False},
-            headers=CENTRAL,
-        ).status_code
-        == 409
-    )
+    assert c.put(f"{sec}/3", json={"data": s3}, headers=CENTRAL).status_code == 409
     assert c.post(t, json={"action": "publish"}, headers=FACULTY).status_code == 403
     r = c.post(t, json={"action": "publish"}, headers=CENTRAL).json()
     assert r["status"] == "published" and r["published_at"]
     r = c.post(t, json={"action": "unpublish"}, headers=CENTRAL).json()
     assert r["status"] == "verified"
     actions = [e["action"] for e in r["events"]]
-    assert actions == ["submit", "check", "check", "verify", "publish", "unpublish"]
+    # the two edits are the setup putting the curator into 0.2 (before and after finalizing again)
+    assert actions == ["edit", "edit", "submit", "check", "check", "verify", "publish", "unpublish"]
     assert (
-        r["events"][0]["by"] == "cur@g.swu.ac.th" and r["events"][0]["note"] == "ขอให้ตรวจหมวด 3–4"
+        r["events"][2]["by"] == "cur@g.swu.ac.th" and r["events"][2]["note"] == "ขอให้ตรวจหมวด 3–4"
     )
     assert r["parts"]["plo"]["count"] >= 0 and "checks" in r
 

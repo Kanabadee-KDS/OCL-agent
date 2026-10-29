@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 from ocl_api.auth import clear_user_cache, sign_token
 from ocl_api.curricula import business_days_after
 from ocl_api.flows import today_th
-from tests.test_workflow import _import_and_finalize
+from tests.test_workflow import _import_and_finalize, curator_teaches
 
 SECRET = "flows-secret-for-tests-only-32bytes"
 
@@ -45,6 +45,7 @@ def client(pg_url: str, schema: str, tmp_path: Path, monkeypatch: pytest.MonkeyP
     users.upsert("admin@g.swu.ac.th", roles=["admin"])
     users.upsert("central@g.swu.ac.th", roles=["central"])
     users.upsert("cur@g.swu.ac.th", roles=["curator"])
+    curator_teaches(pg_url, schema)
     users.upsert("dean@g.swu.ac.th", roles=["faculty"])
     # a faculty reviewer of another faculty: never e-mailed about this curriculum
     users.upsert("far@g.swu.ac.th", roles=["faculty"], unit="คณะอื่น")

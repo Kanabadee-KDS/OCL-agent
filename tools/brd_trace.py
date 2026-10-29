@@ -100,11 +100,13 @@ LOGIN_SCREENS = {"login", "login-ext"}  # drawn before sign-in, not in the route
 
 # Pages of the running web app (apps/web) and the mock page each one implements.
 BUILT: dict[str, str] = {
+    "dash-cur": "มีแล้ว (FS-2f `/dashboard` · เมนู d1 · แท็บสถิติตามค่าสมมติรอ C1)",
     "login": "มีแล้ว (บัวศรีไอดี+รหัสผ่าน · Google รอ OAuth client)",
     "cur": "บางส่วน (รายการ + ตัวนับสถานะ + เพิ่มหลักสูตร · ข้อมูลหมวด 0–5 ของคู่มือเอง FS-2a)",
-    "cur-edit": "บางส่วน (ฟอร์มหมวด 0 1 2 5 FS-2b · หมวด 3–4 อยู่ใน FS-2c)",
-    "fac-plo": "บางส่วน (workflow ส่งคณะตรวจในหน้าคู่มือ)",
-    "fac-plo-edit": "บางส่วน (ติ๊กหมวด 3–4 · แก้ PLO/KSEC/Mapping)",
+    "cur-edit": "มีแล้ว (หมวด 0–5 FS-2b FS-2c · Preview แบบเล่มและ PDF A4 `/curricula/[id]/preview` FS-2d)",
+    "st-courses": "มีแล้ว (FS-2c · เลือกจากรายวิชาของหลักสูตรอื่นในระบบหรือสร้างใหม่ · Version ของรายวิชาใน FS-3)",
+    "fac-plo": "มีแล้ว (FS-2e `/curricula/review` · รอตรวจ/ครบหมวด 3–4/ดำเนินการแล้ว ตามขอบเขตข้อมูล)",
+    "fac-plo-edit": "มีแล้ว (หน้าคู่มือ: ติ๊กหมวด 3–4 ตรวจสอบสำเร็จ ส่งคืนพร้อมหมายเหตุ หมายเหตุจากส่วนกลาง · แก้ที่หน้าข้อมูลคู่มือ FS-2c)",
     "import": "มีแล้ว",
     "import-review": "มีแล้ว",
     "import-done": "มีแล้ว",
@@ -128,7 +130,7 @@ TEST_MAP: dict[str, tuple[list[str], list[str]]] = {
     "F": (["import"], ["US-M1-11"]),
     "G": (["import"], ["US-M1-11"]),
     "H": (["import"], ["US-M1-11"]),
-    "K": (["cur", "fac-plo", "fac-plo-edit"], ["US-M1-03", "US-M1-07", "US-M1-08"]),
+    "K": (["dash-cur", "cur", "fac-plo", "fac-plo-edit"], ["US-M1-01", "US-M1-03", "US-M1-07", "US-M1-08"]),
     "I": ([], []),
     "V": (["import-review"], []),
     "M": (["import"], []),

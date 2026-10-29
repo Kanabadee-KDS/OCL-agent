@@ -17,7 +17,7 @@ from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
 from ocl_api.flow_defaults import seed_sql as flow_seed_sql
-from ocl_api.perms import scope_kind_sql, seed_sql
+from ocl_api.perms import menu_seed_sql, scope_kind_sql, seed_sql
 
 MIGRATIONS: list[tuple[str, str]] = [
     (
@@ -342,6 +342,11 @@ MIGRATIONS: list[tuple[str, str]] = [
             PRIMARY KEY (field, value)
         );
         """,
+    ),
+    (
+        "012_dashboard_menu",
+        "-- แดชบอร์ดหลักสูตร (FS-2f): the menu d1 for the groups the mock shows it to\n"
+        + menu_seed_sql("d1"),
     ),
 ]
 

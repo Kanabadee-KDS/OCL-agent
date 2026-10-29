@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 
 from ocl_api.auth import clear_user_cache, sign_token
 from ocl_api.sections import from_parts, to_parts, with_part
-from tests.test_workflow import _import_and_finalize
+from tests.test_workflow import _import_and_finalize, curator_teaches
 
 SECRET = "sections-secret-for-tests-only-32b"
 
@@ -68,6 +68,7 @@ def client(pg_url: str, schema: str, tmp_path: Path, monkeypatch: pytest.MonkeyP
     users = UserStore(pg_url, schema)
     users.upsert("central@g.swu.ac.th", roles=["central"])
     users.upsert("cur@g.swu.ac.th", roles=["curator"])
+    curator_teaches(pg_url, schema)
     users.upsert("dean@g.swu.ac.th", roles=["faculty"])
     clear_user_cache()
     return TestClient(app)
@@ -116,26 +117,21 @@ def test_import_fills_sections_and_the_rules_follow_the_status(
     r = c.put(f"{sec}/4", json={"data": no_courses}, headers=DEAN)
     assert r.status_code == 403 and "Mapping" in r.json()["detail"]
 
-    # the import's review page still edits, under the same rules, and reaches the sections
+    # the import's review page is closed once saved into the system: edits go here
     plo = c.get(f"/api/imports/{jid}/parts/plo", headers=DEAN).json()
     plo["data"]["plos"] = two
     assert (
         c.put(f"/api/imports/{jid}/parts/plo", json={"data": plo["data"]}, headers=DEAN).status_code
-        == 200
+        == 409
     )
-    assert c.get(sec, headers=DEAN).json()["3"]["data"]["plo"]["plos"] == two
-    info = c.get(f"/api/imports/{jid}/parts/info", headers=DEAN).json()
-    assert (
-        c.put(
-            f"/api/imports/{jid}/parts/info", json={"data": info["data"]}, headers=DEAN
-        ).status_code
-        == 403
-    )
+    assert c.get(sec, headers=DEAN).json()["3"]["data"]["plo"]["plos"] == two[:1], "unchanged"
+    assert c.get(f"/api/curricula/{did}", headers=DEAN).json()["limited"] == {"4": ["mapping"]}
     # finalizing the job again would overwrite the review
     assert c.post(f"/api/imports/{jid}/finalize", headers=CENTRAL).status_code == 409
 
     ev = c.get(f"/api/curricula/{did}", headers=CENTRAL).json()["events"]
-    assert [e["action"] for e in ev].count("edit") >= 4 and any(
+    # 4 = the setup (curator into 0.2) + three edits above
+    assert [e["action"] for e in ev].count("edit") == 4 and any(
         "หมวด 3" in (e["note"] or "") for e in ev
     )
 

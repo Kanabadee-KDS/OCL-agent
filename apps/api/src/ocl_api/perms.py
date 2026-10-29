@@ -59,6 +59,7 @@ ACTIONS: dict[str, str] = {
     "print": "พิมพ์",
 }
 MENUS: dict[str, list[str]] = {
+    "d": ["d1"],  # แดชบอร์ด (the mock adds it later: NAV.unshift; FS-2f builds หลักสูตร)
     "c": ["c1", "c1b", "c2", "c3", "c3h", "c5", "c4"],
     "p": ["p1", "p2", "p4"],
     "s": ["s1", "s2", "s2b", "s3", "s4", "s5", "s6"],
@@ -72,15 +73,15 @@ ALL_MENUS = [m for ids in MENUS.values() for m in ids]
 
 # who sees which module, and the only menus some roles see inside it (mock ROLES.mods/only)
 _ACCESS: dict[str, tuple[list[str], list[str] | None]] = {
-    "admin": (["c", "p", "s", "q", "r", "u"], None),
-    "central": (["c", "p", "s", "q", "r", "u"], None),
-    "curator": (["c", "p", "s", "q", "r"], None),
-    "faculty": (["c", "p", "s", "q", "r"], None),
+    "admin": (["d", "c", "p", "s", "q", "r", "u"], None),
+    "central": (["d", "c", "p", "s", "q", "r", "u"], None),
+    "curator": (["d", "c", "p", "s", "q", "r"], None),
+    "faculty": (["d", "c", "p", "s", "q", "r"], None),
     "evaluator": (["q"], None),
     "teacher": (["p", "s", "r"], ["p2", "p4", "s4", "s5", "r0", "r7", "r8"]),
     "advisor": (["s", "r"], ["s5", "r0", "r8"]),
     "student": (["m"], None),
-    "exec": (["r"], None),
+    "exec": (["d", "r"], None),
 }
 # actions on the menus a role sees, as the mock's role-edit defaults them (`has()`)
 _ACTIONS_OF: dict[str, set[str]] = {
@@ -151,6 +152,19 @@ def seed_sql() -> str:
         f"INSERT INTO role_perms (role_id, menu, action) VALUES\n{perms}\n"
         "ON CONFLICT DO NOTHING;"
     )
+
+
+def menu_seed_sql(*menus: str) -> str:
+    """INSERTs of the defaults of new menus only: a later migration must not bring back the
+    rights an administrator removed from the older menus."""
+    rows = ",\n".join(
+        f"('{r}', '{m}', '{a}')"
+        for r, mm in default_table().items()
+        for m, acts in mm.items()
+        if m in menus
+        for a in sorted(acts)
+    )
+    return f"INSERT INTO role_perms (role_id, menu, action) VALUES\n{rows}\nON CONFLICT DO NOTHING;"
 
 
 def scope_kind_sql() -> str:

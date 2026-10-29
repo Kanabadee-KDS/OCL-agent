@@ -42,3 +42,48 @@
 .nav-item.soon{opacity:.6;cursor:default}
 .nav-item.soon:hover{background:transparent}
 .nav-item .soon-tag{margin-left:auto;font-size:10.5px;color:var(--nav-muted);white-space:nowrap}
+
+/* Preview แบบเล่มหลักสูตร (FS-2d · US-M1-05): a sheet on screen, A4 through the browser's print.
+   The running head is a table header so it repeats on every printed page. */
+.book{background:#fff;color:#111;max-width:210mm;width:100%;margin:0 auto;padding:14mm 16mm;border:1px solid var(--line);border-radius:6px;font-size:14px;line-height:1.55}
+.book-frame{width:100%;border-collapse:collapse}
+.book-frame>thead>tr>td,.book-frame>tbody>tr>td{padding:0;border:0}
+.book-run{display:flex;justify-content:space-between;gap:12px;font-size:11px;color:#555;border-bottom:1px solid #bbb;padding-bottom:4px;margin-bottom:10px}
+.book-title{text-align:center;margin:6px 0 18px}
+.book-title h1{font-size:20px;font-weight:700;margin:0 0 2px}
+.book h2{font-size:17px;font-weight:700;margin:22px 0 8px}
+.book h3{font-size:15px;font-weight:700;margin:16px 0 6px}
+.book h4{font-size:14px;font-weight:700;margin:12px 0 4px}
+.book table:not(.book-frame){width:100%;border-collapse:collapse;margin:0 0 10px}
+.book table:not(.book-frame) th,.book table:not(.book-frame) td{border:1px solid #888;padding:3px 6px;vertical-align:top;text-align:left}
+.book table:not(.book-frame) th{background:#f1f1f1;font-weight:700}
+.book td.r{text-align:right}
+.book td.sub{padding-left:18px;color:#333}
+.book td.codes{font-size:12px}
+.book .empty{color:#777;font-style:italic}
+.book .course{margin:0 0 8px}
+.book .course-head{display:flex;gap:6px;align-items:baseline;flex-wrap:wrap}
+.book .course-head .cr{margin-left:auto}
+.book .course p{margin:2px 0 0;text-indent:2em}
+.book table.map{font-size:10.5px}
+.book table.map th,.book table.map td{padding:2px 3px;text-align:center}
+.book table.map td.name{text-align:left;min-width:120px}
+@page{size:A4;margin:12mm 12mm 14mm}
+@media print{
+  html,body{background:#fff!important}
+  .nav,.top,.scrim,.no-print,.toast-wrap{display:none!important}
+  .app,.main,.content{display:block!important;padding:0!important;margin:0!important;max-width:none!important}
+  .book{border:0;border-radius:0;padding:0;max-width:none;font-size:11.5pt}
+  .book section{break-before:page}
+  .book h2,.book h3,.book h4{break-after:avoid}
+  .book tr,.book .course{break-inside:avoid}
+  .book table.keep{break-inside:auto}
+  .book table:not(.book-frame) thead{display:table-header-group}
+  .book table.map{font-size:7.5pt}
+}
+
+/* แดชบอร์ดหลักสูตร (FS-2f): stacked status bars, one gap between segments */
+.bar.lg{height:14px}
+.bar > span + span{border-left:2px solid var(--surface)}
+.dash-grid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:1000px){.dash-grid{grid-template-columns:minmax(0,1fr)}}

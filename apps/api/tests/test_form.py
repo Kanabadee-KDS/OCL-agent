@@ -167,3 +167,36 @@ def test_teacher_check(client: TestClient) -> None:
     assert r["duplicates"] == [{"name": "สมหญิง รักเรียน", "curriculum": "หลักสูตร ง", "id": b}]
     rb = c.get(f"/api/curricula/{b}/teachers/check", headers=DEAN).json()
     assert rb["required"] == 3 and not any("สมหญิง" in i for i in rb["issues"]), "รศ. qualifies"
+
+
+def test_course_catalog_offers_other_curricula_courses(client: TestClient) -> None:
+    """US-M1-20 until the central course database (FS-3): courses already in the system."""
+    c = client
+    a, b = _new(c, "หลักสูตร จ"), _new(c, "หลักสูตร ฉ")
+
+    def courses(did: int, rows: list[dict]) -> None:
+        s4 = c.get(f"/api/curricula/{did}/sections", headers=CENTRAL).json()["4"]["data"]
+        c.put(
+            f"/api/curricula/{did}/sections/4",
+            json={"data": {**s4, "courses": {"courses": rows}}},
+            headers=CENTRAL,
+        )
+
+    courses(
+        a,
+        [
+            {"code_th": "ทวพ211", "name_th": "พอลิเมอร์เบื้องต้น", "credits": 3},
+            {"code_th": "ศท111", "name_th": "ศิลปะการใช้ชีวิต"},
+        ],
+    )
+    courses(b, [{"code_th": "ศท111", "name_th": "ศิลปะการใช้ชีวิต"}])
+    got = c.get(f"/api/curricula/courses/catalog?exclude={b}", headers=DEAN).json()
+    assert [x["code_th"] for x in got] == ["ทวพ211"], "not the courses this curriculum already has"
+    assert got[0]["from"] == "หลักสูตร จ" and got[0]["credits"] == 3
+    assert (
+        c.get(f"/api/curricula/courses/catalog?q=พอลิ เมอร์&exclude={b}", headers=DEAN).json()[0][
+            "code_th"
+        ]
+        == "ทวพ211"
+    )
+    assert c.get(f"/api/curricula/courses/catalog?q=zzz&exclude={b}", headers=DEAN).json() == []

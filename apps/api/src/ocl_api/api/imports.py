@@ -20,7 +20,6 @@ from pydantic import BaseModel
 
 from ocl_api.auth import REQUIRE_IMPORT_READ, REQUIRE_IMPORT_WRITE, User, current_user
 from ocl_api.config import Settings, get_settings
-from ocl_api.curricula import CurriculumStore
 from ocl_api.jobs import ALL_PARTS, PARTS, JobStore, make_store
 from ocl_api.worker import process_job
 
@@ -145,32 +144,19 @@ def put_part(
     try:
         if store.read_part(job_id, key) is None:
             raise HTTPException(404, "ส่วนนี้ยังไม่มีข้อมูลให้แก้")
-        cs = _curricula()
-        _check_edit_allowed(store, job_id, key, user, cs)
-        saved = store.save_part(
+        _check_edit_allowed(store, job_id, user)
+        return store.save_part(
             job_id, key, body.data, confirm=body.confirm, by=user.email or body.by
         )
-        if cs is not None:
-            cs.sync_part(job_id, key, body.data, user)  # after finalize the sections hold it
-        return saved
     except KeyError as e:
         raise HTTPException(404, "ไม่พบงานหรือส่วนที่ขอ") from e
 
 
-def _curricula() -> CurriculumStore | None:
-    s = get_settings()
-    return CurriculumStore(s.database_url, s.database_schema, None) if s.database_url else None
-
-
-def _check_edit_allowed(
-    store: JobStore, job_id: str, key: str, user: User, cs: CurriculumStore | None
-) -> None:
-    """Before finalize: who may import. After it the คู่มือหลักสูตร's rules apply (BRD 01 §2):
-    the draft is edited by step 1 of its flow, the review by step 2 (หมวด 3–4, inside หมวด 4
-    the Mapping only), and after 'ตรวจสอบสำเร็จ' nobody (สมอ.08)."""
-    if store.draft_state(job_id) is not None and cs is not None:
-        cs.check_part(job_id, key, user)
-        return
+def _check_edit_allowed(store: JobStore, job_id: str, user: User) -> None:
+    """Who may import. Once saved into the system the คู่มือหลักสูตร owns the data (sections,
+    FS-2a) and is edited on its own pages, so the import's review page is read-only."""
+    if store.draft_state(job_id) is not None:
+        raise HTTPException(409, "บันทึกเข้าระบบแล้ว แก้ข้อมูลที่หน้าคู่มือหลักสูตร")
     if not user.can("import_write"):
         raise HTTPException(403, "บัญชีนี้ไม่มีสิทธิ์แก้ไขส่วนนี้")
 

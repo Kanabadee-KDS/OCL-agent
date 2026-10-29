@@ -35,6 +35,7 @@ export function CurriculumClient() {
   const stepIdx = STEPS.findIndex(([k]) => k === d.status);
   const checked = d.faculty_checked ?? {};
   const bothChecked = Boolean(checked["3"] && checked["4"]);
+  const sentNote = [...d.events].reverse().find((e) => e.action === "submit" && e.note);
   // who acts at each step comes from the approval settings (flow `curriculum`), via the API
   const canSubmit = d.allowed.submit;
   const canVerify = d.allowed.review;
@@ -50,6 +51,7 @@ export function CurriculumClient() {
         sub={<>{d.level ?? "–"} · {d.faculty ?? "–"} · เริ่มใช้ {d.start_year ?? "–"} · รหัส สกอ. {d.program_code ?? "–"} · <Pill kind={STATUS_KIND[d.status]}>{d.status_th}</Pill>{d.review_due_at && d.status === "review" && <> · กำหนดตรวจภายใน {d.review_due_at}</>}</>}
         actions={
           <>
+            <Link href={`/curricula/${d.id}/preview`} className="btn"><Ic name="eye" size={16} /> Preview แบบเล่ม / PDF</Link>
             <Link href={`/curricula/${d.id}/edit`} className="btn primary"><Ic name="edit" size={16} /> {d.editable.length ? "กรอก/แก้ข้อมูลคู่มือ" : "ดูข้อมูลคู่มือ"}</Link>
             {d.job_id && <Link href={`/import/${d.job_id}`} className="btn"><Ic name="eye" size={16} /> เปิดข้อมูลที่นำเข้า (10 ส่วน)</Link>}
             {d.job_id && <Link href={`/import/${d.job_id}/done`} className="btn"><Ic name="chart" size={16} /> สรุปผลการนำเข้า</Link>}
@@ -67,7 +69,7 @@ export function CurriculumClient() {
           <h2 className="h2">ขั้นตอนถัดไป</h2>
           {d.status === "import" && (
             <>
-              <div className="small">{d.job_id ? <>ร่างจากการนำเข้าด้วย AI · ผู้เตรียมร่างแก้ได้ทุกหมวดที่ <Link href={`/import/${d.job_id}`}>ข้อมูลที่นำเข้า</Link></> : <>ร่างที่เพิ่มเอง · กรอกที่ <Link href={`/curricula/${d.id}/edit`}>ข้อมูลคู่มือ</Link></>} แล้วส่งให้คณะตรวจสอบหมวด 3–4</div>
+              <div className="small"><>{d.job_id ? "ร่างจากการนำเข้าด้วย AI" : "ร่างที่เพิ่มเอง"} · ผู้เตรียมร่างกรอกและแก้ทุกหมวดที่ <Link href={`/curricula/${d.id}/edit`}>ข้อมูลคู่มือ</Link></> แล้วส่งให้คณะตรวจสอบหมวด 3–4</div>
               <textarea className="inp" rows={2} style={{ height: "auto", padding: 8 }} placeholder="หมายเหตุถึงคณะ (ไม่บังคับ)" value={note} onChange={(e) => setNote(e.target.value)} />
               <div><button className="btn primary" disabled={!canSubmit || busy} onClick={() => act("submit")}>ส่งให้คณะตรวจสอบ</button>{!canSubmit && <span className="small faint"> · ขั้นนี้ไม่ใช่ของบทบาทคุณ (ดูการตั้งค่าการอนุมัติ)</span>}</div>
             </>
@@ -75,7 +77,8 @@ export function CurriculumClient() {
           {d.status === "review" && (
             <>
               <div className="small">ผู้ตรวจสอบระดับส่วนงานตรวจหมวด 3 (PLO · KSEC) และหมวด 4 (Curriculum Mapping) แก้ได้เฉพาะ 2 หมวดนี้ ส่วนอื่นดูอย่างเดียว</div>
-              {[["3", "หมวด 3 PLO / KSEC", d.job_id ? `/import/${d.job_id}` : ""], ["4", "หมวด 4 Curriculum Mapping", d.job_id ? `/import/${d.job_id}` : ""]].map(([s, label, href]) => (
+              {sentNote && <Note kind="info">หมายเหตุจากส่วนกลาง ({sentNote.by}): {sentNote.note}</Note>}
+              {[["3", "หมวด 3 PLO / KSEC", `/curricula/${d.id}/edit`], ["4", "หมวด 4 Curriculum Mapping", `/curricula/${d.id}/edit`]].map(([s, label, href]) => (
                 <label key={s} className="row card pad" style={{ padding: 10, gap: 10, cursor: canVerify ? "pointer" : "default", background: checked[s] ? "var(--ok-soft, #eef7ee)" : "var(--surface-2)" }}>
                   <input type="checkbox" checked={Boolean(checked[s])} disabled={!canVerify || busy} onChange={(e) => act("check", { section: s, checked: e.target.checked })} />
                   <span style={{ flex: 1 }}>{label} <span className="small faint">· ตรวจสอบหมวดนี้แล้ว</span></span>

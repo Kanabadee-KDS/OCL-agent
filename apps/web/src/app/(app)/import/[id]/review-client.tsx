@@ -45,7 +45,7 @@ export default function ReviewClient() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { data: session } = useSession();
-  const canWrite = canMenu(session?.user?.perms, "c3", "add");
+  const canImport = canMenu(session?.user?.perms, "c3", "add");
   const [job, setJob] = useState<Job | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("info");
@@ -61,6 +61,8 @@ export default function ReviewClient() {
   const [openDesc, setOpenDesc] = useState<Record<string, boolean>>({});
   // workflow state of the curriculum draft made from this job (after "บันทึกเข้าระบบ")
   const [draft, setDraft] = useState<{ id: number; status: string } | null>(null);
+  // once saved into the system the คู่มือหลักสูตร owns the data (FS-2a/2c): this page only reads
+  const canWrite = canImport && !draft;
   const done = job?.status === "done";
   useEffect(() => {
     if (!done) return;
@@ -215,7 +217,7 @@ export default function ReviewClient() {
             ) : (
               <>
                 <Link href={`/import/${id}/done`} className="btn"><Ic name="chart" size={17} /> สรุปผล</Link>
-                <button className="btn primary" disabled={okN === 0 || !canWrite} onClick={finalize}>
+                <button className="btn primary" disabled={okN === 0 || !canImport || (!!draft && draft.status !== "import")} onClick={finalize}>
                   {`บันทึกเข้าระบบ (${okN}/${total} ส่วน)`}
                 </button>
               </>
@@ -225,11 +227,11 @@ export default function ReviewClient() {
       />
       <Steps current={job.status === "done" ? 4 : 2} />
       {err && <Note kind="warn">{err}</Note>}
-      {draft && (draft.status === "verified" || draft.status === "published") && (
-        <Note kind="info">คู่มือหลักสูตรนี้ “ตรวจสอบสำเร็จ” แล้ว ข้อมูลถูกล็อก (แก้ได้ผ่าน สมอ.08) · <Link href={`/curricula/${draft.id}`}>เปิดคู่มือหลักสูตร</Link></Note>
+      {draft && (
+        <Note kind="info">บันทึกเข้าระบบเป็นคู่มือหลักสูตรแล้ว หน้านี้แสดงข้อมูลที่นำเข้าแบบอ่านอย่างเดียว · กรอกและแก้ที่ <Link href={`/curricula/${draft.id}/edit`}>ข้อมูลคู่มือหลักสูตร</Link>{(draft.status === "verified" || draft.status === "published") && " (ตรวจสอบสำเร็จแล้ว ข้อมูลถูกล็อก แก้ได้ผ่าน สมอ.08)"}</Note>
       )}
       {draft && draft.status === "review" && (
-        <Note kind="warn">อยู่ระหว่างคณะตรวจสอบ · ผู้ตรวจสอบระดับส่วนงานแก้ได้เฉพาะหมวด 3–4 (PLO, KSEC, Curriculum Mapping) แล้วติ๊ก “ตรวจสอบหมวดนี้แล้ว” ที่ <Link href={`/curricula/${draft.id}`}>คู่มือหลักสูตร</Link></Note>
+        <Note kind="warn">อยู่ระหว่างคณะตรวจสอบ · ผู้ตรวจสอบระดับส่วนงานแก้หมวด 3–4 (PLO, KSEC, Curriculum Mapping) ที่ <Link href={`/curricula/${draft.id}/edit`}>ข้อมูลคู่มือหลักสูตร</Link> แล้วติ๊ก “ตรวจสอบหมวดนี้แล้ว” ที่ <Link href={`/curricula/${draft.id}`}>คู่มือหลักสูตร</Link></Note>
       )}
       <div className="doc">
         <nav className="card doc-nav" aria-label="ส่วนที่นำเข้า">
@@ -278,6 +280,8 @@ export default function ReviewClient() {
               <div className="grid" style={{ gridTemplateColumns: "minmax(0,.8fr) minmax(0,1.4fr)" }}>
                 <SourcePanel src={src} page={page} setPage={setPage} hit={hit} filename={job.filename} />
                 <section className="card pad stack" style={{ minWidth: 0 }}>
+                  {/* once in the system the curriculum guide owns the data: every editor here is read-only */}
+                  <fieldset disabled={!canWrite} className="stack" style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
                   {tab === "info" && data && <InfoEditor data={data as unknown as InfoData} onChange={(d) => { setData(d); setDirty(true); }} pick={(m) => pick(m)} />}
                   {tab === "structure" && data && <StructureEditor data={data as { total_credits: number | null; tree: Node[] }} onChange={(d) => { setData(d); setDirty(true); }} pick={(m) => pick(m)} />}
                   {tab === "modules" && data && <ModulesEditor data={data as unknown as ModulesData} onChange={(d) => { setData(d); setDirty(true); }} pick={(m) => pick(m)} />}
@@ -292,6 +296,7 @@ export default function ReviewClient() {
                   {tab === "mapping" && data && (
                     <MappingEditor data={data as MapData} onChange={(d) => { setData(d); setDirty(true); }} pick={(m) => pick(m)} />
                   )}
+                  </fieldset>
                   {part.notes && part.notes.length > 0 && <div className="small faint">หมายเหตุจากระบบ: {part.notes.join(" · ")}</div>}
                 </section>
               </div>

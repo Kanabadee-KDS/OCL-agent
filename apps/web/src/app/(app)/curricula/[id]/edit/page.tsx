@@ -13,6 +13,8 @@ import { canMenu } from "@/lib/nav";
 import { Note, PageHead, Pill } from "@/components/ui";
 import { BackLink, useToast } from "@/components/kit";
 import { Field, type Ctx } from "./fields";
+import { Section3, Section4 } from "./sections34";
+import type { Plo } from "@/lib/curriculum";
 
 const ORDER = ["0", "1", "2", "3", "4", "5"];
 
@@ -96,7 +98,7 @@ export default function CurriculumEditPage() {
         crumb={["บริหารข้อมูลหลักสูตร", "คู่มือหลักสูตร", d.name_th ?? ""]}
         title={d.name_th ?? "คู่มือหลักสูตร"}
         sub={<><Pill kind={STATUS_KIND[d.status]}>{d.status_th}</Pill> · กรอกทีละหมวด ช่องที่มี * จำเป็นก่อนส่งให้คณะตรวจสอบ</>}
-        actions={<button type="button" className="btn" disabled title="Preview แบบเล่มและ PDF อยู่ในงาน FS-2d">Preview</button>}
+        actions={<Link className="btn" href={`/curricula/${id}/preview`} title={dirty ? "Preview แสดงข้อมูลที่บันทึกแล้ว บันทึกร่างก่อนเพื่อให้เห็นการแก้ล่าสุด" : undefined}>Preview แบบเล่ม / PDF</Link>}
       />
       <div className="grid" style={{ gridTemplateColumns: "240px minmax(0,1fr)", alignItems: "start" }}>
         <nav className="card pad stack" aria-label="หมวดของคู่มือ" style={{ gap: 4, position: "sticky", top: 80 }}>
@@ -126,16 +128,16 @@ export default function CurriculumEditPage() {
                 })}
               </div>
             </section>
-          )) : (
-            <section className="card pad stack">
-              <h2 className="h2" style={{ margin: 0 }}>{spec.labels[cur] ?? `หมวด ${cur}`}</h2>
-              <p style={{ margin: 0 }}>ตัวแก้หมวด 3 (PLO · KSEC) และหมวด 4 (โครงสร้าง · รายวิชา · Mapping) เปิดใช้ในงานถัดไป (FS-2c)</p>
-              {d.job_id && <p className="small" style={{ margin: 0 }}>ระหว่างนี้แก้ได้ที่ <Link href={`/import/${d.job_id}`}>หน้าตรวจข้อมูลที่นำเข้า</Link> ตามสิทธิ์เดียวกัน</p>}
-            </section>
+          )) : cur === "3" ? (
+            <Section3 data={draft} onChange={setDraft} readOnly={!editable} />
+          ) : (
+            <Section4 data={draft} onChange={setDraft} readOnly={!editable} mappingOnly={!!d.limited["4"]} draftId={id}
+              plos={(getPath(ctx.sections["3"], "plo.plos") as Plo[] | undefined) ?? []}
+              totalCredits={(getPath(ctx.sections["0"], "info.values.total_credits") as number | null | undefined) ?? null} />
           )}
           <div className="between">
             <button type="button" className="btn" disabled={idx === 0} onClick={() => go(ORDER[idx - 1])}>‹ หมวดก่อนหน้า</button>
-            {groups && editable && <button type="button" className="btn primary" disabled={busy || !dirty} onClick={save}>{busy ? "กำลังบันทึก…" : dirty ? "บันทึกร่าง" : "บันทึกแล้ว"}</button>}
+            {editable && <button type="button" className="btn primary" disabled={busy || !dirty} onClick={save}>{busy ? "กำลังบันทึก…" : dirty ? "บันทึกร่าง" : "บันทึกแล้ว"}</button>}
             <button type="button" className="btn" disabled={idx === ORDER.length - 1} onClick={() => go(ORDER[idx + 1])}>หมวดถัดไป ›</button>
           </div>
         </div>

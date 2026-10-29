@@ -71,3 +71,9 @@ export function options<T>(rows: readonly T[], value: (row: T) => string | null 
   const coll = new Intl.Collator("th", { numeric: true });
   return [...new Set(rows.map(value).filter((v): v is string => !!v))].sort(coll.compare);
 }
+
+/** CSV for Excel: BOM so Thai opens right, every cell quoted, CRLF rows (RFC 4180). */
+export function toCsv(head: readonly string[], rows: readonly (readonly unknown[])[]): string {
+  const cell = (v: unknown) => `"${(v == null ? "" : String(v)).replace(/"/g, '""')}"`;
+  return "﻿" + [head, ...rows].map((r) => r.map(cell).join(",")).join("\r\n") + "\r\n";
+}

@@ -239,9 +239,10 @@ def test_default_permissions_follow_brd_roles() -> None:
     def mods(roles: list[str]) -> str:
         return " ".join(k for k, ids in MENUS.items() if any(can_menu(roles, m) for m in ids))
 
-    assert mods(["admin"]) == mods(["central"]) == "c p s q r u"
-    assert mods(["curator"]) == mods(["faculty"]) == "c p s q r"
-    assert mods(["evaluator"]) == "q" and mods(["exec"]) == "r" and mods(["student"]) == "m"
+    # d = แดชบอร์ด, which the mock adds for these five roles (NAV.unshift · FS-2f)
+    assert mods(["admin"]) == mods(["central"]) == "d c p s q r u"
+    assert mods(["curator"]) == mods(["faculty"]) == "d c p s q r"
+    assert mods(["evaluator"]) == "q" and mods(["exec"]) == "d r" and mods(["student"]) == "m"
     assert mods(["teacher"]) == "p s r" and mods(["advisor"]) == "s r" and mods([]) == ""
     assert mods(["teacher", "student"]) == "p s r m", "several roles add up"
     assert User(email="a", roles=["teacher"]).menus() == ["p2", "p4", "s4", "s5", "r0", "r7", "r8"]

@@ -42,5 +42,5 @@ test("landing page is the first built page the user may open", () => {
 test("every menu id is unique", () => {
   const all = NAV.flatMap((m) => m.secs.flatMap((s) => s.items.map((i) => i.id)));
   assert.equal(new Set(all).size, all.length);
-  assert.equal(all.length, 40); // 39 menus of the mock + import history (US-M1-21)
+  assert.equal(all.length, 41); // 39 menus of the mock + import history (US-M1-21) + แดชบอร์ดหลักสูตร (the mock adds it: NAV.unshift)
 });

@@ -21,7 +21,7 @@ from the import job's parts (with the reviewer's edits applied).
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import HTTPException
@@ -29,7 +29,7 @@ from fastapi import HTTPException
 from ocl_api.auth import User
 from ocl_api.curriculum_form import get_path, lookup_keys, progress
 from ocl_api.db import Jsonb, connect
-from ocl_api.flows import FlowStore, can_act, today_th
+from ocl_api.flows import FlowStore, can_act, covers, today_th
 from ocl_api.jobs import PARTS
 from ocl_api.mail import Outbox
 from ocl_api.sections import (
@@ -37,14 +37,21 @@ from ocl_api.sections import (
     SECTIONS,
     master_columns,
     normalized,
-    sections_of_part,
     to_parts,
-    with_part,
     write_all,
 )
 
 FLOW = "curriculum"
 BOOK_MAX = 50 * 1024 * 1024  # the mock's limit for the approved book
+COURSE_KEYS = (
+    "code_th",
+    "code_en",
+    "name_th",
+    "name_en",
+    "credits",
+    "credit_text",
+    "description_th",
+)
 SUBMIT, REVIEW, PUBLISH = 0, 1, 2  # step index in the flow
 
 STATUSES: dict[str, str] = {
@@ -80,6 +87,37 @@ def _iso(v: Any) -> Any:
     return v.isoformat() if isinstance(v, date) else v
 
 
+# ขอบเขตข้อมูล (FS-2e · US-M1-06 07): the curriculum's faculty (หมวด 0, else the draft's own)
+# and the HURIS ids of the teachers in 0.2
+SCOPE_COLUMNS = (
+    "coalesce((SELECT s.data->'info'->'values'->>'faculty' FROM curriculum_sections s "
+    "WHERE s.draft_id = d.id AND s.section = '0'), d.faculty) AS scope_faculty, "
+    "coalesce((SELECT jsonb_agg(t->>'pid') FROM curriculum_sections s, "
+    "jsonb_array_elements(coalesce(s.data->'teachers'->'teachers', '[]'::jsonb)) t "
+    "WHERE s.draft_id = d.id AND s.section = '0' AND t->>'pid' IS NOT NULL), '[]'::jsonb) "
+    "AS scope_pids"
+)
+OUT_OF_SCOPE = "หลักสูตรนี้อยู่นอกขอบเขตข้อมูลของบัญชีนี้"
+BANGKOK = timezone(timedelta(hours=7))  # fixed offset: the slim image has no tz database
+
+
+def _pct(a: int, b: int) -> int:
+    return round(a * 100 / b) if b else 0
+
+
+def visible(user: User | None, r: dict[str, Any]) -> bool:
+    """ทั้งมหาวิทยาลัย: all · ส่วนงาน: the units cover the curriculum's faculty · หลักสูตร and
+    รายบุคคล: the user's HURIS id is among the teachers in 0.2 (the mock's automatic rule)."""
+    if user is None or user.sees_all():
+        return True
+    kinds = user.scope_kinds()
+    if "faculty" in kinds and covers(user.units, r.get("scope_faculty")):
+        return True
+    return bool(
+        kinds & {"program", "self"} and user.pid and user.pid in (r.get("scope_pids") or [])
+    )
+
+
 class CurriculumStore:
     def __init__(self, url: str, schema: str | None, job_store):
         self.url = url
@@ -92,24 +130,27 @@ class CurriculumStore:
 
     # ---------- queries ----------
 
-    def list(self) -> dict[str, Any]:
+    def list(self, user: User | None = None) -> dict[str, Any]:
         with self._conn() as conn:
             rows = conn.execute(
-                """
+                f"""
                 SELECT d.id, d.job_id, d.program_code, d.name_th, d.level, d.start_year, d.status,
                        d.faculty_checked, d.review_due_at, d.finalized_at, d.updated_at,
-                       d.faculty, d.created_by,
+                       d.faculty, d.created_by, d.submitted_at, {SCOPE_COLUMNS},
                        (SELECT s.data->'info'->'values'->>'revision_type'
                           FROM curriculum_sections s
                           WHERE s.draft_id = d.id AND s.section = '0') AS revision_type,
                        (SELECT jsonb_build_object('ts', e.ts, 'by', e.by,
                                                   'action', e.action, 'note', e.note)
                           FROM curriculum_events e WHERE e.draft_id = d.id
-                          ORDER BY e.ts DESC LIMIT 1) AS last_event
+                          ORDER BY e.ts DESC LIMIT 1) AS last_event,
+                       (SELECT e.by FROM curriculum_events e
+                          WHERE e.draft_id = d.id AND e.action = 'submit'
+                          ORDER BY e.ts DESC LIMIT 1) AS submitted_by
                 FROM curriculum_drafts d ORDER BY d.updated_at DESC
                 """
             ).fetchall()
-        items = [self._row(r) for r in rows]
+        items = [self._row(r) for r in rows if visible(user, r)]
         counts = {s: sum(1 for i in items if i["status"] == s) for s in STATUSES}
         return {"counts": counts, "items": items}
 
@@ -118,11 +159,13 @@ class CurriculumStore:
             r = conn.execute(
                 "SELECT d.*, (SELECT s.data->'info'->'values'->>'revision_type' "
                 "FROM curriculum_sections s WHERE s.draft_id = d.id AND s.section = '0') "
-                "AS revision_type FROM curriculum_drafts d WHERE d.id = %s",
+                f"AS revision_type, {SCOPE_COLUMNS} FROM curriculum_drafts d WHERE d.id = %s",
                 (draft_id,),
             ).fetchone()
             if r is None:
                 raise HTTPException(404, "ไม่พบคู่มือหลักสูตร")
+            if not visible(user, r):
+                raise HTTPException(403, OUT_OF_SCOPE)
             events = conn.execute(
                 "SELECT ts, by, action, from_status, to_status, note FROM curriculum_events "
                 "WHERE draft_id = %s ORDER BY ts, id",
@@ -176,6 +219,12 @@ class CurriculumStore:
             out["editable"] = [
                 n for n in SECTIONS if _edit_problem(r["status"], steps, user, n, None) is None
             ]
+            # in review only some parts of a section may change (หมวด 4: the Mapping)
+            out["limited"] = (
+                {n: sorted(p) for n, p in REVIEW_EDITABLE.items() if p and n in out["editable"]}
+                if r["status"] == "review"
+                else {}
+            )
         return out
 
     # ---------- sections (หมวด 0–5) ----------
@@ -203,6 +252,19 @@ class CurriculumStore:
                 (r["id"], user.email, "เพิ่มหลักสูตรโดยไม่นำเข้าจากเล่ม"),
             )
         return self.get(r["id"], user)
+
+    def check_visible(self, draft_id: int, user: User) -> None:
+        """403 for a curriculum outside the user's ขอบเขตข้อมูล (US-M1-06 07), 404 if none."""
+        if user.sees_all():
+            return
+        with self._conn() as conn:
+            r = conn.execute(
+                f"SELECT {SCOPE_COLUMNS} FROM curriculum_drafts d WHERE d.id = %s", (draft_id,)
+            ).fetchone()
+        if r is None:
+            raise HTTPException(404, "ไม่พบคู่มือหลักสูตร")
+        if not visible(user, r):
+            raise HTTPException(403, OUT_OF_SCOPE)
 
     def sections(self, draft_id: int) -> dict[str, Any]:
         with self._conn() as conn:
@@ -320,9 +382,7 @@ class CurriculumStore:
         problem = _edit_problem(d["status"], steps, user, "0", None)
         if problem:
             raise HTTPException(*problem)
-        from datetime import datetime, timedelta, timezone
-
-        stamp = datetime.now(timezone(timedelta(hours=7)))
+        stamp = datetime.now(BANGKOK)
         folder = root / "curricula" / str(draft_id)
         folder.mkdir(parents=True, exist_ok=True)
         file = f"approved-{stamp:%Y%m%d-%H%M%S}.pdf"
@@ -379,33 +439,31 @@ class CurriculumStore:
                         )
         return {"responsible": len(resp), "required": need, "issues": issues, "duplicates": dups}
 
-    def check_part(self, job_id: str, key: str, user: User) -> None:
-        """An edit on the import's review page after finalize: allowed under the section rules."""
-        d = self._draft_of_job(job_id)
-        if d is None:
-            return
-        _, steps, _ = self.flows.steps(FLOW, d["flow_version"])
-        for n in sections_of_part(key):
-            problem = _edit_problem(d["status"], steps, user, n, None, part=key)
-            if problem:
-                raise HTTPException(*problem)
-
-    def sync_part(self, job_id: str, key: str, data: Any, user: User) -> None:
-        """Until the section editors exist (FS-2c), the import page's edits reach the sections."""
-        d = self._draft_of_job(job_id)
-        if d is None:
-            return
-        current = self.sections(d["id"])
-        for n in sections_of_part(key):
-            new = with_part(current[n]["data"], key, data, n)
-            self.save_section(d["id"], n, new, user, why=f"แก้จากหน้าตรวจงานนำเข้า ({key})")
-
-    def _draft_of_job(self, job_id: str) -> dict[str, Any] | None:
+    def course_catalog(self, q: str = "", exclude: int | None = None) -> list[dict[str, Any]]:
+        """Courses already in the system's curricula, the stand-in for the central course
+        database (CUR23) until FS-3 builds it with versions (plan FS-2, answer Q3 ก)."""
+        needle = "".join(q.split()).lower()
+        seen: dict[str, dict[str, Any]] = {}
         with self._conn() as conn:
-            return conn.execute(
-                "SELECT id, status, flow_version FROM curriculum_drafts WHERE job_id = %s",
-                (job_id,),
-            ).fetchone()
+            rows = conn.execute(
+                "SELECT s.draft_id, d.name_th, s.data->'courses'->'courses' AS courses "
+                "FROM curriculum_sections s JOIN curriculum_drafts d ON d.id = s.draft_id "
+                "WHERE s.section = '4' ORDER BY s.draft_id"
+            ).fetchall()
+        mine = set()
+        for r in rows:
+            for c in r["courses"] or []:
+                code = str(c.get("code_th") or "").strip()
+                if not code:
+                    continue
+                if r["draft_id"] == exclude:
+                    mine.add(code)
+                    continue
+                text = "".join(f"{code}{c.get('code_en') or ''}{c.get('name_th') or ''}".split())
+                if needle and needle not in text.lower():
+                    continue
+                seen.setdefault(code, {k: c.get(k) for k in COURSE_KEYS} | {"from": r["name_th"]})
+        return [c for code, c in sorted(seen.items()) if code not in mine][:50]
 
     def by_job(self, job_id: str) -> dict[str, Any] | None:
         with self._conn() as conn:
@@ -421,6 +479,7 @@ class CurriculumStore:
             "id", "job_id", "program_code", "name_th", "level", "start_year", "status",
             "faculty_checked", "review_due_at", "finalized_at", "updated_at", "faculty",
             "revision_type", "last_event", "submitted_at", "verified_at", "published_at",
+            "submitted_by",
         )  # fmt: skip
         out = {k: _iso(r[k]) for k in keys if k in r}
         out["status_th"] = STATUSES.get(out.get("status", ""), out.get("status"))
@@ -558,6 +617,127 @@ class CurriculumStore:
         for to, subject, body in mails:
             if to:
                 box.send(to, subject, body, kind="workflow", by=by, ref=ref)
+
+    # ---------- แดชบอร์ดหลักสูตร (FS-2f · US-M1-01 02) ----------
+
+    def dashboard(
+        self, user: User, faculty: str = "", level: str = "", year: int | None = None
+    ) -> dict[str, Any]:
+        """Every number from the curricula this user may see (ขอบเขตข้อมูล), after the filters."""
+        with self._conn() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT d.id, d.name_th, d.level, d.start_year, d.status, d.faculty_checked,
+                       d.review_due_at, {SCOPE_COLUMNS},
+                       coalesce((SELECT max(e.ts) FROM curriculum_events e
+                                  WHERE e.draft_id = d.id AND e.to_status = d.status
+                                    AND e.action <> 'edit'),
+                                d.finalized_at, d.updated_at) AS since
+                FROM curriculum_drafts d
+                """
+            ).fetchall()
+            secs = conn.execute(
+                "SELECT draft_id, section, data FROM curriculum_sections"
+            ).fetchall()
+        by_draft: dict[int, dict[str, Any]] = {}
+        for x in secs:
+            by_draft.setdefault(x["draft_id"], {})[x["section"]] = x["data"]
+        today = today_th()
+        seen = [r for r in rows if visible(user, r)]
+        options = {
+            "faculties": sorted({r["scope_faculty"] for r in seen if r["scope_faculty"]}),
+            "levels": sorted({r["level"] for r in seen if r["level"]}),
+            "years": sorted({r["start_year"] for r in seen if r["start_year"]}),
+        }
+        items = []
+        for r in seen:
+            if (faculty and r["scope_faculty"] != faculty) or (level and r["level"] != level):
+                continue
+            if year and r["start_year"] != year:
+                continue
+            data = normalized(by_draft.get(r["id"], {}))
+            prog = progress(data)
+            v = get_path(data.get("0"), "info.values") or {}
+            ksec = get_path(data.get("3"), "ksec.plos") or []
+            cats = [i.get("category") for k in ksec for i in (k.get("items") or [])]
+            since = r["since"].astimezone(BANGKOK).date() if r["since"] else today
+            items.append({
+                "id": r["id"], "name_th": r["name_th"], "faculty": r["scope_faculty"],
+                "level": r["level"], "start_year": r["start_year"], "status": r["status"],
+                "status_th": STATUSES[r["status"]], "review_due_at": _iso(r["review_due_at"]),
+                "days": (today - since).days if r["status"] in ("import", "review") else None,
+                "missing": [n for n, x in prog.items() if x["done"] < x["total"]],
+                "complete": {n: x["done"] >= x["total"] for n, x in prog.items()},
+                "revision_type": v.get("revision_type"),
+                "total_credits": v.get("total_credits"),
+                "plo_count": len(get_path(data.get("3"), "plo.plos") or []),
+                "course_count": len(get_path(data.get("4"), "courses.courses") or []),
+                "ksec": {c: cats.count(c) for c in "KSEC"},
+            })  # fmt: skip
+        n = len(items)
+        counts = {st: sum(i["status"] == st for i in items) for st in STATUSES}
+        facs: dict[str, list[dict[str, Any]]] = {}
+        for i in items:
+            facs.setdefault(i["faculty"] or "ไม่ระบุคณะ", []).append(i)
+        by_faculty = [
+            {
+                "faculty": f,
+                "count": len(xs),
+                "counts": {st: sum(x["status"] == st for x in xs) for st in STATUSES},
+                "verified_pct": _pct(
+                    sum(x["status"] in ("verified", "published") for x in xs), len(xs)
+                ),
+                "longest_days": max((x["days"] or 0 for x in xs), default=0),
+            }
+            for f, xs in sorted(facs.items(), key=lambda kv: -len(kv[1]))
+        ]
+        completeness = {
+            k: _pct(sum(i["complete"].get(k, False) for i in items), n) for k in SECTIONS
+        }
+        stuck = sorted((i for i in items if i["days"] is not None), key=lambda i: -i["days"])[:8]
+        return {
+            "options": options,
+            "total": n,
+            "counts": counts,
+            "by_faculty": by_faculty,
+            "completeness": completeness,
+            "stuck": stuck,
+            "items": items,
+            "today": today.isoformat(),
+            "this_year": today.year + 543,
+        }
+
+    def remind(self, draft_id: int, user: User) -> dict[str, Any]:
+        """The dashboard's แจ้งเตือน: to whoever holds the current step, once a day."""
+        with self._conn() as conn:
+            r = conn.execute(
+                "SELECT id, name_th, status, faculty, flow_version, review_due_at "
+                "FROM curriculum_drafts WHERE id = %s",
+                (draft_id,),
+            ).fetchone()
+        if r is None:
+            raise HTTPException(404, "ไม่พบคู่มือหลักสูตร")
+        if r["status"] not in ("import", "review"):
+            raise HTTPException(409, "หลักสูตรนี้ไม่ได้ค้างอยู่ในขั้นใด")
+        _, steps, _ = self.flows.steps(FLOW, r["flow_version"])
+        step = steps[SUBMIT] if r["status"] == "import" else steps[REVIEW]
+        to = self.flows.recipients(step["roles"], r["faculty"])
+        if not to:
+            raise HTTPException(409, f"ไม่พบผู้รับผิดชอบขั้น '{step['label']}' ของคณะนี้")
+        name = r["name_th"] or "คู่มือหลักสูตร"
+        what = "ยังเป็นร่าง รอส่งให้คณะตรวจสอบ" if r["status"] == "import" else "รอคณะตรวจสอบหมวด 3–4"
+        due = f" (กำหนด {r['review_due_at'].isoformat()})" if r["review_due_at"] else ""
+        today = today_th().isoformat()
+        m = Outbox(self.url, self.schema).send(
+            to,
+            f"แจ้งเตือนจากแดชบอร์ดหลักสูตร: {name}",
+            f"{name} {what}{due}\nแจ้งโดย {user.email}",
+            kind="reminder",
+            by=user.email,
+            ref=f"curriculum:{draft_id}",
+            dedupe_key=f"dashboard:curriculum:{draft_id}:{today}",
+        )
+        return {"sent": m is not None, "to": len(to), "step": step["label"]}
 
     def remind_overdue(self) -> int:
         """Reviews past their due date: remind step 2 once a day (outbox dedupe). Count sent."""

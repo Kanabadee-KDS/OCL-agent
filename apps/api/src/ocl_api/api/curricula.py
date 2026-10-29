@@ -35,11 +35,19 @@ class Transition(BaseModel):
     checked: bool = True
 
 
+def scoped(
+    draft_id: int, cs: CurriculumStore = Depends(get_curricula), user: User = Depends(REQUIRE_VIEW)
+) -> User:
+    """REQUIRE_VIEW plus the user's ขอบเขตข้อมูล for this curriculum (FS-2e)."""
+    cs.check_visible(draft_id, user)
+    return user
+
+
 @router.get("")
 def list_curricula(
-    cs: CurriculumStore = Depends(get_curricula), _: User = Depends(REQUIRE_VIEW)
+    cs: CurriculumStore = Depends(get_curricula), user: User = Depends(REQUIRE_VIEW)
 ) -> dict[str, Any]:
-    out = cs.list()
+    out = cs.list(user)
     out["statuses"] = STATUSES
     out["actions"] = ACTIONS
     return out
@@ -67,6 +75,44 @@ def add_option(
     """BRD 01 US-M1-04: list options come from basic data the administrators can extend."""
     cs.add_option(body.key, body.value, user)
     return {"sections": spec(cs.options()), "labels": SECTIONS}
+
+
+REQUIRE_DASH = require_menu("d1")  # แดชบอร์ดหลักสูตร
+REQUIRE_REMIND = require_menu("d1", action="edit")
+
+
+@router.get("/dashboard")
+def dashboard(
+    faculty: str = "",
+    level: str = "",
+    year: int | None = None,
+    cs: CurriculumStore = Depends(get_curricula),
+    user: User = Depends(REQUIRE_DASH),
+) -> dict[str, Any]:
+    """แดชบอร์ดหลักสูตร (US-M1-01 02): counts within the user's ขอบเขตข้อมูล."""
+    return cs.dashboard(user, faculty, level, year)
+
+
+@router.post("/{draft_id}/remind")
+def remind(
+    draft_id: int,
+    cs: CurriculumStore = Depends(get_curricula),
+    user: User = Depends(REQUIRE_REMIND),
+) -> dict[str, Any]:
+    """ปุ่ม "แจ้งเตือน" of the longest-pending list: once a day per curriculum (outbox dedupe)."""
+    cs.check_visible(draft_id, user)
+    return cs.remind(draft_id, user)
+
+
+@router.get("/courses/catalog")
+def course_catalog(
+    q: str = "",
+    exclude: int | None = None,
+    cs: CurriculumStore = Depends(get_curricula),
+    _: User = Depends(REQUIRE_VIEW),
+) -> list[dict[str, Any]]:
+    """เลือกรายวิชาจากฐานข้อมูลกลาง (US-M1-20): courses of the other curricula."""
+    return cs.course_catalog(q, exclude)
 
 
 @router.get("/by-job/{job_id}")
@@ -112,7 +158,7 @@ def create_curriculum(
 
 @router.get("/{draft_id}/sections")
 def get_sections(
-    draft_id: int, cs: CurriculumStore = Depends(get_curricula), _: User = Depends(REQUIRE_VIEW)
+    draft_id: int, cs: CurriculumStore = Depends(get_curricula), _: User = Depends(scoped)
 ) -> dict[str, Any]:
     return cs.sections(draft_id)
 
@@ -123,7 +169,7 @@ def put_section(
     n: str,
     body: SectionEdit,
     cs: CurriculumStore = Depends(get_curricula),
-    user: User = Depends(REQUIRE_VIEW),
+    user: User = Depends(scoped),
 ) -> dict[str, Any]:
     """Replace one หมวด; who may do it depends on the status and the approval flow."""
     return cs.save_section(draft_id, n, body.data, user)
@@ -136,6 +182,7 @@ def transition(
     cs: CurriculumStore = Depends(get_curricula),
     user: User = Depends(current_user),
 ) -> dict[str, Any]:
+    cs.check_visible(draft_id, user)
     return cs.transition(
         draft_id, body.action, user, note=body.note, section=body.section, checked=body.checked
     )
@@ -147,7 +194,7 @@ async def upload_book(
     file: UploadFile = File(...),
     cs: CurriculumStore = Depends(get_curricula),
     settings: Settings = Depends(get_settings),
-    user: User = Depends(REQUIRE_VIEW),
+    user: User = Depends(scoped),
 ) -> dict[str, Any]:
     """ไฟล์เล่มหลักสูตรที่อนุมัติแล้ว (หมวด 0): same rights as editing หมวด 0."""
     content = await file.read(BOOK_MAX + 1)
@@ -159,7 +206,7 @@ def download_book(
     draft_id: int,
     cs: CurriculumStore = Depends(get_curricula),
     settings: Settings = Depends(get_settings),
-    _: User = Depends(REQUIRE_VIEW),
+    _: User = Depends(scoped),
 ) -> FileResponse:
     path, name = cs.book_path(draft_id, settings.data_dir)
     return FileResponse(path, media_type="application/pdf", filename=name)
@@ -167,6 +214,6 @@ def download_book(
 
 @router.get("/{draft_id}/teachers/check")
 def teacher_check(
-    draft_id: int, cs: CurriculumStore = Depends(get_curricula), _: User = Depends(REQUIRE_VIEW)
+    draft_id: int, cs: CurriculumStore = Depends(get_curricula), _: User = Depends(scoped)
 ) -> dict[str, Any]:
     return cs.teacher_check(draft_id)

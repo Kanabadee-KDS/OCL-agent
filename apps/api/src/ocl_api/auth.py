@@ -26,6 +26,7 @@ from fastapi import Depends, HTTPException, Request
 from ocl_api.config import Settings, get_settings
 from ocl_api.perms import (  # MENUS, MENU_INHERITS and ROLES are re-exported
     ALL_MENUS,
+    DEFAULT_SCOPE_KIND,
     Table,
     default_table,
     perms_for,
@@ -59,6 +60,19 @@ class User:
     active: bool = True
     # menu -> actions from the database; None = the built-in defaults (no database)
     perms: dict[str, list[str]] | None = None
+    # ขอบเขตข้อมูล (FS-2e): the user's units and HURIS id, and the scope kind of each of their
+    # groups (role_groups.scope_kind); None = the built-in defaults
+    units: list[str] = field(default_factory=list)
+    pid: str | None = None
+    scopes: list[str] | None = None
+
+    def scope_kinds(self) -> set[str]:
+        if self.scopes is not None:
+            return set(self.scopes)
+        return {DEFAULT_SCOPE_KIND.get(r, "self") for r in self.roles}
+
+    def sees_all(self) -> bool:
+        return SERVICE_ROLE in self.roles or "all" in self.scope_kinds()
 
     def menu_perms(self) -> dict[str, list[str]]:
         return self.perms if self.perms is not None else perms_for(self.roles, DEFAULT_TABLE)
@@ -131,6 +145,7 @@ _table_cache: dict[tuple[str, str | None], tuple[float, Table]] = {}
 def clear_user_cache() -> None:
     _user_cache.clear()
     _table_cache.clear()
+    _scope_cache.clear()
 
 
 def permission_table(settings: Settings) -> Table:
@@ -153,6 +168,27 @@ def permission_table(settings: Settings) -> Table:
 
 def user_perms(settings: Settings, roles: list[str]) -> dict[str, list[str]]:
     return perms_for(roles, permission_table(settings))
+
+
+_scope_cache: dict[tuple[str, str | None], tuple[float, dict[str, str]]] = {}
+
+
+def scope_table(settings: Settings) -> dict[str, str]:
+    """role -> ขอบเขตข้อมูล from `role_groups` (the role-edit page changes it)."""
+    if not settings.database_url:
+        return DEFAULT_SCOPE_KIND
+    from ocl_api.db import connect
+
+    key = (settings.database_url, settings.database_schema)
+    hit = _scope_cache.get(key)
+    if hit and hit[0] > time.monotonic():
+        return hit[1]
+    with connect(settings.database_url, settings.database_schema) as conn:
+        table = {
+            r["id"]: r["scope_kind"] for r in conn.execute("SELECT id, scope_kind FROM role_groups")
+        }
+    _scope_cache[key] = (time.monotonic() + USER_CACHE_TTL, table)
+    return table
 
 
 def _stored_user(settings: Settings, email: str) -> dict[str, Any] | None:
@@ -182,11 +218,15 @@ def current_user(request: Request, settings: Settings = Depends(get_settings)) -
     if stored is None or not stored["usable"]:
         raise HTTPException(401, "บัญชีนี้ถูกระงับหรือไม่มีในระบบ")
     roles = list(stored["roles"])
+    scopes = scope_table(settings)
     return User(
         email=stored["email"],
         name=stored["name"] or user.name,
         roles=roles,
         perms=user_perms(settings, roles),
+        units=list(stored.get("units") or []),
+        pid=stored.get("pid"),
+        scopes=[scopes.get(r, "self") for r in roles],
     )
 
 

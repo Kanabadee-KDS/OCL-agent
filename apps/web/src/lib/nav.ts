@@ -16,10 +16,15 @@ export type NavModule = { k: string; label: string; icon: string; secs: NavSecti
 
 export const NAV: NavModule[] = [
   {
+    k: "d", label: "แดชบอร์ด", icon: "chart", secs: [
+      { cap: "ติดตามการบันทึกและสถิติ", items: [{ id: "d1", label: "หลักสูตร", route: "dash-cur", href: "/dashboard" }] },
+    ],
+  },
+  {
     k: "c", label: "บริหารข้อมูลหลักสูตร", icon: "book", secs: [
       { cap: "คู่มือหลักสูตร", items: [
         { id: "c1", label: "คู่มือหลักสูตร", route: "cur", href: "/curricula" },
-        { id: "c1b", label: "ตรวจสอบและบันทึก PLO โดยคณะ", route: "fac-plo", tag: "ใหม่", phase: "FS-2" },
+        { id: "c1b", label: "ตรวจสอบและบันทึก PLO โดยคณะ", route: "fac-plo", tag: "ใหม่", href: "/curricula/review" },
         { id: "c2", label: "งานปรับปรุงแก้ไขหลักสูตร (สมอ.08)", route: "smo", phase: "FS-3" },
       ] },
       { cap: "นำเข้าข้อมูลเล่มหลักสูตรด้วย AI", items: [
@@ -142,8 +147,10 @@ export function visibleNav(perms: Perms | undefined): NavModule[] {
 
 // built pages below a menu (detail pages highlight their parent menu, like the mock's ROUTE_NAV)
 const PATH_MENU: [string, string][] = [
+  ["/dashboard", "d1"],
   ["/import/history", "c3h"],
   ["/import", "c3"],
+  ["/curricula/review", "c1b"],
   ["/curricula", "c1"],
   ["/roles", "u1"],
   ["/users", "u3"],

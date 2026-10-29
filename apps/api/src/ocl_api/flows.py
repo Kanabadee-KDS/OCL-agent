@@ -161,10 +161,15 @@ class FlowStore:
             ).fetchall()
         out = []
         for r in rows:
-            units = r["units"] or []
-            if not units or WHOLE in units or (faculty and faculty in units):
+            if covers(r["units"] or [], faculty):
                 out.append(r["email"])
         return out
+
+
+def covers(units: list[str], faculty: str | None) -> bool:
+    """Whether a user's units reach a curriculum's faculty: no units = everywhere (the same
+    rule for who gets the e-mail and who sees the curriculum)."""
+    return not units or WHOLE in units or bool(faculty and faculty in units)
 
 
 def _flow(f: dict[str, Any]) -> dict[str, Any]:

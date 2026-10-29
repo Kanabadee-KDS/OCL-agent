@@ -124,7 +124,7 @@ export type CurriculumRow = {
   status: "import" | "review" | "verified" | "published"; status_th: string; faculty_checked: Record<string, boolean>;
   review_due_at: string | null; finalized_at: string | null; updated_at: string | null; faculty: string | null; revision_type: string | null;
   last_event: { ts: string; by: string; action: string; note: string | null } | null;
-  submitted_at?: string | null; verified_at?: string | null; published_at?: string | null;
+  submitted_at?: string | null; verified_at?: string | null; published_at?: string | null; submitted_by?: string | null;
 };
 export type CurriculumDetail = CurriculumRow & {
   parts: Record<string, { count: number | null; confirmed_at: string | null; edited: boolean }>;
@@ -136,15 +136,31 @@ export type CurriculumDetail = CurriculumRow & {
   // หมวด 0–5 of the คู่มือ (ocl_api.sections) and which of them this user may change now
   sections: Record<string, { label: string; parts: string[]; updated_by: string | null; updated_at: string | null }>;
   editable: string[];
+  limited: Record<string, string[]>; // in review: the only parts of a section that may change
   progress: Record<string, { done: number; total: number; missing: string[] }>;
 };
 export type CurriculumList = { counts: Record<string, number>; items: CurriculumRow[]; statuses: Record<string, string>; actions: Record<string, string> };
+export type DashItem = {
+  id: number; name_th: string | null; faculty: string | null; level: string | null; start_year: number | null;
+  status: CurriculumRow["status"]; status_th: string; review_due_at: string | null; days: number | null;
+  missing: string[]; complete: Record<string, boolean>; revision_type: string | null; total_credits: number | null;
+  plo_count: number; course_count: number; ksec: Record<string, number>;
+};
+export type Dashboard = {
+  options: { faculties: string[]; levels: string[]; years: number[] };
+  total: number; counts: Record<CurriculumRow["status"], number>;
+  by_faculty: { faculty: string; count: number; counts: Record<CurriculumRow["status"], number>; verified_pct: number; longest_days: number }[];
+  completeness: Record<string, number>; stuck: DashItem[]; items: DashItem[]; today: string; this_year: number;
+};
 export const curricula = {
   list: () => fetch(`${API_BASE}/api/curricula`, { cache: "no-store" }).then(j<CurriculumList>),
   get: (id: number | string) => fetch(`${API_BASE}/api/curricula/${id}`, { cache: "no-store" }).then(j<CurriculumDetail>),
   byJob: (jobId: string) => fetch(`${API_BASE}/api/curricula/by-job/${jobId}`, { cache: "no-store" }).then(j<{ id: number; status: string }>),
   create: (body: { name_th: string; level?: string | null; faculty?: string | null }) =>
     fetch(`${API_BASE}/api/curricula`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then(j<CurriculumDetail>),
+  dashboard: (f: { faculty?: string; level?: string; year?: string }) =>
+    fetch(`${API_BASE}/api/curricula/dashboard?${new URLSearchParams(Object.entries(f).filter(([, v]) => v) as [string, string][])}`, { cache: "no-store" }).then(j<Dashboard>),
+  remind: (id: number) => fetch(`${API_BASE}/api/curricula/${id}/remind`, { method: "POST" }).then(j<{ sent: boolean; to: number; step: string }>),
   transition: (id: number | string, body: { action: string; note?: string; section?: string; checked?: boolean }) =>
     fetch(`${API_BASE}/api/curricula/${id}/transition`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then(j<CurriculumDetail>),
 };
@@ -247,3 +263,6 @@ export const curriculumForm = {
   bookUrl: (id: number | string) => `${API_BASE}/api/curricula/${id}/book`,
   teacherCheck: (id: number | string) => fetch(`${API_BASE}/api/curricula/${id}/teachers/check`, { cache: "no-store" }).then(j<TeacherCheck>),
 };
+export type CatalogCourse = { code_th: string; code_en: string | null; name_th: string | null; name_en: string | null; credits: number | null; credit_text: string | null; description_th: string | null; from: string | null };
+export const courseCatalog = (q: string, exclude: number | string) =>
+  fetch(`${API_BASE}/api/curricula/courses/catalog?q=${encodeURIComponent(q)}&exclude=${exclude}`, { cache: "no-store" }).then(j<CatalogCourse[]>);
