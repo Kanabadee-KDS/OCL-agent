@@ -1,10 +1,11 @@
 "use client";
 
-// All import jobs (the /import page shows only the latest few): filter, search, open, summary.
-import { useEffect, useMemo, useState } from "react";
+// All import jobs (the /import page shows only the latest few): filter, search, sort, open, summary.
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api, fmtTime, hasSummary, JOB_STATUS_TH as STATUS_TH, providerLabel, type Job } from "@/lib/api";
 import { Ic, Note, PageHead, Pill } from "@/components/ui";
+import { BackLink, DataTable, Filters, Kpi, KpiRow, SearchBox, SelectFilter, type Column } from "@/components/kit";
 
 // KPI cards group the three "running" states into one
 const GROUPS: { key: string; label: string; sub: string; match: (s: Job["status"]) => boolean }[] = [
@@ -13,30 +14,55 @@ const GROUPS: { key: string; label: string; sub: string; match: (s: Job["status"
   { key: "done", label: "บันทึกแล้ว", sub: "เป็นคู่มือหลักสูตรแล้ว", match: (s) => s === "done" },
   { key: "failed", label: "ล้มเหลว", sub: "ดูเหตุผลในหน้างาน", match: (s) => s === "failed" },
 ];
-const PROVIDERS = [["", "ทุกวิธีอ่าน"], ["ollama", "Local AI · Gemma"], ["gemini", "Cloud AI · Gemini"], ["none", "อ่านด้วยกฎ"]] as const;
+const PROVIDERS = ["ollama", "gemini", "none"].map((p) => [p, providerLabel(p)] as [string, string]);
+
+const COLUMNS: Column<Job>[] = [
+  { key: "created", label: "เริ่มเมื่อ", sort: (j) => j.created_at, render: (j) => <span className="small num">{fmtTime(j.created_at)}</span> },
+  {
+    key: "file", label: "ไฟล์ / เลขงาน", sort: (j) => j.filename,
+    render: (j) => (
+      <div style={{ maxWidth: 360 }}>
+        <Link href={`/import/${j.id}`} style={{ fontWeight: 600, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{j.filename}</Link>
+        <span className="t2 num">งาน {j.id}{j.counts.ingest?.pages ? ` · ${j.counts.ingest.pages} หน้า` : ""}</span>
+      </div>
+    ),
+  },
+  { key: "provider", label: "วิธีอ่าน", render: (j) => <span className="small">{providerLabel(j.provider)}</span> },
+  { key: "status", label: "สถานะ", render: (j) => <Pill kind={STATUS_TH[j.status][1]}>{STATUS_TH[j.status][0]}</Pill> },
+  {
+    key: "confirmed", label: "ยืนยัน", align: "right", sort: (j) => (hasSummary(j) ? j.confirmed_count : null),
+    render: (j) => <span className="num">{hasSummary(j) ? `${j.confirmed_count}/${j.parts_total}` : "–"}</span>,
+  },
+  {
+    key: "time", label: "เวลา", align: "right", sort: (j) => j.timings?.total ?? null,
+    render: (j) => <span className="small num">{j.timings?.total != null ? `${j.timings.total} s` : "–"}</span>,
+  },
+  { key: "llm", label: "LLM", render: (j) => <span className="small">{j.llm ? `${j.llm.calls} คำขอ · ${j.llm.prompt_tokens}/${j.llm.completion_tokens} tok` : "–"}</span> },
+  {
+    key: "act", label: "",
+    render: (j) => (
+      <div className="row" style={{ flexWrap: "nowrap", gap: 6 }}>
+        <Link href={`/import/${j.id}`} className="btn xs">เปิด</Link>
+        {hasSummary(j) && <Link href={`/import/${j.id}/done`} className="btn xs">สรุป</Link>}
+      </div>
+    ),
+  },
+];
+
+const searchText = (j: Job) => `${j.filename} ${j.id}`;
+const filterValue = (j: Job, k: string) => (k === "group" ? GROUPS.find((g) => g.match(j.status))?.key : k === "provider" ? j.provider : undefined);
 
 export default function ImportHistoryPage() {
   const [jobs, setJobs] = useState<Job[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [group, setGroup] = useState<string | null>(null);
-  const [provider, setProvider] = useState("");
   const [q, setQ] = useState("");
+  const [f, setF] = useState({ group: "", provider: "" });
   useEffect(() => { api.list().then(setJobs).catch((e) => setErr((e as Error).message)); }, []);
-
-  const rows = useMemo(() => {
-    const g = GROUPS.find((x) => x.key === group);
-    const needle = q.trim().toLowerCase();
-    return (jobs ?? []).filter(
-      (j) =>
-        (!g || g.match(j.status)) &&
-        (!provider || j.provider === provider) &&
-        (!needle || j.filename.toLowerCase().includes(needle) || j.id.includes(needle)),
-    );
-  }, [jobs, group, provider, q]);
+  const set = (k: keyof typeof f) => (v: string) => setF((o) => ({ ...o, [k]: v }));
 
   return (
     <>
-      <Link href="/import" className="link-btn small" style={{ color: "var(--red-ink)" }}><Ic name="back" size={14} /> กลับไปหน้าอัปโหลด</Link>
+      <BackLink href="/import">กลับไปหน้าอัปโหลด</BackLink>
       <PageHead
         crumb={["บริหารข้อมูลหลักสูตร", "นำเข้าข้อมูลเล่มหลักสูตรด้วย AI", "ประวัติการนำเข้า"]}
         title="ประวัติการนำเข้าทั้งหมด"
@@ -47,74 +73,28 @@ export default function ImportHistoryPage() {
       {!jobs && !err && <div className="card pad">กำลังโหลด…</div>}
       {jobs && (
         <>
-          <div className="grid" style={{ gridTemplateColumns: "repeat(4, minmax(0,1fr))" }}>
+          <KpiRow>
             {GROUPS.map((g) => (
-              <button
-                key={g.key}
-                className="card kpi"
-                style={{ textAlign: "left", cursor: "pointer", borderColor: group === g.key ? "var(--red)" : undefined }}
-                onClick={() => setGroup(group === g.key ? null : g.key)}
-                aria-pressed={group === g.key}
-              >
-                <span className="l">{g.label}</span>
-                <span className="v num">{jobs.filter((j) => g.match(j.status)).length}</span>
-                <span className="small faint">{g.sub}</span>
-              </button>
+              <Kpi key={g.key} label={g.label} value={jobs.filter((j) => g.match(j.status)).length} sub={g.sub}
+                on={f.group === g.key} onClick={() => set("group")(f.group === g.key ? "" : g.key)} />
             ))}
-          </div>
-          <section className="card pad stack">
-            <div className="between">
-              <div className="row" style={{ flex: 1, minWidth: 0 }}>
-                <input
-                  className="inp"
-                  type="search"
-                  placeholder="ค้นหาชื่อไฟล์หรือเลขงาน"
-                  aria-label="ค้นหาชื่อไฟล์หรือเลขงาน"
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  style={{ maxWidth: 320 }}
-                />
-                <div className="seg">
-                  {PROVIDERS.map(([v, label]) => (
-                    <button key={v} type="button" className={provider === v ? "on" : ""} onClick={() => setProvider(v)}>{label}</button>
-                  ))}
-                </div>
-              </div>
-              <span className="small faint">{rows.length} จาก {jobs.length} งาน</span>
-            </div>
-            <div className="tbl-wrap">
-              <table className="tbl">
-                <thead>
-                  <tr><th>เริ่มเมื่อ</th><th>ไฟล์ / เลขงาน</th><th>วิธีอ่าน</th><th>สถานะ</th><th className="r">ยืนยัน</th><th className="r">เวลา</th><th>LLM</th><th></th></tr>
-                </thead>
-                <tbody>
-                  {rows.map((j) => (
-                    <tr key={j.id}>
-                      <td className="small num">{fmtTime(j.created_at)}</td>
-                      <td style={{ maxWidth: 360 }}>
-                        <Link href={`/import/${j.id}`} style={{ fontWeight: 600, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{j.filename}</Link>
-                        <span className="t2 num">งาน {j.id}{j.counts.ingest?.pages ? ` · ${j.counts.ingest.pages} หน้า` : ""}</span>
-                      </td>
-                      <td className="small">{providerLabel(j.provider)}</td>
-                      <td><Pill kind={STATUS_TH[j.status][1]}>{STATUS_TH[j.status][0]}</Pill></td>
-                      <td className="r num">{hasSummary(j) ? `${j.confirmed_count}/${j.parts_total}` : "–"}</td>
-                      <td className="r small num">{j.timings?.total != null ? `${j.timings.total} s` : "–"}</td>
-                      <td className="small">{j.llm ? `${j.llm.calls} คำขอ · ${j.llm.prompt_tokens}/${j.llm.completion_tokens} tok` : "–"}</td>
-                      <td>
-                        <div className="row" style={{ flexWrap: "nowrap", gap: 6 }}>
-                          <Link href={`/import/${j.id}`} className="btn xs">เปิด</Link>
-                          {hasSummary(j) && <Link href={`/import/${j.id}/done`} className="btn xs">สรุป</Link>}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                  {rows.length === 0 && (
-                    <tr><td colSpan={8} className="small faint">{jobs.length === 0 ? "ยังไม่มีงานนำเข้า" : "ไม่มีงานที่ตรงกับตัวกรอง"}</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </section>
+          </KpiRow>
+          <Filters>
+            <SearchBox value={q} onChange={setQ} placeholder="ค้นหาชื่อไฟล์หรือเลขงาน" />
+            <SelectFilter label="สถานะ" value={f.group} options={GROUPS.map((g) => [g.key, g.label] as [string, string])} onChange={set("group")} />
+            <SelectFilter label="วิธีอ่าน" value={f.provider} options={PROVIDERS} onChange={set("provider")} />
+          </Filters>
+          <DataTable
+            rows={jobs}
+            columns={COLUMNS}
+            rowKey={(j) => j.id}
+            search={q}
+            searchText={searchText}
+            filters={f}
+            filterValue={filterValue}
+            unit="งาน"
+            empty={jobs.length === 0 ? "ยังไม่มีงานนำเข้า" : "ไม่มีงานที่ตรงกับตัวกรอง"}
+          />
         </>
       )}
     </>

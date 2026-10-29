@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { SessionProvider } from "next-auth/react";
 import { auth } from "@/auth";
 import { Shell } from "@/components/shell";
+import { ToastProvider } from "@/components/kit";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -11,7 +12,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <SessionProvider session={session}>
       {/* each page is checked against its menu in the Shell (lib/nav.ts); the API checks again */}
-      <Shell user={user}>{children}</Shell>
+      <ToastProvider>
+        <Shell user={user}>{children}</Shell>
+      </ToastProvider>
     </SessionProvider>
   );
 }
