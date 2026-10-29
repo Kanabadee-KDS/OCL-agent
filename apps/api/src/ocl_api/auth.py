@@ -4,7 +4,9 @@ The web app (Auth.js: Google @g.swu.ac.th or Buasri ID credentials) is the only 
 surface. It calls this API with a short-lived HS256 JWT signed with the shared
 AUTH_SECRET: `sub` = email, `name`, `roles`. Users and their roles live in the `users`
 table (migration 002); roles follow the 9 groups of the customer's mock, and a user may
-hold several. When AUTH_SECRET is not set (file-mode dev, tests) every request acts as
+hold several. With a database, every request takes the roles from that table (cached
+USER_CACHE_TTL seconds), so a suspended user or a role change does not wait for the web
+session to expire. When AUTH_SECRET is not set (file-mode dev, tests) every request acts as
 an anonymous admin and /health reports auth=disabled.
 """
 
@@ -44,8 +46,42 @@ PERMISSIONS: dict[str, set[str]] = {
     "curriculum_verify": {"admin", "faculty"},
     "curriculum_publish": {"admin", "central"},
 }
+# Menu-level visibility, mirrored from the web's apps/web/src/lib/nav.ts (the mock's NAV and
+# ROLES.mods/only, BRD 00 §3); tests/test_auth.py fails when the two drift apart.
+MENUS: dict[str, list[str]] = {
+    "c": ["c1", "c1b", "c2", "c3", "c3h", "c5", "c4"],
+    "p": ["p1", "p2", "p4"],
+    "s": ["s1", "s2", "s2b", "s3", "s4", "s5", "s6"],
+    "q": ["q1", "q2", "q1b", "q3", "q4"],
+    "r": ["r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "ra", "rb", "rc"],
+    "u": ["u1", "u2", "u3"],
+    "m": ["m1", "m2"],
+}
+MENU_INHERITS: dict[str, str] = {"c3h": "c3"}  # pages beyond the mock follow their parent menu
+ROLE_ACCESS: dict[str, tuple[list[str], list[str] | None]] = {  # role: (modules, only these menus)
+    "admin": (["c", "p", "s", "q", "r", "u"], None),
+    "central": (["c", "p", "s", "q", "r", "u"], None),
+    "curator": (["c", "p", "s", "q", "r"], None),
+    "faculty": (["c", "p", "s", "q", "r"], None),
+    "evaluator": (["q"], None),
+    "teacher": (["p", "s", "r"], ["p2", "p4", "s4", "s5", "r0", "r7", "r8"]),
+    "advisor": (["s", "r"], ["s5", "r0", "r8"]),
+    "student": (["m"], None),
+    "exec": (["r"], None),
+}
 SERVICE_ROLE = "service"
 TOKEN_TTL = 300  # seconds; the web signs a fresh token per request
+USER_CACHE_TTL = 30  # seconds a looked-up user is trusted before the table is read again
+
+
+def can_menu(roles: list[str], menu: str) -> bool:
+    menu = MENU_INHERITS.get(menu, menu)
+    mod = next((k for k, ids in MENUS.items() if menu in ids), None)
+    for r in roles:
+        mods, only = ROLE_ACCESS.get(r, ([], None))
+        if mod in mods and (only is None or menu in only):
+            return True
+    return False
 
 
 @dataclass
@@ -57,6 +93,9 @@ class User:
 
     def can(self, perm: str) -> bool:
         return bool(PERMISSIONS.get(perm, set()) & set(self.roles))
+
+    def menus(self) -> list[str]:
+        return [m for ids in MENUS.values() for m in ids if can_menu(self.roles, m)]
 
     def to_dict(self) -> dict[str, Any]:
         return {"email": self.email, "name": self.name, "roles": self.roles, "active": self.active}
@@ -109,13 +148,42 @@ def verify_token(secret: str, token: str) -> User:
 # ---------- FastAPI dependencies ----------
 
 
+_user_cache: dict[tuple[str, str | None, str], tuple[float, dict[str, Any] | None]] = {}
+
+
+def clear_user_cache() -> None:
+    _user_cache.clear()
+
+
+def _stored_user(settings: Settings, email: str) -> dict[str, Any] | None:
+    from ocl_api.users import UserStore  # users imports this module
+
+    key = (settings.database_url or "", settings.database_schema, email.lower())
+    hit = _user_cache.get(key)
+    if hit and hit[0] > time.monotonic():
+        return hit[1]
+    u = UserStore(settings.database_url or "", settings.database_schema).get(email)
+    _user_cache[key] = (time.monotonic() + USER_CACHE_TTL, u)
+    return u
+
+
 def current_user(request: Request, settings: Settings = Depends(get_settings)) -> User:
     if not settings.auth_secret:
         return ANONYMOUS_ADMIN
     header = request.headers.get("authorization", "")
     if not header.lower().startswith("bearer "):
         raise HTTPException(401, "ต้องเข้าสู่ระบบก่อน")
-    return verify_token(settings.auth_secret, header[7:].strip())
+    user = verify_token(settings.auth_secret, header[7:].strip())
+    if SERVICE_ROLE in user.roles or not settings.database_url:
+        return user
+    # The users table, not the token, decides: a suspended user is refused and a role
+    # change applies within USER_CACHE_TTL, although the web session lives for 8 hours.
+    stored = _stored_user(settings, user.email)
+    if stored is None or not stored["active"]:
+        raise HTTPException(401, "บัญชีนี้ถูกระงับหรือไม่มีในระบบ")
+    return User(
+        email=stored["email"], name=stored["name"] or user.name, roles=list(stored["roles"])
+    )
 
 
 def require(perm: str):
@@ -125,6 +193,17 @@ def require(perm: str):
                 raise HTTPException(403, "เฉพาะบริการภายใน")
             return user
         if not user.can(perm):
+            raise HTTPException(403, "บัญชีนี้ไม่มีสิทธิ์ในเมนูนี้")
+        return user
+
+    return dep
+
+
+def require_menu(menu: str):
+    """Endpoint guard by menu id (lib/nav.ts), for the pages FS-1..FS-7 add."""
+
+    def dep(user: User = Depends(current_user)) -> User:
+        if not can_menu(user.roles, menu):
             raise HTTPException(403, "บัญชีนี้ไม่มีสิทธิ์ในเมนูนี้")
         return user
 

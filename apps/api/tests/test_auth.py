@@ -63,7 +63,8 @@ def test_guards_without_and_with_secret(tmp_path: Path, monkeypatch: pytest.Monk
     r = c.post("/api/imports", files=files, data={"provider": "none"}, headers=_bearer(["curator"]))
     assert r.status_code == 201
     me = c.get("/api/auth/me", headers=_bearer(["curator", "teacher"])).json()
-    assert me["permissions"] == {"import_read": True, "import_write": True, "users_manage": False}
+    assert me["permissions"]["import_write"] and not me["permissions"]["users_manage"]
+    assert "c3" in me["menus"] and "p2" in me["menus"] and "u1" not in me["menus"]
     # the service endpoints refuse ordinary users
     assert (
         c.post(
@@ -146,13 +147,17 @@ def test_users_and_web_endpoints(
     import time
 
     for _ in range(100):
-        if c.get(f"/api/imports/{jid}", headers=_bearer(["central"])).json()["status"] in (
+        if c.get(
+            f"/api/imports/{jid}", headers=_bearer(["central"], sub="somchai@g.swu.ac.th")
+        ).json()["status"] in (
             "review",
             "failed",
         ):
             break
         time.sleep(0.1)
-    plo = c.get(f"/api/imports/{jid}/parts/plo", headers=_bearer(["central"])).json()
+    plo = c.get(
+        f"/api/imports/{jid}/parts/plo", headers=_bearer(["central"], sub="somchai@g.swu.ac.th")
+    ).json()
     c.put(
         f"/api/imports/{jid}/parts/plo",
         json={"data": plo["data"], "confirm": False, "by": "spoof"},
@@ -165,3 +170,75 @@ def test_users_and_web_endpoints(
             "SELECT history FROM import_parts WHERE job_id = %s AND key = 'plo'", (jid,)
         ).fetchone()["history"]
     assert hist[0]["by"] == "somchai@g.swu.ac.th"
+
+
+def test_table_decides_roles_and_suspension(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, pg_url: str, schema: str
+) -> None:
+    """A web session lives 8 hours; the API must not trust the roles it was signed with."""
+    from ocl_api.auth import clear_user_cache
+    from ocl_api.users import UserStore
+
+    c = _client(
+        tmp_path, monkeypatch, AUTH_SECRET=SECRET, DATABASE_URL=pg_url, DATABASE_SCHEMA=schema
+    )
+    users = UserStore(pg_url, schema)
+    users.upsert("t@g.swu.ac.th", name="อาจารย์", roles=["teacher"])
+    claims_admin = _bearer(["admin"], sub="t@g.swu.ac.th")
+    # the token says admin, the table says teacher
+    assert c.get("/api/imports", headers=claims_admin).status_code == 403
+    assert c.get("/api/auth/me", headers=claims_admin).json()["roles"] == ["teacher"]
+    # a user who is not in the table gets nothing, whatever the token says
+    assert c.get("/api/imports", headers=_bearer(["admin"], sub="ghost@x")).status_code == 401
+    # a role change applies once the short cache expires
+    users.upsert("t@g.swu.ac.th", name="อาจารย์", roles=["curator"])
+    clear_user_cache()
+    assert c.get("/api/imports", headers=claims_admin).status_code == 200
+    # suspension ends access at the API and at the web's refresh
+    svc = _bearer(["service"], sub="web")
+    assert c.post("/api/auth/refresh", json={"email": "T@g.swu.ac.th"}, headers=svc).json()[
+        "roles"
+    ] == ["curator"]
+    users.set_active("t@g.swu.ac.th", False)
+    clear_user_cache()
+    assert c.get("/api/imports", headers=claims_admin).status_code == 401
+    r = c.post("/api/auth/refresh", json={"email": "t@g.swu.ac.th"}, headers=svc)
+    assert r.status_code == 404
+    assert (
+        c.post(
+            "/api/auth/refresh", json={"email": "t@g.swu.ac.th"}, headers=claims_admin
+        ).status_code
+        == 401
+    ), "refresh is for the web's service token only"
+
+
+def test_menu_access_matches_the_web() -> None:
+    """auth.py mirrors apps/web/src/lib/nav.ts; a menu or role added on one side only fails here."""
+    import re
+
+    from ocl_api.auth import MENU_INHERITS, MENUS, ROLE_ACCESS, can_menu
+
+    nav = (Path(__file__).parents[3] / "apps/web/src/lib/nav.ts").read_text(encoding="utf-8")
+    web_menus: dict[str, list[str]] = {}
+    mod = ""
+    for m in re.finditer(r'k: "([a-z])"|\{ id: "([a-z0-9]+)"', nav):
+        if m.group(1):
+            mod = m.group(1)
+        else:
+            web_menus.setdefault(mod, []).append(m.group(2))
+    assert web_menus == MENUS
+    assert dict(re.findall(r'id: "([a-z0-9]+)"[^}]*inherits: "([a-z0-9]+)"', nav)) == MENU_INHERITS
+    block = nav[nav.index("export const ROLE_ACCESS") :].split("};")[0]
+    web_access = {}
+    for role, mods, only in re.findall(
+        r"(\w+): \{ mods: \[([^\]]*)\](?:, only: \[([^\]]*)\])? \}", block
+    ):
+        ids = lambda s: re.findall(r'"([a-z0-9]+)"', s)  # noqa: E731
+        web_access[role] = (ids(mods), ids(only) if only else None)
+    assert web_access == ROLE_ACCESS
+    assert set(ROLE_ACCESS) == set(ROLES)
+    # spot checks against BRD 00 §3
+    assert can_menu(["teacher"], "p2") and not can_menu(["teacher"], "p1")
+    assert can_menu(["faculty"], "c3h") and not can_menu(["faculty"], "u1")
+    assert can_menu(["student"], "m1") and not can_menu(["exec"], "c1")
+    assert User(email="a", roles=["advisor"]).menus() == ["s5", "r0", "r8"]

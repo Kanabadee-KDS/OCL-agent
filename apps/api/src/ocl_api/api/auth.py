@@ -7,7 +7,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from ocl_api.auth import REQUIRE_SERVICE, ROLES, User, current_user
+from ocl_api.auth import PERMISSIONS, REQUIRE_SERVICE, ROLES, User, current_user
 from ocl_api.config import Settings, get_settings
 from ocl_api.users import UserStore
 
@@ -66,11 +66,23 @@ def credentials(
     return _public(u)
 
 
+@router.post("/refresh")
+def refresh(
+    body: Lookup, _: User = Depends(REQUIRE_SERVICE), users: UserStore = Depends(get_users)
+) -> dict[str, Any]:
+    """The web re-reads a signed-in user every minute: current roles, or 404 to end the session."""
+    u = users.get(body.email.strip())
+    if u is None or not u["active"]:
+        raise HTTPException(404, "บัญชีนี้ถูกระงับหรือไม่มีในระบบ")
+    return _public(u)
+
+
 @router.get("/me")
 def me(user: User = Depends(current_user), settings: Settings = Depends(get_settings)) -> dict:
     return {
         **user.to_dict(),
         "auth": "enabled" if settings.auth_secret else "disabled",
         "role_names": {r: ROLES.get(r, r) for r in user.roles},
-        "permissions": {p: user.can(p) for p in ("import_read", "import_write", "users_manage")},
+        "permissions": {p: user.can(p) for p in PERMISSIONS},
+        "menus": user.menus(),
     }

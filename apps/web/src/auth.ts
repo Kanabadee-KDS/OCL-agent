@@ -18,16 +18,35 @@ export async function apiToken(claims: { sub: string; name?: string; roles: stri
 
 type ApiUser = { email: string; name: string; roles: string[]; active: boolean };
 
-async function apiAuth(path: "lookup" | "credentials", body: Record<string, string>): Promise<ApiUser | null> {
+async function apiCall(path: "lookup" | "credentials" | "refresh", body: Record<string, string>): Promise<Response> {
   const token = await apiToken({ sub: "web", name: "web", roles: ["service"] });
-  const r = await fetch(`${INTERNAL_API_BASE}/api/auth/${path}`, {
+  return fetch(`${INTERNAL_API_BASE}/api/auth/${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
     body: JSON.stringify(body),
     cache: "no-store",
   });
+}
+
+async function apiAuth(path: "lookup" | "credentials", body: Record<string, string>): Promise<ApiUser | null> {
+  const r = await apiCall(path, body);
   if (!r.ok) return null;
   return (await r.json()) as ApiUser;
+}
+
+// A session lives 8 hours; every RECHECK_SECONDS the user is read again so that a role change
+// reaches the menus and a suspended user is signed out (the API checks the table on every call).
+const RECHECK_SECONDS = 60;
+
+/** Current user, "gone" when suspended or removed, null when the API cannot tell (keep the session). */
+async function recheck(email: string): Promise<ApiUser | "gone" | null> {
+  try {
+    const r = await apiCall("refresh", { email });
+    if (r.status === 404) return "gone";
+    return r.ok ? ((await r.json()) as ApiUser) : null;
+  } catch {
+    return null;
+  }
 }
 
 const googleOn = Boolean(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET);
@@ -59,7 +78,20 @@ export const authConfig: NextAuthConfig = {
       return true;
     },
     async jwt({ token, user }) {
-      if (user) token.roles = (user as { roles?: string[] }).roles ?? [];
+      const now = Math.floor(Date.now() / 1000);
+      if (user) {
+        token.roles = (user as { roles?: string[] }).roles ?? [];
+        token.checkedAt = now;
+        return token;
+      }
+      if (!token.email || now - Number(token.checkedAt ?? 0) < RECHECK_SECONDS) return token;
+      const u = await recheck(token.email);
+      if (u === "gone") return null; // Auth.js clears the session cookie
+      if (u) {
+        token.roles = u.roles;
+        token.name = u.name || token.name;
+      }
+      token.checkedAt = now;
       return token;
     },
     async session({ session, token }) {

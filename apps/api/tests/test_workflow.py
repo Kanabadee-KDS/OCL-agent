@@ -41,7 +41,15 @@ def client(pg_url: str, schema: str, tmp_path: Path, monkeypatch: pytest.MonkeyP
     monkeypatch.setenv("OLLAMA_MODEL", "gemma4:26b")
     monkeypatch.setenv("OLLAMA_KEEP_ALIVE", "10m")
     monkeypatch.setenv("OLLAMA_NUM_CTX", "32768")
-    return TestClient(create_app())
+    app = create_app()  # migrates the schema
+    # the API takes roles from the users table, so the token holders must exist there
+    from ocl_api.users import UserStore
+
+    users = UserStore(pg_url, schema)
+    users.upsert("central@g.swu.ac.th", roles=["central"])
+    users.upsert("dean@g.swu.ac.th", roles=["faculty"])
+    users.upsert("cur@g.swu.ac.th", roles=["curator"])
+    return TestClient(app)
 
 
 def _import_and_finalize(c: TestClient, tmp_path: Path, headers: dict[str, str]) -> str:
