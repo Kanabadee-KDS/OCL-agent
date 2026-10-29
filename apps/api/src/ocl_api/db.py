@@ -166,6 +166,29 @@ MIGRATIONS: list[tuple[str, str]] = [
         );
         """,
     ),
+    (
+        "005_email_outbox",
+        """
+        -- every e-mail the system would send (ocl_api.mail); nothing leaves until a sender exists
+        CREATE TABLE IF NOT EXISTS email_outbox (
+            id         bigserial PRIMARY KEY,
+            created_at timestamptz NOT NULL DEFAULT now(),
+            created_by text,
+            kind       text NOT NULL,
+            ref        text,
+            to_addrs   jsonb NOT NULL,
+            subject    text NOT NULL,
+            body       text NOT NULL,
+            dedupe_key text,
+            status     text NOT NULL DEFAULT 'queued',
+            sent_at    timestamptz,
+            error      text
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS email_outbox_dedupe_uidx
+            ON email_outbox (dedupe_key) WHERE dedupe_key IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS email_outbox_status_idx ON email_outbox (status, created_at);
+        """,
+    ),
 ]
 
 

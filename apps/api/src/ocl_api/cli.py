@@ -154,6 +154,57 @@ def cmd_seed(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_outbox(args: argparse.Namespace) -> int:
+    """E-mails the system queued (nothing is sent yet): list, show one, or queue a test."""
+    import json
+
+    from ocl_api.config import get_settings
+    from ocl_api.db import migrate
+    from ocl_api.mail import Outbox
+
+    s = get_settings()
+    if not s.database_url:
+        print("outbox needs DATABASE_URL (Postgres)")
+        return 1
+    migrate(s.database_url, s.database_schema)
+    box = Outbox(s.database_url, s.database_schema)
+    if args.action == "test":
+        if not args.to:
+            print("--to is required")
+            return 1
+        try:
+            m = box.send(
+                args.to,
+                "ทดสอบการส่งอีเมลจากระบบบริหารจัดการหลักสูตร",
+                "อีเมลทดสอบจากคำสั่ง ocl outbox test · ยังไม่มีการส่งจริง",
+                kind="test",
+                by="cli",
+            )
+        except ValueError as e:
+            print(e)
+            return 1
+        print(json.dumps(m, ensure_ascii=False, indent=1))
+        return 0
+    if args.action == "show":
+        m = box.get(args.id) if args.id else None
+        if m is None:
+            print("not found (--id)")
+            return 1
+        print(json.dumps(m, ensure_ascii=False, indent=1))
+        return 0
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    bkk = ZoneInfo("Asia/Bangkok")  # NFR-15: times are shown in Thai time
+    for m in box.list(args.status, args.limit):
+        at = datetime.fromisoformat(m["created_at"]).astimezone(bkk).strftime("%Y-%m-%d %H:%M")
+        print(
+            f"{m['id']:>6} {at} {m['status']:7} {m['kind']:10} "
+            f"{','.join(m['to_addrs'])[:40]:40} {m['subject']}"
+        )
+    return 0
+
+
 def cmd_api(args: argparse.Namespace) -> int:
     import uvicorn
 
@@ -226,6 +277,14 @@ def main(argv: list[str] | None = None) -> int:
     sd.add_argument("--system", choices=["all", "huris", "supreme"], default="all")
     sd.add_argument("--replace-real", action="store_true", help="overwrite data from a real feed")
     sd.set_defaults(func=cmd_seed)
+
+    ob = sub.add_parser("outbox", help="e-mail outbox: list, show, or queue a test message")
+    ob.add_argument("action", choices=["list", "show", "test"])
+    ob.add_argument("--id", type=int)
+    ob.add_argument("--to", help="recipient for test")
+    ob.add_argument("--status", choices=["queued", "sent", "failed"])
+    ob.add_argument("--limit", type=int, default=50)
+    ob.set_defaults(func=cmd_outbox)
 
     db = sub.add_parser("db", help="database: migrate (apply schema) or status")
     db.add_argument("action", choices=["migrate", "status"])
