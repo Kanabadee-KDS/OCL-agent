@@ -4,18 +4,22 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from ocl_api.auth import REQUIRE_IMPORT_READ, User, current_user, require_menu
 from ocl_api.config import Settings, get_settings
-from ocl_api.curricula import ACTIONS, STATUSES, CurriculumStore
+from ocl_api.curricula import ACTIONS, BOOK_MAX, STATUSES, CurriculumStore
+from ocl_api.curriculum_form import spec
 from ocl_api.jobs import make_store
+from ocl_api.sections import SECTIONS
 
 router = APIRouter(prefix="/api/curricula", tags=["curricula"])
 
 REQUIRE_VIEW = require_menu("c1")  # คู่มือหลักสูตร
 REQUIRE_ADD = require_menu("c1", action="add")
+REQUIRE_LOOKUPS = require_menu("u1", action="edit")  # the administrators' basic data
 
 
 def get_curricula(settings: Settings = Depends(get_settings)) -> CurriculumStore:
@@ -39,6 +43,30 @@ def list_curricula(
     out["statuses"] = STATUSES
     out["actions"] = ACTIONS
     return out
+
+
+@router.get("/form")
+def form_spec(
+    cs: CurriculumStore = Depends(get_curricula), _: User = Depends(REQUIRE_VIEW)
+) -> dict[str, Any]:
+    """The cur-edit form (หมวด 0 1 2 5) with the options the administrators added."""
+    return {"sections": spec(cs.options()), "labels": SECTIONS}
+
+
+class NewOption(BaseModel):
+    key: str
+    value: str
+
+
+@router.post("/form/options")
+def add_option(
+    body: NewOption,
+    cs: CurriculumStore = Depends(get_curricula),
+    user: User = Depends(REQUIRE_LOOKUPS),
+) -> dict[str, Any]:
+    """BRD 01 US-M1-04: list options come from basic data the administrators can extend."""
+    cs.add_option(body.key, body.value, user)
+    return {"sections": spec(cs.options()), "labels": SECTIONS}
 
 
 @router.get("/by-job/{job_id}")
@@ -111,3 +139,34 @@ def transition(
     return cs.transition(
         draft_id, body.action, user, note=body.note, section=body.section, checked=body.checked
     )
+
+
+@router.post("/{draft_id}/book")
+async def upload_book(
+    draft_id: int,
+    file: UploadFile = File(...),
+    cs: CurriculumStore = Depends(get_curricula),
+    settings: Settings = Depends(get_settings),
+    user: User = Depends(REQUIRE_VIEW),
+) -> dict[str, Any]:
+    """ไฟล์เล่มหลักสูตรที่อนุมัติแล้ว (หมวด 0): same rights as editing หมวด 0."""
+    content = await file.read(BOOK_MAX + 1)
+    return cs.save_book(draft_id, file.filename or "book.pdf", content, user, settings.data_dir)
+
+
+@router.get("/{draft_id}/book")
+def download_book(
+    draft_id: int,
+    cs: CurriculumStore = Depends(get_curricula),
+    settings: Settings = Depends(get_settings),
+    _: User = Depends(REQUIRE_VIEW),
+) -> FileResponse:
+    path, name = cs.book_path(draft_id, settings.data_dir)
+    return FileResponse(path, media_type="application/pdf", filename=name)
+
+
+@router.get("/{draft_id}/teachers/check")
+def teacher_check(
+    draft_id: int, cs: CurriculumStore = Depends(get_curricula), _: User = Depends(REQUIRE_VIEW)
+) -> dict[str, Any]:
+    return cs.teacher_check(draft_id)

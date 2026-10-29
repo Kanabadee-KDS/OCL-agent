@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from ocl_api.curriculum_form import SECTION1_LISTS, SECTION1_VALUES
 from ocl_api.db import Jsonb
 
 SECTIONS: dict[str, str] = {
@@ -32,15 +33,9 @@ PART_SECTION: dict[str, str] = {
     "mapping": "4",
     "appr": "5",
 }  # `info` is split, see below
-INFO_SECTION1_VALUES = {
-    "program_type",
-    "study_mode",
-    "lifelong",
-    "language",
-    "language_text",
-    "cwie",
-}
-INFO_SECTION1_LISTS = {"majors", "careers", "collaborations"}
+# which `info` keys are หมวด 1 is decided by the form (curriculum_form.py), nowhere else
+INFO_SECTION1_VALUES = SECTION1_VALUES
+INFO_SECTION1_LISTS = SECTION1_LISTS
 # in review the faculty edits หมวด 3–4, and inside หมวด 4 only the Curriculum Mapping
 REVIEW_EDITABLE: dict[str, set[str] | None] = {"3": None, "4": {"mapping"}}
 
@@ -146,3 +141,18 @@ def backfill(url: str, schema: str | None) -> int:
                 write_all(conn, r["id"], from_parts(parts), "system", "แปลงจากข้อมูลนำเข้า")
             done += 1
     return done
+
+
+def normalized(sections: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """`info` split again by the current form: data stored under an older split reads right."""
+    if "0" not in sections and "1" not in sections:
+        return sections
+    info = to_parts({n: sections.get(n) or {} for n in ("0", "1")}).get("info")
+    if info is None:
+        return sections
+    s0, s1 = _split_info(info)
+    out = dict(sections)
+    for n, half in (("0", s0), ("1", s1)):
+        if n in out:
+            out[n] = {**(out[n] or {}), "info": half}
+    return out

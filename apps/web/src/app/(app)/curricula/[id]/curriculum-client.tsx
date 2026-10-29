@@ -50,6 +50,7 @@ export function CurriculumClient() {
         sub={<>{d.level ?? "–"} · {d.faculty ?? "–"} · เริ่มใช้ {d.start_year ?? "–"} · รหัส สกอ. {d.program_code ?? "–"} · <Pill kind={STATUS_KIND[d.status]}>{d.status_th}</Pill>{d.review_due_at && d.status === "review" && <> · กำหนดตรวจภายใน {d.review_due_at}</>}</>}
         actions={
           <>
+            <Link href={`/curricula/${d.id}/edit`} className="btn primary"><Ic name="edit" size={16} /> {d.editable.length ? "กรอก/แก้ข้อมูลคู่มือ" : "ดูข้อมูลคู่มือ"}</Link>
             {d.job_id && <Link href={`/import/${d.job_id}`} className="btn"><Ic name="eye" size={16} /> เปิดข้อมูลที่นำเข้า (10 ส่วน)</Link>}
             {d.job_id && <Link href={`/import/${d.job_id}/done`} className="btn"><Ic name="chart" size={16} /> สรุปผลการนำเข้า</Link>}
           </>
@@ -66,7 +67,7 @@ export function CurriculumClient() {
           <h2 className="h2">ขั้นตอนถัดไป</h2>
           {d.status === "import" && (
             <>
-              <div className="small">{d.job_id ? <>ร่างจากการนำเข้าด้วย AI · ผู้เตรียมร่างแก้ได้ทุกหมวดที่ <Link href={`/import/${d.job_id}`}>ข้อมูลที่นำเข้า</Link></> : "ร่างที่เพิ่มเอง · ฟอร์มกรอกหมวด 0–5 เปิดใช้ในงานถัดไป"} แล้วส่งให้คณะตรวจสอบหมวด 3–4</div>
+              <div className="small">{d.job_id ? <>ร่างจากการนำเข้าด้วย AI · ผู้เตรียมร่างแก้ได้ทุกหมวดที่ <Link href={`/import/${d.job_id}`}>ข้อมูลที่นำเข้า</Link></> : <>ร่างที่เพิ่มเอง · กรอกที่ <Link href={`/curricula/${d.id}/edit`}>ข้อมูลคู่มือ</Link></>} แล้วส่งให้คณะตรวจสอบหมวด 3–4</div>
               <textarea className="inp" rows={2} style={{ height: "auto", padding: 8 }} placeholder="หมายเหตุถึงคณะ (ไม่บังคับ)" value={note} onChange={(e) => setNote(e.target.value)} />
               <div><button className="btn primary" disabled={!canSubmit || busy} onClick={() => act("submit")}>ส่งให้คณะตรวจสอบ</button>{!canSubmit && <span className="small faint"> · ขั้นนี้ไม่ใช่ของบทบาทคุณ (ดูการตั้งค่าการอนุมัติ)</span>}</div>
             </>

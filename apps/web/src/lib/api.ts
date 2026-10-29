@@ -136,6 +136,7 @@ export type CurriculumDetail = CurriculumRow & {
   // หมวด 0–5 of the คู่มือ (ocl_api.sections) and which of them this user may change now
   sections: Record<string, { label: string; parts: string[]; updated_by: string | null; updated_at: string | null }>;
   editable: string[];
+  progress: Record<string, { done: number; total: number; missing: string[] }>;
 };
 export type CurriculumList = { counts: Record<string, number>; items: CurriculumRow[]; statuses: Record<string, string>; actions: Record<string, string> };
 export const curricula = {
@@ -220,4 +221,29 @@ export const flowsApi = {
   get: (id: string, version?: number) => fetch(`${API_BASE}/api/flows/${id}${version ? `?version=${version}` : ""}`, { cache: "no-store" }).then(j<FlowDetail>),
   save: (id: string, body: { steps: FlowStep[]; notify_next?: boolean; notify_sender?: boolean; remind_overdue?: boolean }) =>
     fetch(`${API_BASE}/api/flows/${id}`, json("PUT", body)).then(j<FlowDetail>),
+};
+
+// ---------- ฟอร์มคู่มือหลักสูตร หมวด 0 1 2 5 (ocl_api.curriculum_form) ----------
+export type FormField = {
+  key: string; label: string; kind: string; path: string; required: boolean; options?: string[];
+  source?: string; hint?: string; lookup?: boolean; lookup_key: string; columns?: FormField[];
+  required_when?: { key: string; equals: string };
+};
+export type FormGroup = { title: string; fields: FormField[] };
+export type FormSpec = { sections: Record<string, FormGroup[]>; labels: Record<string, string> };
+export type SectionData = Record<string, { label: string; data: Record<string, unknown>; updated_by: string | null; updated_at: string | null }>;
+export type TeacherCheck = { responsible: number; required: number; issues: string[]; duplicates: { name: string; curriculum: string; id: number }[] };
+export const curriculumForm = {
+  spec: () => fetch(`${API_BASE}/api/curricula/form`, { cache: "no-store" }).then(j<FormSpec>),
+  addOption: (key: string, value: string) => fetch(`${API_BASE}/api/curricula/form/options`, json("POST", { key, value })).then(j<FormSpec>),
+  sections: (id: number | string) => fetch(`${API_BASE}/api/curricula/${id}/sections`, { cache: "no-store" }).then(j<SectionData>),
+  save: (id: number | string, n: string, data: Record<string, unknown>) =>
+    fetch(`${API_BASE}/api/curricula/${id}/sections/${n}`, json("PUT", { data })).then(j<SectionData[string]>),
+  uploadBook: (id: number | string, file: File) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    return fetch(`${API_BASE}/api/curricula/${id}/book`, { method: "POST", body: fd }).then(j<SectionData[string]>);
+  },
+  bookUrl: (id: number | string) => `${API_BASE}/api/curricula/${id}/book`,
+  teacherCheck: (id: number | string) => fetch(`${API_BASE}/api/curricula/${id}/teachers/check`, { cache: "no-store" }).then(j<TeacherCheck>),
 };

@@ -330,6 +330,19 @@ MIGRATIONS: list[tuple[str, str]] = [
             ON curriculum_section_history (draft_id, section, ts);
         """,
     ),
+    (
+        "011_lookups",
+        """
+        -- options the administrators add to the form's lists (curriculum_form.lookup_keys)
+        CREATE TABLE IF NOT EXISTS lookups (
+            field    text NOT NULL,
+            value    text NOT NULL,
+            added_by text,
+            added_at timestamptz NOT NULL DEFAULT now(),
+            PRIMARY KEY (field, value)
+        );
+        """,
+    ),
 ]
 
 

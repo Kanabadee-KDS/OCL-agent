@@ -102,7 +102,7 @@ LOGIN_SCREENS = {"login", "login-ext"}  # drawn before sign-in, not in the route
 BUILT: dict[str, str] = {
     "login": "มีแล้ว (บัวศรีไอดี+รหัสผ่าน · Google รอ OAuth client)",
     "cur": "บางส่วน (รายการ + ตัวนับสถานะ + เพิ่มหลักสูตร · ข้อมูลหมวด 0–5 ของคู่มือเอง FS-2a)",
-    "cur-edit": "บางส่วน (ดูข้อมูลที่นำเข้า · ยังไม่มีฟอร์มหมวด 0–5)",
+    "cur-edit": "บางส่วน (ฟอร์มหมวด 0 1 2 5 FS-2b · หมวด 3–4 อยู่ใน FS-2c)",
     "fac-plo": "บางส่วน (workflow ส่งคณะตรวจในหน้าคู่มือ)",
     "fac-plo-edit": "บางส่วน (ติ๊กหมวด 3–4 · แก้ PLO/KSEC/Mapping)",
     "import": "มีแล้ว",

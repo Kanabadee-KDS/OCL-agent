@@ -27,6 +27,7 @@ from typing import Any
 from fastapi import HTTPException
 
 from ocl_api.auth import User
+from ocl_api.curriculum_form import get_path, lookup_keys, progress
 from ocl_api.db import Jsonb, connect
 from ocl_api.flows import FlowStore, can_act, today_th
 from ocl_api.jobs import PARTS
@@ -35,6 +36,7 @@ from ocl_api.sections import (
     REVIEW_EDITABLE,
     SECTIONS,
     master_columns,
+    normalized,
     sections_of_part,
     to_parts,
     with_part,
@@ -42,6 +44,7 @@ from ocl_api.sections import (
 )
 
 FLOW = "curriculum"
+BOOK_MAX = 50 * 1024 * 1024  # the mock's limit for the approved book
 SUBMIT, REVIEW, PUBLISH = 0, 1, 2  # step index in the flow
 
 STATUSES: dict[str, str] = {
@@ -133,7 +136,9 @@ class CurriculumStore:
         out = self._row(r)
         data = r["data"] or {}
         imported = data.get("parts") or {}  # finalize snapshot: when each part was confirmed
-        current = to_parts({x["section"]: x["data"] for x in srows})
+        by_n = normalized({x["section"]: x["data"] for x in srows})
+        current = to_parts(by_n)
+        out["progress"] = progress(by_n)
         out["parts"] = {
             k: {
                 "count": _count(current.get(k) or {}),
@@ -208,10 +213,11 @@ class CurriculumStore:
             ).fetchall()
         if not rows:
             raise HTTPException(404, "ไม่พบคู่มือหลักสูตร")
+        data = normalized({x["section"]: x["data"] for x in rows})
         return {
             x["section"]: {
                 "label": SECTIONS[x["section"]],
-                "data": x["data"],
+                "data": data[x["section"]],
                 "updated_by": x["updated_by"],
                 "updated_at": _iso(x["updated_at"]),
             }
@@ -273,6 +279,105 @@ class CurriculumStore:
                     "UPDATE curriculum_drafts SET updated_at = now() WHERE id = %s", (draft_id,)
                 )
         return self.sections(draft_id)[n]
+
+    # ---------- form helpers ----------
+
+    def options(self) -> dict[str, list[str]]:
+        with self._conn() as conn:
+            rows = conn.execute("SELECT field, value FROM lookups ORDER BY added_at").fetchall()
+        out: dict[str, list[str]] = {}
+        for r in rows:
+            out.setdefault(r["field"], []).append(r["value"])
+        return out
+
+    def add_option(self, key: str, value: str, user: User) -> dict[str, list[str]]:
+        value = value.strip()
+        if key not in lookup_keys():
+            raise HTTPException(400, "ตัวเลือกของช่องนี้เพิ่มไม่ได้")
+        if not value:
+            raise HTTPException(400, "ต้องมีข้อความ")
+        with self._conn() as conn:
+            conn.execute(
+                "INSERT INTO lookups (field, value, added_by) VALUES (%s, %s, %s) "
+                "ON CONFLICT DO NOTHING",
+                (key, value, user.email),
+            )
+        return self.options()
+
+    def save_book(self, draft_id: int, name: str, content: bytes, user: User, root) -> dict:
+        """The approved book (PDF ≤ 50 MB) on the data volume; หมวด 0 records who and when."""
+        if not content.startswith(b"%PDF"):
+            raise HTTPException(400, "ต้องเป็นไฟล์ PDF")
+        if len(content) > BOOK_MAX:
+            raise HTTPException(413, "ไฟล์ใหญ่เกิน 50 MB")
+        s0 = self.sections(draft_id)["0"]["data"]
+        # check the right to edit หมวด 0 before anything is written
+        with self._conn() as conn:
+            d = conn.execute(
+                "SELECT status, flow_version FROM curriculum_drafts WHERE id = %s", (draft_id,)
+            ).fetchone()
+        _, steps, _ = self.flows.steps(FLOW, d["flow_version"])
+        problem = _edit_problem(d["status"], steps, user, "0", None)
+        if problem:
+            raise HTTPException(*problem)
+        from datetime import datetime, timedelta, timezone
+
+        stamp = datetime.now(timezone(timedelta(hours=7)))
+        folder = root / "curricula" / str(draft_id)
+        folder.mkdir(parents=True, exist_ok=True)
+        file = f"approved-{stamp:%Y%m%d-%H%M%S}.pdf"
+        (folder / file).write_bytes(content)
+        info = dict(s0.get("info") or {})
+        info["values"] = {
+            **(info.get("values") or {}),
+            "approved_book": {
+                "file": file, "name": name, "size": len(content), "by": user.email,
+                "at": stamp.isoformat(timespec="seconds"), "label": "ฉบับอนุมัติ",
+            },
+        }  # fmt: skip
+        return self.save_section(draft_id, "0", {**s0, "info": info}, user, why="แนบเล่มอนุมัติ")
+
+    def book_path(self, draft_id: int, root):
+        s0 = self.sections(draft_id)["0"]["data"]
+        book = ((s0.get("info") or {}).get("values") or {}).get("approved_book") or {}
+        path = root / "curricula" / str(draft_id) / str(book.get("file") or "")
+        if not book.get("file") or not path.is_file() or path.parent.name != str(draft_id):
+            raise HTTPException(404, "ยังไม่มีไฟล์เล่มอนุมัติ")
+        return path, book.get("name") or path.name
+
+    def teacher_check(self, draft_id: int) -> dict[str, Any]:
+        """A first check of หมวด 0.2 (BRD 04 criteria 1–2) and responsible teachers shared
+        with other curricula; the full criteria come with M4 (FS-6)."""
+        secs = self.sections(draft_id)
+        values = ((secs["0"]["data"].get("info") or {}).get("values")) or {}
+        teachers = get_path(secs["0"]["data"], "teachers.teachers") or []
+        resp = [t for t in teachers if t.get("responsible")]
+        bachelor = str(values.get("level") or "").startswith(("ป.ตรี", "ปริญญาตรี"))
+        need = 5 if bachelor else 3  # [สมมติ] เกณฑ์ อว. 2565 ตามระดับ
+        issues = []
+        if len(resp) < need:
+            issues.append(f"อาจารย์ผู้รับผิดชอบ {len(resp)} คน ต้องอย่างน้อย {need} คน")
+        for t in resp:
+            if not _qualified(t, bachelor):
+                issues.append(f"{t.get('name')}: คุณวุฒิ/ตำแหน่งต่ำกว่าเกณฑ์ขั้นต่ำ")
+        key = lambda n: "".join(str(n or "").split())  # noqa: E731
+        mine = {key(t.get("name")) for t in resp} | {t.get("pid") for t in resp if t.get("pid")}
+        dups = []
+        with self._conn() as conn:
+            for r in conn.execute(
+                "SELECT d.id, d.name_th, s.data->'teachers'->'teachers' AS t "
+                "FROM curriculum_sections s JOIN curriculum_drafts d ON d.id = s.draft_id "
+                "WHERE s.section = '0' AND s.draft_id <> %s",
+                (draft_id,),
+            ):
+                for t in r["t"] or []:
+                    if t.get("responsible") and (
+                        key(t.get("name")) in mine or t.get("pid") in mine
+                    ):
+                        dups.append(
+                            {"name": t.get("name"), "curriculum": r["name_th"], "id": r["id"]}
+                        )
+        return {"responsible": len(resp), "required": need, "issues": issues, "duplicates": dups}
 
     def check_part(self, job_id: str, key: str, user: User) -> None:
         """An edit on the import's review page after finalize: allowed under the section rules."""
@@ -483,6 +588,19 @@ class CurriculumStore:
             )
             sent += m is not None
         return sent
+
+
+_ASSOC_UP = ("รองศาสตราจารย์", "ศาสตราจารย์", "รศ.", "ศ.")
+_ASSIST_UP = ("ผู้ช่วยศาสตราจารย์", "ผศ.", *_ASSOC_UP)
+
+
+def _qualified(t: dict[str, Any], bachelor: bool) -> bool:
+    """[สมมติ] BRD 04 criterion 2: bachelor's — a master's or assistant professor and up;
+    graduate — a doctorate or associate professor and up."""
+    level, rank = t.get("highest_level") or "", t.get("rank") or ""
+    if bachelor:
+        return level in ("โท", "เอก") or rank.startswith(_ASSIST_UP)
+    return level == "เอก" or rank.startswith(_ASSOC_UP)
 
 
 def _need(user: User, step: dict[str, Any]) -> None:
