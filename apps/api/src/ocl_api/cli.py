@@ -8,12 +8,21 @@ import sys
 from pathlib import Path
 
 
+def _ocr_kwargs() -> dict:
+    """OCR as the worker does it: OCR, OCR_LANGUAGE and OCR_ENGINE from the settings."""
+    from ocl_api.config import get_settings
+    from ocl_api.ingest.typhoon import from_settings
+
+    s = get_settings()
+    return {"ocr": s.ocr, "ocr_language": s.ocr_language, "typhoon": from_settings(s)}
+
+
 def cmd_ingest(args: argparse.Namespace) -> int:
     from ocl_api.ingest.pipeline import ingest
 
     src = Path(args.file)
     out = Path(args.out) if args.out else Path("data/ingest") / src.stem
-    report = ingest(src, out)
+    report = ingest(src, out, **_ocr_kwargs())
     print(json.dumps(report, ensure_ascii=False, indent=1))
     return 0
 
@@ -27,7 +36,7 @@ def cmd_extract(args: argparse.Namespace) -> int:
 
         ingest_dir = Path("data/ingest") / target.stem
         if not (ingest_dir / "document.json").exists() or args.reingest:
-            ingest(target, ingest_dir)
+            ingest(target, ingest_dir, **_ocr_kwargs())
     else:
         ingest_dir = target
     gateway = None

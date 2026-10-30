@@ -77,6 +77,9 @@ def create_app() -> FastAPI:
             "inline_worker": s.inline_worker,
             "database": "postgres" if s.database_url else "files",
             "ocr": s.ocr_language if (s.ocr and find_tessdata(s.ocr_language)) else None,
+            # scanned pages: Typhoon OCR on Ollama (Tesseract when a page fails) or Tesseract
+            "ocr_engine": (s.ocr_engine if s.ocr else None),
+            "ocr_model": s.typhoon_model if (s.ocr and s.ocr_engine == "typhoon") else None,
             "auth": "enabled" if s.auth_secret else "disabled",
         }
 

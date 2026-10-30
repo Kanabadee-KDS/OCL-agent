@@ -104,3 +104,12 @@ def test_run_against_a_stand_in_ollama(tmp_path: Path, fake_ollama, monkeypatch)
     assert r["ps_before"][0]["expires_at"].startswith("2319"), "/api/ps is recorded"
     assert (out / "page-01.typhoon.md").read_text(encoding="utf-8") == "## Hello OCR 123"
     assert "CER รวม 0.0%" in (out / "summary.md").read_text(encoding="utf-8")
+
+
+def test_bench_and_reader_send_the_same_prompt() -> None:
+    """The bench measured what production sends (the model only works with this prompt)."""
+    from ocl_api.ingest import typhoon
+
+    assert bench.PROMPT_V15 == typhoon.PROMPT_V15
+    assert bench.NUM_CTX == typhoon.NUM_CTX and bench.TARGET_DIM == typhoon.TARGET_DIM
+    assert bench.OPTIONS == typhoon.OPTIONS

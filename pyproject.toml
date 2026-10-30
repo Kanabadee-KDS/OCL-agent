@@ -45,6 +45,7 @@ extend-immutable-calls = ["fastapi.Depends", "fastapi.File", "fastapi.Form", "fa
 "apps/api/src/ocl_api/reports.py" = ["E501"]
 # the Typhoon OCR prompt is kept verbatim (the model only works with it)
 "tools/ocr_bench.py" = ["E501"]
+"apps/api/src/ocl_api/ingest/typhoon.py" = ["E501"]
 # bench/report scripts: Thai table rows and f-strings read better unwrapped
 "tools/bench.py" = ["E501"]
 # fixtures quote whole lines of the books

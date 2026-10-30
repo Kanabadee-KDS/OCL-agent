@@ -14,6 +14,7 @@ def test_health_ok(monkeypatch: pytest.MonkeyPatch) -> None:
     body = r.json()
     assert body["status"] == "ok"
     assert body["ollama_model"] == "gemma4:26b"
+    assert body["ocr_engine"] in ("tesseract", "typhoon"), "which engine reads scanned pages"
 
 
 @pytest.mark.parametrize("keep_alive", ["10m", "", "5m"])

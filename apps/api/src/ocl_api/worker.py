@@ -17,6 +17,7 @@ from typing import Any
 from ocl_api.config import Settings, get_settings
 from ocl_api.extract.pipeline import extract
 from ocl_api.ingest.pipeline import EmptyDocumentError, ingest
+from ocl_api.ingest.typhoon import from_settings as typhoon_ocr
 from ocl_api.jobs import JobStore, make_store, now_iso
 
 _LOCK = threading.Lock()
@@ -70,6 +71,7 @@ def process_job(store: JobStore, job_id: str, settings: Settings | None = None) 
                     d / "ingest",
                     ocr=settings.ocr,
                     ocr_language=settings.ocr_language,
+                    typhoon=typhoon_ocr(settings),
                 )
             )
             job = store.read(job_id)

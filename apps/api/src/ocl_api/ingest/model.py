@@ -41,6 +41,7 @@ class Table:
     rows: list[list[str]]
     page: int | None = None
     merged_from: int = 1  # how many source tables were merged into this one
+    ocr: bool = False  # read from a scanned page (lower trust)
     kind: BlockKind = "table"
 
     @property
@@ -53,6 +54,9 @@ class Image:
     path: str  # relative to the ingest output dir, e.g. "assets/img-001.png"
     page: int | None = None
     alt: str = ""
+    # an AI model's description of a picture on a scanned page (Typhoon OCR <figure>): shown to
+    # the reviewer, never read by an extractor, never curriculum text
+    ai_note: str = ""
     kind: BlockKind = "image"
 
 

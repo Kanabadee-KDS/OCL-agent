@@ -57,6 +57,11 @@ cd /home/arsoft/ocl-agent && docker compose -f deploy/docker-compose.yml exec ap
 
 image `ocl-api` ติดตั้ง `tesseract-ocr-tha` และ `tesseract-ocr-eng` ไว้แล้ว (ตัว OCR ฝังอยู่ใน PyMuPDF ใช้แค่ไฟล์ภาษา) ไม่ต้องตั้งค่าเพิ่ม · ตรวจได้จาก `/health` ฟิลด์ `"ocr":"tha+eng"` (เป็น `null` = หาไฟล์ภาษาไม่เจอ ตรวจ `TESSDATA_PREFIX` ใน Dockerfile) · ปิด OCR ได้ด้วย `OCR=false` ใน `deploy/.env` · OCR ใช้ CPU ราว 3 วินาที/หน้า ไม่แตะ GPU
 
+**Typhoon OCR (OCR-1 · ตัดสินใจ 30 ต.ค. 2569):** ใส่ `OCR_ENGINE=typhoon` ใน `deploy/.env` แล้ว `up -d` (api และ worker อ่านไฟล์นี้) หน้าสแกนจะอ่านด้วย `scb10x/typhoon-ocr1.5-3b` บน Ollama ของเครื่อง · หน้าไหนอ่านไม่ได้ (Ollama ไม่ตอบ เกิน `TYPHOON_TIMEOUT` 180 วินาที หรือโมเดลวนซ้ำ) ระบบใช้ Tesseract แทนเฉพาะหน้านั้นและบันทึกใน notes ของงาน · ตรวจได้จาก `/health` ฟิลด์ `"ocr_engine":"typhoon"` และ `"ocr_model"` · กลับไปใช้ Tesseract: ลบบรรทัดนั้นแล้ว `up -d`
+- ต้อง `ollama pull scb10x/typhoon-ocr1.5-3b` บนเครื่องก่อน (3.2 GB · โมเดลของ OCL ส่ง `keep_alive` 10m และ `num_ctx` 16384 · ใช้หน่วยความจำ 3.46 GB) · ห้ามตั้ง `TYPHOON_MODEL=gemma4:12b` (ระบบไม่ยอมเริ่ม)
+- เวลา: ราว 8–20 วินาที/หน้า (Tesseract 1 วินาที) · เล่มสแกน 150 หน้าราว 35 นาที
+- คำบรรยายภาพที่โมเดลเขียน (`<figure>`) เก็บเป็น "หมายเหตุ AI" แยกจากข้อความในเล่ม งานสกัดไม่อ่าน · ผล OCR-0 พบว่าโมเดลแก้ตัวสะกดเอง (ชื่อคน) และอ่านตัวอักษรเล็กในแผนภาพผิดแบบอ่านลื่น ต้องตรวจหน้าสแกนทุกครั้ง
+
 ## รัน bench Gemini vs Gemma บน server (R1-E)
 
 คัดลอกเล่มตัวอย่างขึ้น container แล้วรันใน container `api` (ใช้ Ollama บน host และ GEMINI_API_KEY จาก deploy/.env · นอกช่วง 02:30–04:00 · 5 เล่ม × 2 provider × 2 โหมด ราว 20–40 นาที รันใน tmux)

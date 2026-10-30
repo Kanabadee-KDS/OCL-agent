@@ -11,6 +11,7 @@ from typing import Any
 from ocl_api.ingest.docx_reader import DocxReader
 from ocl_api.ingest.markdown import render_book, render_section
 from ocl_api.ingest.model import Document, Paragraph, Table
+from ocl_api.ingest.typhoon import TyphoonOcr
 
 
 class EmptyDocumentError(ValueError):
@@ -34,7 +35,12 @@ def check_not_empty(doc: Document, *, ocr: bool) -> None:
 
 
 def read_document(
-    path: Path, assets_dir: Path, *, ocr: bool = True, ocr_language: str | None = None
+    path: Path,
+    assets_dir: Path,
+    *,
+    ocr: bool = True,
+    ocr_language: str | None = None,
+    typhoon: TyphoonOcr | None = None,
 ) -> Document:
     suffix = path.suffix.lower()
     if suffix == ".docx":
@@ -43,7 +49,7 @@ def read_document(
         from ocl_api.ingest.pdf_reader import OCR_LANGUAGE, PdfReader
 
         return PdfReader(
-            path, assets_dir, ocr=ocr, ocr_language=ocr_language or OCR_LANGUAGE
+            path, assets_dir, ocr=ocr, ocr_language=ocr_language or OCR_LANGUAGE, typhoon=typhoon
         ).read()
     raise ValueError(f"unsupported file type: {path.suffix}")
 
@@ -53,13 +59,18 @@ def _safe_slug(s: str) -> str:
 
 
 def ingest(
-    file: str | Path, out_dir: str | Path, *, ocr: bool = True, ocr_language: str | None = None
+    file: str | Path,
+    out_dir: str | Path,
+    *,
+    ocr: bool = True,
+    ocr_language: str | None = None,
+    typhoon: TyphoonOcr | None = None,
 ) -> dict[str, Any]:
     path = Path(file)
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     t0 = time.perf_counter()
-    doc = read_document(path, out / "assets", ocr=ocr, ocr_language=ocr_language)
+    doc = read_document(path, out / "assets", ocr=ocr, ocr_language=ocr_language, typhoon=typhoon)
     check_not_empty(doc, ocr=ocr)
 
     (out / "book.md").write_text(render_book(doc), encoding="utf-8")

@@ -43,6 +43,10 @@ class Settings(BaseSettings):
     # OCR of scanned PDF pages (MuPDF's built-in Tesseract; needs tessdata for these languages)
     ocr: bool = True
     ocr_language: str = "tha+eng"
+    # tesseract (default) | typhoon: Typhoon OCR on Ollama (OCR-1), Tesseract when a page fails
+    ocr_engine: Literal["tesseract", "typhoon"] = "tesseract"
+    typhoon_model: str = "scb10x/typhoon-ocr1.5-3b"
+    typhoon_timeout: float = 180.0  # seconds per page (OCR-0: 8-20 s on the server)
 
     data_dir: Path = Path("./data")
     database_url: str | None = None
@@ -74,6 +78,8 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _protect_hris_model(self) -> Settings:
+        if self.typhoon_model == HRIS_PINNED_MODEL:
+            raise ValueError(f"TYPHOON_MODEL cannot be {HRIS_PINNED_MODEL} (HRIS's model)")
         # Rule 2 (verified 20 Oct 2569 the hard way): every request resets the model's
         # expiry. Omitting keep_alive applies Ollama's 5-minute default and un-pins the
         # HRIS model; a different num_ctx forces a full reload. When sharing gemma4:12b,

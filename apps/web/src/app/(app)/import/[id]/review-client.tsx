@@ -375,6 +375,8 @@ function SourcePanel({ src, page, setPage, hit, filename }: { src: { page: numbe
               </table>
             );
           }
+          // Typhoon OCR's description of a picture on a scanned page: for the reviewer only (OCR-1)
+          if (b.kind === "image" && b.ai_note) return <div key={i} className="note info small"><b>{String(b.alt)}:</b> {String(b.ai_note)}</div>;
           if (b.kind === "image") return <div key={i} className="small faint">[รูป {String(b.path)}]</div>;
           const text = String(b.text ?? "");
           const isHit = key && text.includes(key);

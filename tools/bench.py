@@ -26,6 +26,7 @@ from ocl_api.config import get_settings
 from ocl_api.evaluate import SCORED_PARTS, cost_usd, run_usage, score_run
 from ocl_api.extract.pipeline import extract
 from ocl_api.ingest.pipeline import ingest
+from ocl_api.ingest.typhoon import from_settings as typhoon_ocr
 from ocl_api.llm.gateway import LLMGateway
 
 BOOK_EXT = {".docx", ".pdf"}
@@ -84,7 +85,13 @@ def main() -> int:
         ingest_dir = bdir / "ingest"
         if not (ingest_dir / "document.json").exists():
             t0 = time.perf_counter()
-            rep = ingest(book, ingest_dir, ocr=settings.ocr, ocr_language=settings.ocr_language)
+            rep = ingest(
+                book,
+                ingest_dir,
+                ocr=settings.ocr,
+                ocr_language=settings.ocr_language,
+                typhoon=typhoon_ocr(settings),
+            )
             print(
                 f"[ingest] {book.name}: {rep['pages']} pages, ocr {rep['ocr_pages']} in {time.perf_counter() - t0:.1f}s"
             )

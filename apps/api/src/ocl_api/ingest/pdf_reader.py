@@ -30,6 +30,7 @@ import pymupdf
 from ocl_api.ingest.docx_reader import merge_split_tables
 from ocl_api.ingest.glyphs import map_pua_text, symbol_table
 from ocl_api.ingest.model import Block, Document, Image, Paragraph, Table, heading_level
+from ocl_api.ingest.typhoon import TyphoonError, TyphoonOcr, markdown_blocks, promote_items
 
 _WS = re.compile(r"[ \t ]+")
 _PAGE_NO = re.compile(r"^[\d๐-๙]{1,4}$|^[ก-ฮ]$")
@@ -136,13 +137,18 @@ class PdfReader:
         ocr: bool = True,
         ocr_language: str = OCR_LANGUAGE,
         ocr_dpi: int = OCR_DPI,
+        typhoon: TyphoonOcr | None = None,
     ):
+        """`typhoon` set: scanned pages are read by Typhoon OCR (OCR-1), Tesseract when a
+        page fails; unset: Tesseract only."""
         self.path = Path(path)
         self.assets_dir = Path(assets_dir)
         self.render_scanned = render_scanned
         self.ocr = ocr
         self.ocr_language = ocr_language
         self.ocr_dpi = ocr_dpi
+        self.typhoon = typhoon
+        self.typhoon_pages: list[int] = []
         self.unknown_symbols: dict[str, int] = {}
         self.notes: list[str] = []
         self._asset_by_xref: dict[int, str] = {}
@@ -157,6 +163,8 @@ class PdfReader:
                 blocks.extend(self._page_blocks(doc, page, pno))
             n_pages = doc.page_count
         blocks = merge_split_tables(blocks)
+        if self.typhoon_pages:
+            promote_items(blocks, set(self.typhoon_pages))
         out = Document(
             source_name=self.path.name,
             source_type="pdf",
@@ -170,8 +178,13 @@ class PdfReader:
             out.notes.append(f"unknown symbol glyphs: {self.unknown_symbols}")
         if self.scanned_pages:
             out.notes.append(f"scanned pages (no text layer): {self.scanned_pages}")
-        if self.ocr_pages:
-            out.notes.append(f"OCR ({self.ocr_language}) applied to pages: {self.ocr_pages}")
+        if self.typhoon_pages:
+            out.notes.append(
+                f"OCR (Typhoon {self.typhoon.model}) applied to pages: {self.typhoon_pages}"  # type: ignore[union-attr]
+            )
+        tess = [p for p in self.ocr_pages if p not in self.typhoon_pages]
+        if tess:
+            out.notes.append(f"OCR ({self.ocr_language}) applied to pages: {tess}")
         out.notes.extend(self.notes)
         return out
 
@@ -204,15 +217,18 @@ class PdfReader:
 
         if scanned:
             self.scanned_pages.append(pno)
+            rel = None
             if self.render_scanned:
                 rel = self._render_page(page, pno)
                 items.append((0.0, order, Image(path=rel, page=pno, alt=f"scanned page {pno}")))
                 order += 1
-            ocr_paras = self._ocr_paragraphs(page, pno) if self.ocr else []
-            if ocr_paras:
+            ocr_blocks = self._typhoon_blocks(page, pno, rel) if self.ocr else []
+            if not ocr_blocks and self.ocr:
+                ocr_blocks = self._ocr_paragraphs(page, pno)
+            if ocr_blocks:
                 self.ocr_pages.append(pno)
-                for y0, para in ocr_paras:
-                    items.append((0.1 + y0, order, para))
+                for y0, blk in ocr_blocks:
+                    items.append((0.1 + y0, order, blk))
                     order += 1
             else:
                 items.append(
@@ -223,6 +239,24 @@ class PdfReader:
         return [b for _, _, b in items]
 
     # ---------- OCR of scanned pages ----------
+
+    def _typhoon_blocks(
+        self, page: pymupdf.Page, pno: int, image_path: str | None
+    ) -> list[tuple[float, Block]]:
+        """Typhoon OCR in reading order; [] (-> Tesseract) when it is off or the page fails."""
+        if self.typhoon is None:
+            return []
+        try:
+            md = self.typhoon.read_page(page)
+        except TyphoonError as e:
+            self.notes.append(f"page {pno}: Typhoon OCR failed ({e}), used Tesseract")
+            return []
+        blocks = markdown_blocks(md, pno, image_path)
+        if not any(isinstance(b, Paragraph | Table) for b in blocks):
+            self.notes.append(f"page {pno}: Typhoon OCR found no text, used Tesseract")
+            return []
+        self.typhoon_pages.append(pno)
+        return [(i / 1000, b) for i, b in enumerate(blocks)]
 
     def tessdata(self) -> str | None:
         if self._tessdata is False:

@@ -40,6 +40,8 @@ def render_blocks(blocks: list[Block], *, page_markers: bool = True) -> str:
                 out.append(b.text)
         elif isinstance(b, Table):
             out.append(render_table(b))
+        elif isinstance(b, Image) and b.ai_note:
+            out.append(f"> **{b.alt}:** {b.ai_note}")
         elif isinstance(b, Image):
             out.append(f"![{b.alt or 'image'}]({b.path})")
     return "\n\n".join(out) + "\n"
