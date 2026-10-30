@@ -261,7 +261,15 @@ def get_source(
     for b in blocks:
         if b.get("kind") == "image" and str(b.get("path", "")).startswith("assets/page-"):
             image = b["path"]
-    return {"page": page, "pages": doc.get("pages"), "blocks": blocks, "page_image": image}
+    # OCR-2a1: how far the two OCR engines agreed on this page, and how many parts to check
+    check = (doc.get("ocr_checks") or {}).get(str(page))
+    return {
+        "page": page,
+        "pages": doc.get("pages"),
+        "blocks": blocks,
+        "page_image": image,
+        "ocr_check": check,
+    }
 
 
 # Markdown editor (FS-3f · US-M1-17): the whole book, its chapters and the 10 parts

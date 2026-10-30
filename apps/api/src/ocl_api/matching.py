@@ -1,11 +1,13 @@
 """จับคู่ข้อมูลในเล่มกับระบบ (FS-3d · US-M1-13 · BR-05 BR-09), on the curriculum's own data
 (FS-3 Q4 ก: the import page is read-only once a curriculum is in the system).
 
-Teachers of หมวด 0.2 → HURIS by name (one hit proposes, several let a person choose, none
-proposes the register of external persons); a qualification that differs from HURIS shows both
-values. Courses of หมวด 4 → the central database: same code and content → its latest Version ·
-a new code → Version 1 · same code, other content → the next Version. Nothing is stored until a
-person confirms each row, and saving goes through the curriculum's edit rules.
+Teachers of หมวด 0.2 → HURIS by name (one hit proposes, several let a person choose, a name
+1-2 letters away is offered as "near" with both spellings — an OCR model may have "corrected"
+it, OCR-2a2 — and none proposes the register of external persons); a qualification that
+differs from HURIS shows both values. Courses of หมวด 4 → the central database: same code
+and content → its latest Version · a new code → Version 1 · same code, other content → the
+next Version. Nothing is stored until a person confirms each row, and saving goes through the
+curriculum's edit rules.
 """
 
 from __future__ import annotations
@@ -16,6 +18,7 @@ from typing import Any
 from ocl_api.auth import User
 from ocl_api.courses import _insert_version, same_content
 from ocl_api.db import connect
+from ocl_api.fuzzy import edit_distance, near
 from ocl_api.persons import highest
 
 # titles that come before a Thai name in a book, longest first
@@ -81,18 +84,26 @@ class Matcher:
                             "pid": t.get("pid"), "xid": t.get("xid")})  # fmt: skip
                 continue
             hits = by_name.get(bare(t.get("name")), [])
+            close = not hits and bool(bare(t.get("name")))
+            if close:  # nearest first
+                me = bare(t.get("name"))
+                hits = [s for k, ss in by_name.items() if near(k, me) for s in ss]
+                hits.sort(key=lambda s: edit_distance(bare(s["name_th"]), me))
             cands = [{
                 "pid": s["pid"], "name": f"{s['title_short'] or ''}{s['name_th']}",
                 "rank": s["position"],
                 "highest_level": highest(s["education"] or []), "faculty": s["faculty"],
                 "differs": bool(t.get("highest_level"))
                 and highest(s["education"] or []) != t.get("highest_level"),
+                "near": close, "huris_name": s["name_th"],
             } for s in hits]  # fmt: skip
             externals = [{"xid": x["id"], "name": f"{x['title_short'] or ''}{x['name_th']}",
                           "org": x["org"]}
                          for x in ext if bare(x["name_th"]) == bare(t.get("name"))]  # fmt: skip
             state = (
-                "one"
+                "near"
+                if close and cands
+                else "one"
                 if len(cands) == 1
                 else "many"
                 if cands
@@ -165,6 +176,8 @@ class Matcher:
                     t.pop("xid", None)
                     if ch.get("quals") == "huris":
                         t |= {"rank": s["position"], "highest_level": highest(s["education"] or [])}
+                    if ch.get("name") == "huris":  # the person chose HURIS's spelling
+                        t["name"] = s["name_th"]
                     done += 1
                 elif ch.get("xid"):
                     x = conn.execute(

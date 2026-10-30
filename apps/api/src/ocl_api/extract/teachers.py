@@ -15,6 +15,7 @@ import re
 from typing import Any
 
 from ocl_api.extract.base import PartResult, chapter, meta, subsection, tables
+from ocl_api.fuzzy import near
 from ocl_api.ingest.model import Document, Table
 
 RANKS = [
@@ -266,10 +267,27 @@ def extract_teachers(doc: Document, gateway=None) -> PartResult:  # noqa: ARG001
         res.notes.append("no teacher table in items 11–12")
         return res
     all_keys = {_key(r["name"]) for r in teachers}
-    missing = [r["name"] for r in resp if _key(r["name"]) not in all_keys]
+    # the same person spelled two ways (OCR-2a2: an OCR model "corrected" one of them, or the
+    # book differs): matched as one person and reported for a reviewer to settle
+    spelling: list[list[str]] = []
+    for r in resp:
+        k = _key(r["name"])
+        twin = (
+            None if k in all_keys else next((t for t in teachers if near(_key(t["name"]), k)), None)
+        )
+        if twin is not None:
+            twin["responsible"] = True
+            spelling.append([r["name"], twin["name"]])
+    for i, a in enumerate(teachers):
+        for b in teachers[i + 1 :]:
+            if near(_key(a["name"]), _key(b["name"])):
+                spelling.append([a["name"], b["name"]])
+    twins = {_key(x) for pair in spelling for x in pair}
+    missing = [r["name"] for r in resp if _key(r["name"]) not in all_keys | twins]
     res.data["teachers"] = teachers
     res.data["count"] = len(teachers)
     res.data["responsible_count"] = sum(1 for r in teachers if r["responsible"])
     res.data["responsible_only_in_11"] = missing
+    res.data["spelling"] = spelling
     res.data["groups"] = sorted({r["group"] for r in teachers if r["group"]})
     return res

@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import os
 import re
+from collections.abc import Callable
 from pathlib import Path
 
 import pymupdf
@@ -30,7 +31,13 @@ import pymupdf
 from ocl_api.ingest.docx_reader import merge_split_tables
 from ocl_api.ingest.glyphs import map_pua_text, symbol_table
 from ocl_api.ingest.model import Block, Document, Image, Paragraph, Table, heading_level
-from ocl_api.ingest.typhoon import TyphoonError, TyphoonOcr, markdown_blocks, promote_items
+from ocl_api.ingest.typhoon import (
+    TyphoonError,
+    TyphoonOcr,
+    cross_check,
+    markdown_blocks,
+    promote_items,
+)
 
 _WS = re.compile(r"[ \t ]+")
 _PAGE_NO = re.compile(r"^[\d๐-๙]{1,4}$|^[ก-ฮ]$")
@@ -138,6 +145,7 @@ class PdfReader:
         ocr_language: str = OCR_LANGUAGE,
         ocr_dpi: int = OCR_DPI,
         typhoon: TyphoonOcr | None = None,
+        progress: Callable[[str], None] | None = None,
     ):
         """`typhoon` set: scanned pages are read by Typhoon OCR (OCR-1), Tesseract when a
         page fails; unset: Tesseract only."""
@@ -148,7 +156,10 @@ class PdfReader:
         self.ocr_language = ocr_language
         self.ocr_dpi = ocr_dpi
         self.typhoon = typhoon
+        self.progress = progress  # OCR-2: "อ่านหน้าสแกน N/M" for the job page (slow pages)
+        self._n_pages = 0
         self.typhoon_pages: list[int] = []
+        self.ocr_checks: dict[int, dict] = {}
         self.unknown_symbols: dict[str, int] = {}
         self.notes: list[str] = []
         self._asset_by_xref: dict[int, str] = {}
@@ -159,6 +170,7 @@ class PdfReader:
     def read(self) -> Document:
         blocks: list[Block] = []
         with pymupdf.open(self.path) as doc:
+            self._n_pages = doc.page_count
             for pno, page in enumerate(doc, start=1):
                 blocks.extend(self._page_blocks(doc, page, pno))
             n_pages = doc.page_count
@@ -174,6 +186,7 @@ class PdfReader:
         )
         out.scanned_pages = list(self.scanned_pages)
         out.ocr_pages = list(self.ocr_pages)
+        out.ocr_checks = dict(self.ocr_checks)
         if self.unknown_symbols:
             out.notes.append(f"unknown symbol glyphs: {self.unknown_symbols}")
         if self.scanned_pages:
@@ -222,6 +235,9 @@ class PdfReader:
                 rel = self._render_page(page, pno)
                 items.append((0.0, order, Image(path=rel, page=pno, alt=f"scanned page {pno}")))
                 order += 1
+            if self.ocr and self.progress is not None:
+                engine = "Typhoon OCR" if self.typhoon is not None else "OCR"
+                self.progress(f"อ่านหน้าสแกนด้วย {engine} หน้า {pno}/{self._n_pages}")
             ocr_blocks = self._typhoon_blocks(page, pno, rel) if self.ocr else []
             if not ocr_blocks and self.ocr:
                 ocr_blocks = self._ocr_paragraphs(page, pno)
@@ -256,6 +272,9 @@ class PdfReader:
             self.notes.append(f"page {pno}: Typhoon OCR found no text, used Tesseract")
             return []
         self.typhoon_pages.append(pno)
+        other = self._tesseract_text(page, pno)
+        if other is not None:  # OCR-2a1: what Tesseract did not see is flagged for review
+            self.ocr_checks[pno] = cross_check(blocks, other)
         return [(i / 1000, b) for i, b in enumerate(blocks)]
 
     def tessdata(self) -> str | None:
@@ -267,6 +286,20 @@ class PdfReader:
                     "(install tesseract language packs or set TESSDATA_PREFIX)"
                 )
         return self._tessdata  # type: ignore[return-value]
+
+    def _tesseract_text(self, page: pymupdf.Page, pno: int) -> str | None:
+        """Tesseract's plain text of a page (for the cross-check), None when unavailable."""
+        tessdata = self.tessdata()
+        if tessdata is None:
+            return None
+        try:
+            tp = page.get_textpage_ocr(
+                language=self.ocr_language, dpi=self.ocr_dpi, full=True, tessdata=tessdata
+            )
+            return page.get_text(textpage=tp)
+        except Exception as e:  # pragma: no cover - tesseract runtime failure
+            self.notes.append(f"page {pno}: Tesseract cross-check failed: {e}")
+            return None
 
     def _ocr_paragraphs(self, page: pymupdf.Page, pno: int) -> list[tuple[float, Paragraph]]:
         tessdata = self.tessdata()

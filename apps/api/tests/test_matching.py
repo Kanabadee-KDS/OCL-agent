@@ -122,3 +122,29 @@ def test_courses_follow_bis09(env) -> None:
 def test_bare_names() -> None:
     assert bare("ผศ.ดร. ชื่อ  นามสกุล") == "ชื่อนามสกุล" == bare("[ชื่อ นามสกุล]")
     assert bare("รองศาสตราจารย์ ดร.สมชาย ใจดี") == "สมชายใจดี"
+
+
+def test_a_name_one_letter_off_huris_is_offered_with_both_spellings(env) -> None:
+    """OCR-2a2: an OCR model "corrected" a name; nothing changes until a person picks."""
+    c, did = env
+    secs = c.get(f"/api/curricula/{did}/sections", headers=CENTRAL).json()
+    s0 = secs["0"]["data"]
+    s0["teachers"]["teachers"][1] = {"name": "ชื่อ นามสกุลล 1"}  # HURIS: [ชื่อ นามสกุล 1]
+    c.put(f"/api/curricula/{did}/sections/0", json={"data": s0}, headers=CENTRAL)
+    t = c.get(f"/api/curricula/{did}/match", headers=CENTRAL).json()["teachers"][1]
+    assert t["state"] == "near" and all(x["near"] for x in t["candidates"])
+    assert t["candidates"][0]["huris_name"] == "[ชื่อ นามสกุล 1]", "the nearest first"
+    r = c.post(f"/api/curricula/{did}/match/teachers",
+               json={"choices": [{"index": 1, "pid": t["candidates"][0]["pid"], "name": "huris"}]},
+               headers=CENTRAL).json()  # fmt: skip
+    assert r["matched"] == 1
+    sec = c.get(f"/api/curricula/{did}/sections", headers=CENTRAL).json()["0"]["data"]
+    assert sec["teachers"]["teachers"][1]["name"] == "[ชื่อ นามสกุล 1]", "the person chose HURIS"
+    assert sec["teachers"]["teachers"][0]["name"] == "ผศ.ดร. ชื่อ นามสกุล 1", "others untouched"
+
+
+def test_near_names() -> None:
+    from ocl_api.fuzzy import near
+
+    assert near("ศรีวิกรณ์", "ศรีวิภรณ์") and near("พิสุทธิ", "พิสุทธิ์")
+    assert not near("สมชาย", "สมชาย") and not near("อนุชา", "สมศักดิ์") and not near("ก", "ข")

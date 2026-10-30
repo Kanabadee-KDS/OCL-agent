@@ -317,6 +317,16 @@ def _teacher_checks(tc: dict[str, Any], info: dict[str, Any]) -> list[Check]:
         out.append(Check("teachers_present", "fail", "ไม่พบตารางอาจารย์ในข้อ 11–12", "teachers"))
         return out
     resp = [t for t in rows if t.get("responsible")]
+    if tc.get("spelling"):
+        out.append(
+            Check(
+                "teacher_spelling",
+                "warn",
+                "ชื่อเดียวกันสะกดต่างกันในเล่ม ตรวจกับภาพต้นฉบับ: "
+                + " · ".join(f"{a} / {b}" for a, b in tc["spelling"]),
+                "teachers",
+            )
+        )
     out.append(
         Check(
             "teachers_present",

@@ -19,6 +19,8 @@ export function MatchDialog({ draftId, onClose, onSaved }: { draftId: string; on
   const [tab, setTab] = useState<"t" | "c">("t");
   const [pick, setPick] = useState<Record<number, string>>({}); // index -> "pid:SWU…" | "xid:X…"
   const [quals, setQuals] = useState<Record<number, "huris" | "book">>({});
+  // a name 1-2 letters off HURIS (OCR-2a2): the book's spelling stays unless a person picks HURIS's
+  const [spell, setSpell] = useState<Record<number, "huris" | "book">>({});
   const [accept, setAccept] = useState<Record<number, boolean>>({});
   const [busy, setBusy] = useState(false);
   useEffect(() => {
@@ -35,10 +37,10 @@ export function MatchDialog({ draftId, onClose, onSaved }: { draftId: string; on
       const r = tab === "t"
         ? await matchApi.teachers(draftId, Object.entries(pick).filter(([, v]) => v).map(([i, v]) => {
           const [kind, id] = v.split(":");
-          return { index: Number(i), ...(kind === "pid" ? { pid: id, quals: quals[Number(i)] ?? "huris" } : { xid: id }) };
+          return { index: Number(i), ...(kind === "pid" ? { pid: id, quals: quals[Number(i)] ?? "huris", name: spell[Number(i)] ?? "book" } : { xid: id }) };
         }))
         : await matchApi.courses(draftId, Object.entries(accept).filter(([, v]) => v).map(([i]) => ({ index: Number(i), accept: true })));
-      setM(r); setPick({}); setAccept({});
+      setM(r); setPick({}); setAccept({}); setSpell({});
       toast(`บันทึกการจับคู่ ${r.matched ?? 0} รายการแล้ว`);
       onSaved();
     } catch (e) { toast((e as Error).message, "err"); } finally { setBusy(false); }
@@ -72,6 +74,14 @@ export function MatchDialog({ draftId, onClose, onSaved }: { draftId: string; on
                             {(t.externals ?? []).map((x) => <option key={x.xid} value={`xid:${x.xid}`}>บุคคลภายนอก {x.xid} · {x.name} · {x.org}</option>)}
                           </select>
                           {t.state === "many" && <span className="small faint">ชื่อตรงหลายคน ให้เลือก</span>}
+                          {t.state === "near" && <span className="small faint">ไม่พบชื่อที่ตรงทุกตัวอักษร มีชื่อใกล้เคียงใน HURIS ให้เลือก</span>}
+                          {chosen?.near && (
+                            <div className="stack" style={{ gap: 2, marginTop: 4 }}>
+                              <span className="small"><Pill kind="warn">สะกดต่าง</Pill> เล่ม: {t.name} · HURIS: {chosen.huris_name}</span>
+                              <label className="small"><input type="radio" disabled={!can} checked={(spell[t.index] ?? "book") === "book"} onChange={() => setSpell((x) => ({ ...x, [t.index]: "book" }))} /> คงตัวสะกดตามเล่ม</label>
+                              <label className="small"><input type="radio" disabled={!can} checked={spell[t.index] === "huris"} onChange={() => setSpell((x) => ({ ...x, [t.index]: "huris" }))} /> ใช้ตัวสะกดของ HURIS</label>
+                            </div>
+                          )}
                         </td>
                         <td className="small">
                           {chosen?.differs ? (

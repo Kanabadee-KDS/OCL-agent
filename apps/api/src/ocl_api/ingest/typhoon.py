@@ -21,9 +21,13 @@ missing ์) and misreads small diagram text fluently, so a reviewer still check
 from __future__ import annotations
 
 import base64
+import difflib
 import html
 import re
+import unicodedata
+from collections import Counter
 from html.parser import HTMLParser
+from typing import Any
 
 import httpx
 import pymupdf
@@ -179,6 +183,86 @@ def _text_paragraphs(text: str, page: int) -> list[Paragraph]:
             )
         )
     return out
+
+
+# ---------- OCR-2a1: cross-check with Tesseract ----------
+
+HARD_PAGE = 0.80  # agreement below this: "หน้าอ่านยาก ตรวจทั้งหน้า" [สมมติ: ตกลง 30 ต.ค. Q2 ก]
+# Tesseract loses Thai vowel and tone marks and splits ำ, so both texts are compared as their
+# letters and digits only: a mark Typhoon adds (พิสุทธิ์) is not caught here, a letter it
+# changes (ศรีวิกรณ์ -> ศรีวิภรณ์) or words it makes up are.
+_SKIP = re.compile("[\u0e31\u0e34-\u0e3a\u0e47-\u0e4e]|[^\\w]|_")
+
+
+def skeleton(text: str) -> tuple[str, list[int]]:
+    """Letters and digits of `text` (ำ as า), with each one's index in `text`."""
+    text = unicodedata.normalize("NFC", text)
+    out: list[str] = []
+    idx: list[int] = []
+    for i, ch in enumerate(text):
+        ch = "า" if ch == "ำ" else ch
+        if not _SKIP.match(ch):
+            out.append(ch)
+            idx.append(i)
+    return "".join(out), idx
+
+
+def unsupported(text: str, page: str) -> list[str]:
+    """Parts of `text` (one paragraph or table cell) that the other engine's page text does
+    not contain: letters outside every shared run of 2+ letters, widened by one letter so a
+    single changed letter reads as a word piece."""
+    sk, idx = skeleton(text)
+    if len(sk) < 2:
+        return []
+    cov = [False] * len(sk)
+    for a, _, size in difflib.SequenceMatcher(None, sk, page, autojunk=False).get_matching_blocks():
+        if size >= 2:
+            cov[a : a + size] = [True] * size
+    out: list[str] = []
+    i = 0
+    while i < len(sk):
+        if cov[i]:
+            i += 1
+            continue
+        j = i
+        while j < len(sk) and not cov[j]:
+            j += 1
+        lo, hi = idx[max(i - 1, 0)], idx[min(j, len(sk) - 1)]
+        while hi + 1 < len(text) and _SKIP.match(text[hi + 1]) and not text[hi + 1].isspace():
+            hi += 1  # keep the marks that sit on the last letter
+        piece = text[lo : hi + 1].strip()
+        if piece and piece not in out:
+            out.append(piece)
+        i = j
+    return out
+
+
+def agreement(a: str, b: str, n: int = 3) -> float:
+    """Character 3-gram F1 between two texts' skeletons (order-free, 0-1)."""
+    x, y = skeleton(a)[0], skeleton(b)[0]
+    ca = Counter(x[i : i + n] for i in range(len(x) - n + 1))
+    cb = Counter(y[i : i + n] for i in range(len(y) - n + 1))
+    total = sum(ca.values()) + sum(cb.values())
+    return 2 * sum((ca & cb).values()) / total if total else 1.0
+
+
+def cross_check(blocks: list[Block], other: str) -> dict[str, Any]:
+    """Mark on each block what `other` (Tesseract's text of the same page) does not support;
+    return the page's agreement, flag count and whether it is hard to read."""
+    page = skeleton(other)[0]
+    texts: list[str] = []
+    flags = 0
+    for b in blocks:
+        if isinstance(b, Paragraph):
+            b.ocr_flags = unsupported(b.text, page)
+            texts.append(b.text)
+            flags += len(b.ocr_flags)
+        elif isinstance(b, Table):
+            b.ocr_flags = [f for row in b.rows for cell in row for f in unsupported(cell, page)]
+            texts.extend(cell for row in b.rows for cell in row)
+            flags += len(b.ocr_flags)
+    score = round(agreement("\n".join(texts), other), 3)
+    return {"agreement": score, "flags": flags, "hard": score < HARD_PAGE}
 
 
 _ITEM = re.compile(r"^(\d+)\.\s+\S")

@@ -72,6 +72,7 @@ def process_job(store: JobStore, job_id: str, settings: Settings | None = None) 
                     ocr=settings.ocr,
                     ocr_language=settings.ocr_language,
                     typhoon=typhoon_ocr(settings),
+                    progress=lambda msg: store.set_status(job_id, "ingesting", msg),
                 )
             )
             job = store.read(job_id)
@@ -87,6 +88,8 @@ def process_job(store: JobStore, job_id: str, settings: Settings | None = None) 
                         "appendices",
                         "scanned_pages",
                         "ocr_pages",
+                        "ocr_flags",
+                        "ocr_hard_pages",
                     )
                 }
             store.write(job)

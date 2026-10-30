@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { canMenu } from "@/lib/nav";
-import { api, curricula, fmtTime, PART_LABELS, type Check, type Job, type Meta, type Part } from "@/lib/api";
+import { api, curricula, fmtTime, PART_LABELS, type Check, type Job, type Meta, type Part, type SourcePage } from "@/lib/api";
 import { ConfPill, Ic, Markdown, Note, PageHead, Pill, Steps } from "@/components/ui";
 import { ReextractDialog } from "./reextract";
 import { MarkdownEditor } from "./markdown";
@@ -57,7 +57,7 @@ export default function ReviewClient() {
   const [saving, setSaving] = useState(false);
   const [checks, setChecks] = useState<Check[]>([]);
   const [page, setPage] = useState<number | null>(null);
-  const [src, setSrc] = useState<{ page: number; pages: number | null; blocks: Array<Record<string, unknown>> } | null>(null);
+  const [src, setSrc] = useState<SourcePage | null>(null);
   const [hit, setHit] = useState<string>("");
   const [preview, setPreview] = useState<Record<string, string>>({});
   const [openDesc, setOpenDesc] = useState<Record<string, boolean>>({});
@@ -297,7 +297,7 @@ export default function ReviewClient() {
                 </div>
               </div>
               <div className="grid" style={{ gridTemplateColumns: "minmax(0,.8fr) minmax(0,1.4fr)" }}>
-                <SourcePanel src={src} page={page} setPage={setPage} hit={hit} filename={job.filename} />
+                <SourcePanel src={src} page={page} setPage={setPage} hit={hit} filename={job.filename} imageUrl={src?.page_image ? api.fileUrl(id, `ingest/${src.page_image}`) : null} />
                 <section className="card pad stack" style={{ minWidth: 0 }}>
                   {/* once in the system the curriculum guide owns the data: every editor here is read-only */}
                   <fieldset disabled={!canWrite} className="stack" style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
@@ -352,7 +352,15 @@ function firstPage(key: string, data: Record<string, unknown> | null): number | 
   return null;
 }
 
-function SourcePanel({ src, page, setPage, hit, filename }: { src: { page: number; pages: number | null; blocks: Array<Record<string, unknown>> } | null; page: number | null; setPage: (p: number) => void; hit: string; filename: string }) {
+// OCR-2a3: the parts of an OCR'd text another engine did not see, highlighted for the reviewer
+function Flagged({ text, flags }: { text: string; flags: unknown }) {
+  const list = Array.isArray(flags) ? (flags as string[]).filter((f) => f && text.includes(f)) : [];
+  if (!list.length) return <>{text}</>;
+  const re = new RegExp(`(${list.map((f) => f.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`);
+  return <>{text.split(re).map((part, i) => (list.includes(part) ? <mark key={i} className="ocr-flag" title="อีกเครื่องอ่านไม่ตรง ตรวจกับภาพต้นฉบับ">{part}</mark> : part))}</>;
+}
+
+function SourcePanel({ src, page, setPage, hit, filename, imageUrl }: { src: SourcePage | null; page: number | null; setPage: (p: number) => void; hit: string; filename: string; imageUrl: string | null }) {
   const key = hit.slice(0, 24);
   return (
     <section className="card pad stack" style={{ minWidth: 0 }}>
@@ -366,12 +374,24 @@ function SourcePanel({ src, page, setPage, hit, filename }: { src: { page: numbe
       <div className="small faint" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{filename}</div>
       <div style={{ background: "#fff", color: "#211F22", borderRadius: 8, border: "1px solid var(--line)", padding: 12, fontSize: 12.5, lineHeight: 1.8, minHeight: 360, maxHeight: 640, overflow: "auto" }}>
         {!src && <span className="faint">คลิกแถวทางขวาเพื่อเปิดหน้าต้นฉบับ</span>}
+        {src?.ocr_check && (
+          <div className={`note ${src.ocr_check.hard ? "warn" : "info"} small`} style={{ marginBottom: 8 }}>
+            {src.ocr_check.hard
+              ? <><b>หน้าอ่านยาก ตรวจทั้งหน้ากับภาพ</b> · OCR สองเครื่องอ่านตรงกัน {Math.round(src.ocr_check.agreement * 100)}%</>
+              : <>ข้อความหน้านี้อ่านด้วย OCR (Typhoon) · ตรงกับอีกเครื่อง {Math.round(src.ocr_check.agreement * 100)}%</>}
+            {src.ocr_check.flags > 0 && <> · คำที่ระบายสี {src.ocr_check.flags} จุด = อีกเครื่องอ่านไม่ตรง</>}
+            {imageUrl && <> · <a href={imageUrl} target="_blank" rel="noreferrer">เปิดภาพหน้าสแกน</a></>}
+          </div>
+        )}
+        {!src?.ocr_check && src?.blocks.some((b) => b.ocr) && (
+          <div className="note info small" style={{ marginBottom: 8 }}>ข้อความหน้านี้อ่านด้วย OCR (Tesseract) ความแม่นยำต่ำกว่าข้อความในไฟล์{imageUrl && <> · <a href={imageUrl} target="_blank" rel="noreferrer">เปิดภาพหน้าสแกน</a></>}</div>
+        )}
         {src?.blocks.map((b, i) => {
           if (b.kind === "table") {
             const rows = b.rows as string[][];
             return (
               <table key={i} className="src-tbl">
-                <tbody>{rows.map((r, ri) => <tr key={ri}>{r.map((c, ci) => <td key={ci} className={key && c.includes(key) ? "hit" : ""}>{c}</td>)}</tr>)}</tbody>
+                <tbody>{rows.map((r, ri) => <tr key={ri}>{r.map((c, ci) => <td key={ci} className={key && c.includes(key) ? "hit" : ""}><Flagged text={c} flags={b.ocr_flags} /></td>)}</tr>)}</tbody>
               </table>
             );
           }
@@ -380,7 +400,7 @@ function SourcePanel({ src, page, setPage, hit, filename }: { src: { page: numbe
           if (b.kind === "image") return <div key={i} className="small faint">[รูป {String(b.path)}]</div>;
           const text = String(b.text ?? "");
           const isHit = key && text.includes(key);
-          return <div key={i} className={`src-block ${b.level ? "h" : ""} ${isHit ? "hit" : ""}`}>{text}</div>;
+          return <div key={i} className={`src-block ${b.level ? "h" : ""} ${isHit ? "hit" : ""}`}><Flagged text={text} flags={b.ocr_flags} /></div>;
         })}
       </div>
     </section>

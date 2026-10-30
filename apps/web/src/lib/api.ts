@@ -20,7 +20,7 @@ export type Job = {
   confirmed_count: number;
   parts_total: number;
   all_parts: string[];
-  counts: { ingest?: { pages: number; tables: number; images: number; chapters: string[]; appendices: string[]; scanned_pages?: number; ocr_pages?: number }; parts?: Record<string, number> };
+  counts: { ingest?: { pages: number; tables: number; images: number; chapters: string[]; appendices: string[]; scanned_pages?: number; ocr_pages?: number; ocr_flags?: number; ocr_hard_pages?: number[] }; parts?: Record<string, number> };
   llm: { calls: number; prompt_tokens: number; completion_tokens: number; seconds: number; model?: string } | null;
   checks_recomputed_at?: string | null;
   edited_parts?: string[];
@@ -42,6 +42,8 @@ export type Part = {
   note?: string;
 };
 
+export type OcrCheck = { agreement: number; flags: number; hard: boolean };
+export type SourcePage = { page: number; pages: number | null; blocks: Array<Record<string, unknown>>; page_image: string | null; ocr_check?: OcrCheck | null };
 export type Check = { key: string; status: "pass" | "warn" | "fail" | "info"; message: string; part: string };
 
 async function j<T>(r: Response): Promise<T> {
@@ -79,7 +81,7 @@ export const api = {
   checks: (id: string) => fetch(`${API_BASE}/api/imports/${id}/checks`, { cache: "no-store" }).then(j<Check[]>),
   source: (id: string, page: number) =>
     fetch(`${API_BASE}/api/imports/${id}/source?page=${page}`, { cache: "no-store" }).then(
-      j<{ page: number; pages: number | null; blocks: Array<Record<string, unknown>>; page_image: string | null }>,
+      j<SourcePage>,
     ),
   fileUrl: (id: string, path: string) => `${API_BASE}/api/imports/${id}/files/${path}`,
   // Markdown editor (FS-3f): the book, its chapters and the 10 parts; the edit wins on read
@@ -349,15 +351,15 @@ export const smoApi = {
 
 // ---------- จับคู่ข้อมูล (FS-3d · US-M1-13) ----------
 export type TeacherMatch = {
-  index: number; name: string | null; rank?: string | null; highest_level?: string | null; state: "linked" | "one" | "many" | "external" | "none"; pid?: string; xid?: string;
-  candidates?: { pid: string; name: string; rank: string | null; highest_level: string | null; faculty: string | null; differs: boolean }[];
+  index: number; name: string | null; rank?: string | null; highest_level?: string | null; state: "linked" | "one" | "many" | "near" | "external" | "none"; pid?: string; xid?: string;
+  candidates?: { pid: string; name: string; rank: string | null; highest_level: string | null; faculty: string | null; differs: boolean; near?: boolean; huris_name?: string }[];
   externals?: { xid: string; name: string; org: string | null }[];
 };
 export type CourseMatch = { index: number; code_th: string; name_th: string | null; credit_text: string | null; state: "linked" | "no_code" | "new" | "same" | "changed"; version: number | null; central: { version: number; name_th: string; credit_text: string | null } | null };
 export type MatchData = { teachers: TeacherMatch[]; courses: CourseMatch[]; editable: { "0": boolean; "4": boolean }; matched?: number };
 export const matchApi = {
   get: (id: number | string) => fetch(`${API_BASE}/api/curricula/${id}/match`, { cache: "no-store" }).then(j<MatchData>),
-  teachers: (id: number | string, choices: { index: number; pid?: string; xid?: string; quals?: "huris" | "book" }[]) =>
+  teachers: (id: number | string, choices: { index: number; pid?: string; xid?: string; quals?: "huris" | "book"; name?: "huris" | "book" }[]) =>
     fetch(`${API_BASE}/api/curricula/${id}/match/teachers`, json("POST", { choices })).then(j<MatchData>),
   courses: (id: number | string, choices: { index: number; accept: boolean }[]) => fetch(`${API_BASE}/api/curricula/${id}/match/courses`, json("POST", { choices })).then(j<MatchData>),
 };

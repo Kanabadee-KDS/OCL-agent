@@ -1020,6 +1020,22 @@ def test_teachers_degrees_institutions_and_checks() -> None:
         checks["teacher_count"].status == "warn" and "วิชาเอกก 1" in checks["teacher_count"].message
     )
     assert checks["teacher_qualification"].status == "pass"
+    assert "teacher_spelling" not in checks
+    # OCR-2a2: the same person spelled two ways in items 11 and 12 (an OCR "correction")
+    blocks[2].rows[1][1] = "รศ.ดร.สมชาย ใจดีย์"
+    r2 = extract_teachers(Document(source_name="t.pdf", source_type="pdf", blocks=blocks))
+    assert (
+        r2.data["spelling"] == [["สมชาย ใจดีย์", "สมชาย ใจดี"]] and r2.data["responsible_count"] == 1
+    )
+    assert r2.data["responsible_only_in_11"] == []
+    c2 = {
+        c.key: c for c in run_checks({"teachers": r2.data, "info": {"values": {"level": "ป.ตรี"}}})
+    }
+    assert (
+        c2["teacher_spelling"].status == "warn"
+        and "สมชาย ใจดีย์ / สมชาย ใจดี" in c2["teacher_spelling"].message
+    )
+    blocks[2].rows[1][1] = "รศ.ดร.สมชาย ใจดี"
     md = render_teachers(r.data)
     assert (
         "| 1* | สมชาย ใจดี | รศ. ดร. | วิชาเอกก | วท.บ. (เคมี), 2540 – ม.ก · ปร.ด. (เคมี), 2548 – ม.ข | 9 |"

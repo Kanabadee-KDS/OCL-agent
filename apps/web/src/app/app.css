@@ -19,6 +19,8 @@
 .paper p { margin: 6px 0; }
 .src-block { padding: 6px 8px; border-radius: 8px; }
 .src-block.hit { background: var(--gold-soft); }
+/* OCR-2a3: text one OCR engine read and the other did not (check against the page image) */
+.ocr-flag { background: var(--gold-soft); color: inherit; border-bottom: 2px dotted var(--red); padding: 0 1px; }
 .src-block.h { font-weight: 700; }
 .src-tbl { font-size: 12px; border-collapse: collapse; margin: 6px 0; }
 .src-tbl td { border: 1px solid var(--line-2); padding: 2px 6px; }

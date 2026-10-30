@@ -33,6 +33,8 @@ class Paragraph:
     align: str | None = None
     list_item: bool = False
     ocr: bool = False  # text came from OCR of a scanned page (lower trust)
+    # OCR-2a1: parts of the text another OCR engine did not see on the page (to be checked)
+    ocr_flags: list[str] = field(default_factory=list)
     kind: BlockKind = "paragraph"
 
 
@@ -42,6 +44,7 @@ class Table:
     page: int | None = None
     merged_from: int = 1  # how many source tables were merged into this one
     ocr: bool = False  # read from a scanned page (lower trust)
+    ocr_flags: list[str] = field(default_factory=list)  # as Paragraph.ocr_flags, any cell
     kind: BlockKind = "table"
 
     @property
@@ -86,6 +89,8 @@ class Document:
     notes: list[str] = field(default_factory=list)
     scanned_pages: list[int] = field(default_factory=list)  # no text layer
     ocr_pages: list[int] = field(default_factory=list)  # scanned pages that were OCR'd
+    # OCR-2a1, per Typhoon page: agreement with Tesseract (0-1), flags, hard (below the bar)
+    ocr_checks: dict[int, dict[str, Any]] = field(default_factory=dict)
 
     def sections(self) -> list[Section]:
         """Split blocks at level-1 headings into front matter / chapters / appendices.
@@ -149,6 +154,8 @@ class Document:
             "pages_declared": self.pages_declared,
             "scanned_pages": len(self.scanned_pages),
             "ocr_pages": len(self.ocr_pages),
+            "ocr_flags": sum(c.get("flags", 0) for c in self.ocr_checks.values()),
+            "ocr_hard_pages": sorted(p for p, c in self.ocr_checks.items() if c.get("hard")),
             "chapters": [s.number for s in secs if s.kind == "chapter"],
             "appendices": [s.number for s in secs if s.kind == "appendix"],
         }
@@ -162,6 +169,7 @@ class Document:
             "notes": self.notes,
             "scanned_pages": self.scanned_pages,
             "ocr_pages": self.ocr_pages,
+            "ocr_checks": {str(k): v for k, v in sorted(self.ocr_checks.items())},
             "stats": self.stats(),
             "sections": [
                 {

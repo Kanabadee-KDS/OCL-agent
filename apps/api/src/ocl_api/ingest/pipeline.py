@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import re
 import time
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -41,6 +42,7 @@ def read_document(
     ocr: bool = True,
     ocr_language: str | None = None,
     typhoon: TyphoonOcr | None = None,
+    progress: Callable[[str], None] | None = None,
 ) -> Document:
     suffix = path.suffix.lower()
     if suffix == ".docx":
@@ -49,7 +51,12 @@ def read_document(
         from ocl_api.ingest.pdf_reader import OCR_LANGUAGE, PdfReader
 
         return PdfReader(
-            path, assets_dir, ocr=ocr, ocr_language=ocr_language or OCR_LANGUAGE, typhoon=typhoon
+            path,
+            assets_dir,
+            ocr=ocr,
+            ocr_language=ocr_language or OCR_LANGUAGE,
+            typhoon=typhoon,
+            progress=progress,
         ).read()
     raise ValueError(f"unsupported file type: {path.suffix}")
 
@@ -65,12 +72,15 @@ def ingest(
     ocr: bool = True,
     ocr_language: str | None = None,
     typhoon: TyphoonOcr | None = None,
+    progress: Callable[[str], None] | None = None,
 ) -> dict[str, Any]:
     path = Path(file)
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     t0 = time.perf_counter()
-    doc = read_document(path, out / "assets", ocr=ocr, ocr_language=ocr_language, typhoon=typhoon)
+    doc = read_document(
+        path, out / "assets", ocr=ocr, ocr_language=ocr_language, typhoon=typhoon, progress=progress
+    )
     check_not_empty(doc, ocr=ocr)
 
     (out / "book.md").write_text(render_book(doc), encoding="utf-8")

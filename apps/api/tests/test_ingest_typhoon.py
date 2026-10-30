@@ -14,17 +14,21 @@ from ocl_api.config import Settings
 from ocl_api.extract.base import blocks_text, paragraphs_text
 from ocl_api.ingest.markdown import render_blocks
 from ocl_api.ingest.model import Image, Paragraph, Table
-from ocl_api.ingest.pdf_reader import PdfReader
+from ocl_api.ingest.pdf_reader import PdfReader, find_tessdata
 from ocl_api.ingest.typhoon import (
     AI_NOTE,
+    HARD_PAGE,
     NUM_CTX,
     PROMPT_V15,
     TyphoonError,
     TyphoonOcr,
+    agreement,
+    cross_check,
     from_settings,
     markdown_blocks,
     parse_table,
     promote_items,
+    unsupported,
 )
 from tests.test_ingest_pdf import build_scanned_pdf
 
@@ -177,3 +181,39 @@ def test_item_headings_follow_the_chapter_not_a_list() -> None:
     ]
     assert promote_items(blocks, {5, 6, 7, 8, 11, 14}) == 3
     assert [b.text[:3] for b in blocks if b.level == 2] == ["1. ", "8. ", "10.", "11.", "1. "]
+
+
+def test_cross_check_flags_what_tesseract_did_not_see() -> None:
+    """OCR-2a1 on the OCR-0 misreads: a changed letter in a name and made-up words are
+    flagged; marks Tesseract drops anyway (and ำ split as ํ+า) are not."""
+    tess = "ผศ.ดร.ศรวกรณ ดษฐอดมโพธ\nแผนแม่บท (เกษตรแปรรูปมูลค่าสูง) กระทรวงอุดมศึกษาฯ (อว.)\nกํากับ ดูแล"
+    page = __import__("ocl_api.ingest.typhoon", fromlist=["skeleton"]).skeleton(tess)[0]
+    assert unsupported("ผศ.ดร.ศรีวิภรณ์ ดิษฐอุดมโพธิ์", page) == ["วิภร"]
+    assert "ณฑ์การ" in unsupported("(เกณฑ์การประมูลค่าสูง)", page)[0], "made-up words"
+    assert unsupported("กระทรวงอุดมศึกษาฯ (วอ.)", page) == ["ฯ (วอ.)"]
+    assert unsupported("กำกับ ดูแล", page) == [], "sara am and dropped marks are not errors"
+    blocks = [Paragraph(text="กระทรวงอุดมศึกษาฯ (วอ.)", page=14, ocr=True),
+              Table(rows=[["ผศ.ดร.ศรีวิภรณ์ ดิษฐอุดมโพธิ์"]], page=14, ocr=True)]  # fmt: skip
+    c = cross_check(blocks, tess)
+    assert c["flags"] == 2 and blocks[0].ocr_flags == ["ฯ (วอ.)"] and blocks[1].ocr_flags == ["วิภร"]
+    assert agreement("กำกับ ดูแล", "กํากับ ดูแล") == 1.0
+    assert agreement("หน้าหนึ่ง", "อีกหน้าหนึ่งที่ต่างกันมากมาย") < HARD_PAGE
+
+
+@pytest.mark.skipif(
+    find_tessdata("tha+eng") is None, reason="tesseract language data not installed"
+)
+def test_typhoon_pages_carry_their_check_and_progress(tmp_path: Path) -> None:
+    pdf = tmp_path / "scan.pdf"
+    build_scanned_pdf(pdf)
+    seen: list[str] = []
+    md = "1. Program code and name\nBachelor of Science Program in Food Science\nTotal credits not less than 130 credits"
+    doc = PdfReader(pdf, tmp_path / "assets", typhoon=_Fake(md), progress=seen.append).read()
+    assert seen == ["อ่านหน้าสแกนด้วย Typhoon OCR หน้า 1/1"]
+    c = doc.ocr_checks[1]
+    assert c["agreement"] > 0.9 and not c["hard"], "both engines read the same page"
+    made_up = "1. Program code and name\nMaster of Arts in Underwater Basket Weaving"
+    doc = PdfReader(pdf, tmp_path / "assets", typhoon=_Fake(made_up)).read()
+    flags = [f for b in doc.blocks if isinstance(b, Paragraph) for f in b.ocr_flags]
+    assert any("Basket" in f for f in flags) and doc.stats()["ocr_flags"] == len(flags)
+    assert doc.to_dict()["ocr_checks"]["1"]["flags"] == len(flags)
