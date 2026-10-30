@@ -22,7 +22,7 @@ type ApiUser = {
   role_names: Record<string, string>; active_role: string | null;
 };
 
-async function apiCall(path: "lookup" | "credentials" | "refresh", body: Record<string, string>): Promise<Response> {
+export async function apiCall(path: "lookup" | "credentials" | "refresh" | "otp/request" | "otp/verify", body: Record<string, string>): Promise<Response> {
   const token = await apiToken({ sub: "web", name: "web", roles: ["service"] });
   return fetch(`${INTERNAL_API_BASE}/api/auth/${path}`, {
     method: "POST",
@@ -32,7 +32,7 @@ async function apiCall(path: "lookup" | "credentials" | "refresh", body: Record<
   });
 }
 
-async function apiAuth(path: "lookup" | "credentials", body: Record<string, string>): Promise<ApiUser | null> {
+async function apiAuth(path: "lookup" | "credentials" | "otp/verify", body: Record<string, string>): Promise<ApiUser | null> {
   const r = await apiCall(path, body);
   if (!r.ok) return null;
   return (await r.json()) as ApiUser;
@@ -67,6 +67,16 @@ export const authConfig: NextAuthConfig = {
       credentials: { username: { label: "บัวศรีไอดี" }, password: { label: "รหัสผ่าน", type: "password" } },
       async authorize(c) {
         const u = await apiAuth("credentials", { username: String(c?.username ?? ""), password: String(c?.password ?? "") });
+        return u ? { id: u.email, email: u.email, name: u.name, roles: u.roles, perms: u.perms, roleNames: u.role_names } : null;
+      },
+    }),
+    // ผู้ประเมินภายนอก (US-U-02): the invited e-mail and the one-time code sent to it
+    Credentials({
+      id: "otp",
+      name: "รหัสทางอีเมล",
+      credentials: { email: { label: "อีเมล" }, code: { label: "รหัส" } },
+      async authorize(c) {
+        const u = await apiAuth("otp/verify", { email: String(c?.email ?? ""), code: String(c?.code ?? "") });
         return u ? { id: u.email, email: u.email, name: u.name, roles: u.roles, perms: u.perms, roleNames: u.role_names } : null;
       },
     }),

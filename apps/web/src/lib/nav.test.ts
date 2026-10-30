@@ -50,7 +50,7 @@ test("detail pages belong to their menu", () => {
 
 test("landing page is the first built page the user may open", () => {
   assert.equal(builtPages(faculty)[0]?.href, "/curricula");
-  assert.deepEqual(builtPages(teacher).map((i) => i.href), ["/plans", "/reports", "/assess", "/portfolio"], "FS-4 FS-5: plans, reports, skill scores, portfolio");
+  assert.deepEqual(builtPages(teacher).map((i) => i.href), ["/plans", "/reports", "/assess", "/portfolio", "/rpt", "/rpt/R07", "/rpt/R08"], "FS-4 FS-5 FS-7: plans, reports, skill scores, portfolio, report center, R07 R08");
 });
 
 test("every menu id is unique", () => {

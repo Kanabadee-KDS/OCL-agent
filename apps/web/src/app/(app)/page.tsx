@@ -3,10 +3,11 @@ import { auth } from "@/auth";
 import { Ic, Note, PageHead, Pill } from "@/components/ui";
 import { roleLabel } from "@/lib/perm";
 import { ExternalStatus } from "@/components/external-status";
+import { HomeDash } from "@/components/home-dash";
 import { canMenu, visibleNav } from "@/lib/nav";
 
-// Landing page for every role: the menus the user may open, built or still in development.
-// The dashboard of the mock (US-G-01) replaces the summary cards in FS-7.
+// Landing page for every role: the dashboard of the mock (US-G-01 · figures in the user's scope
+// and งานของฉัน), then the menus the user may open.
 export default async function HomePage() {
   const session = await auth();
   const roles = session?.user?.roles ?? [];
@@ -24,6 +25,7 @@ export default async function HomePage() {
       {nav.length === 0 && (
         <Note kind="warn">บัญชีนี้ยังไม่มีบทบาทในระบบ ติดต่อผู้ดูแลส่วนกลาง (ฝ่ายวิชาการ) เพื่อกำหนดสิทธิ์</Note>
       )}
+      <HomeDash />
       <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))" }}>
         {nav.map((m) => (
           <section key={m.k} className="card pad stack">

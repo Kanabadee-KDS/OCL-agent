@@ -76,26 +76,26 @@ export const NAV: NavModule[] = [
   },
   {
     k: "r", label: "รายงาน", icon: "chart", secs: [
-      { cap: "ภาพรวม", items: [{ id: "r0", label: "ศูนย์รายงาน", route: "reports", phase: "FS-7" }] },
+      { cap: "ภาพรวม", items: [{ id: "r0", label: "ศูนย์รายงาน", route: "reports", href: "/rpt" }] },
       { cap: "ติดตามการดำเนินงาน", items: [
-        { id: "r1", label: "ติดตามการบันทึกแผน/ผลฯ", route: "rpt", phase: "FS-7" },
-        { id: "r2", label: "ความครบถ้วนการประเมิน Skill", route: "rpt", phase: "FS-7" },
-        { id: "r3", label: "สถานะคู่มือหลักสูตร/สมอ.08", route: "rpt", phase: "FS-7" },
+        { id: "r1", label: "ติดตามการบันทึกแผน/ผลฯ", route: "rpt", href: "/rpt/R01" },
+        { id: "r2", label: "ความครบถ้วนการประเมิน Skill", route: "rpt", href: "/rpt/R02" },
+        { id: "r3", label: "สถานะคู่มือหลักสูตร/สมอ.08", route: "rpt", href: "/rpt/R03" },
       ] },
       { cap: "ผลลัพธ์ทักษะ", items: [
-        { id: "r4", label: "สรุปภาพรวมทักษะนิสิต", route: "rpt", phase: "FS-7" },
-        { id: "r5", label: "สถิติตามกลุ่มผู้เรียน", route: "rpt", phase: "FS-7" },
-        { id: "r6", label: "เปรียบเทียบและแนวโน้มทักษะ", route: "rpt", phase: "FS-7" },
+        { id: "r4", label: "สรุปภาพรวมทักษะนิสิต", route: "rpt", href: "/rpt/R04" },
+        { id: "r5", label: "สถิติตามกลุ่มผู้เรียน", route: "rpt", href: "/rpt/R05" },
+        { id: "r6", label: "เปรียบเทียบและแนวโน้มทักษะ", route: "rpt", href: "/rpt/R06" },
       ] },
       { cap: "รายบุคคลและเอกสาร", items: [
-        { id: "r7", label: "ผลคะแนน Skill รายวิชา", route: "rpt", phase: "FS-7" },
-        { id: "r8", label: "ผลลัพธ์รายบุคคล", route: "rpt", phase: "FS-7" },
-        { id: "r9", label: "ทะเบียนการออก Skill Transcript", route: "rpt", phase: "FS-7" },
+        { id: "r7", label: "ผลคะแนน Skill รายวิชา", route: "rpt", href: "/rpt/R07" },
+        { id: "r8", label: "ผลลัพธ์รายบุคคล", route: "rpt", href: "/rpt/R08" },
+        { id: "r9", label: "ทะเบียนการออก Skill Transcript", route: "rpt", href: "/rpt/R09" },
       ] },
       { cap: "หลักสูตรและประกันคุณภาพ", items: [
-        { id: "ra", label: "ผลการตรวจสอบข้อมูลหลักสูตร", route: "rpt", phase: "FS-7" },
-        { id: "rb", label: "สถิติหลักสูตร (สาธารณะ)", route: "rpt", phase: "FS-7" },
-        { id: "rc", label: "รายงานคู่มือหลักสูตร (Excel)", route: "rpt", phase: "FS-7" },
+        { id: "ra", label: "ผลการตรวจสอบข้อมูลหลักสูตร", route: "rpt", href: "/rpt/R10" },
+        { id: "rb", label: "สถิติหลักสูตร (สาธารณะ)", route: "rpt", href: "/rpt/R11" },
+        { id: "rc", label: "รายงานคู่มือหลักสูตร (Excel)", route: "rpt", href: "/rpt/R12" },
       ] },
     ],
   },
@@ -177,6 +177,19 @@ const PATH_MENU: [string, string][] = [
   ["/qa/assign", "q1b"],
   ["/qa/result", "q4"],
   ["/qa", "q3"],
+  ["/rpt/R01", "r1"],
+  ["/rpt/R02", "r2"],
+  ["/rpt/R03", "r3"],
+  ["/rpt/R04", "r4"],
+  ["/rpt/R05", "r5"],
+  ["/rpt/R06", "r6"],
+  ["/rpt/R07", "r7"],
+  ["/rpt/R08", "r8"],
+  ["/rpt/R09", "r9"],
+  ["/rpt/R10", "ra"],
+  ["/rpt/R11", "rb"],
+  ["/rpt/R12", "rc"],
+  ["/rpt", "r0"], // R13 R14 (no menu of their own in the mock) and the catalog
 ];
 
 /** The menu a path belongs to, for highlighting and for the per-page permission check. */

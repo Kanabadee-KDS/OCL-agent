@@ -160,3 +160,56 @@ def test_server_command_is_recorded(env, pg_url: str, monkeypatch: pytest.Monkey
     assert [e["action"] for e in ev] == ["cli_disable", "cli_set"]
     assert ev[1]["detail"]["password_set"] is True and ev[1]["by"].startswith("cli:")
     assert "pw" not in str(ev), "the password itself is never logged"
+
+
+def test_outside_evaluator_signs_in_with_a_code(env) -> None:
+    """US-U-02: invited e-mail only · one use · expires · five wrong tries void it."""
+    import re
+
+    from ocl_api.db import connect
+    from ocl_api.mail import Outbox
+
+    c, users = env
+    until = (date.today() + timedelta(days=30)).isoformat()
+    c.post("/api/users/invite", json={"email": "ext@example.com", "name": "ผู้ประเมิน",
+           "roles": ["evaluator"], "expires_at": until}, headers=ADMIN)  # fmt: skip
+    req = lambda e: c.post("/api/auth/otp/request", json={"email": e}, headers=SVC)  # noqa: E731
+    assert req("ext@example.com").status_code == 200
+    assert req("central@g.swu.ac.th").status_code == 404, "an internal account uses Buasri ID"
+    assert req("nobody@example.com").status_code == 404, "not invited"
+    assert c.post("/api/auth/otp/request", json={"email": "ext@example.com"},
+                  headers=ADMIN).status_code == 403, "the web's service token only"  # fmt: skip
+    url, schema = users.url, users.schema
+
+    def code() -> str:
+        m = next(m for m in Outbox(url, schema).list() if m["kind"] == "otp")
+        return re.search(r"\d{6}", m["body"]).group()
+
+    first = code()
+    req("ext@example.com")
+    second = code()
+
+    def ver(x: str):
+        return c.post("/api/auth/otp/verify", json={"email": "ext@example.com", "code": x},
+                      headers=SVC)  # fmt: skip
+
+    if first != second:
+        assert ver(first).status_code == 401, "a new request voids the older code"
+    r = ver(second)
+    assert r.status_code == 200 and r.json()["roles"] == ["evaluator"] and "q3" in r.json()["perms"]
+    assert ver(second).status_code == 401, "used once"
+    req("ext@example.com")
+    for _ in range(5):
+        ver("000000" if code() != "000000" else "111111")
+    assert ver(code()).status_code == 401, "five wrong tries void the code"
+    req("ext@example.com")
+    with connect(url, schema) as conn:
+        conn.execute("UPDATE login_codes SET expires_at = now() - interval '1 minute'")
+    assert ver(code()).status_code == 401, "expired"
+    assert req("ext@example.com").status_code == 200, "the fifth request this hour"
+    assert req("ext@example.com").status_code == 429, "five requests an hour"
+    with connect(url, schema) as conn:
+        conn.execute("UPDATE login_codes SET created_at = now() - interval '2 hours'")
+    for _ in range(5):
+        assert req("ext@example.com").status_code == 200
+    assert req("ext@example.com").status_code == 429, "five requests an hour"

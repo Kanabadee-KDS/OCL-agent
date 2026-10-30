@@ -101,7 +101,12 @@ LOGIN_SCREENS = {"login", "login-ext"}  # drawn before sign-in, not in the route
 # Pages of the running web app (apps/web) and the mock page each one implements.
 BUILT: dict[str, str] = {
     "dash-cur": "มีแล้ว (FS-2f `/dashboard` · เมนู d1 · แท็บสถิติตามค่าสมมติรอ C1)",
-    "login": "มีแล้ว (บัวศรีไอดี+รหัสผ่าน · Google รอ OAuth client)",
+    "login": (
+        "มีแล้ว (บัวศรีไอดี+รหัสผ่าน · ลิงก์ลืมรหัสผ่านเมื่อตั้ง FORGOT_PASSWORD_URL FS-8b"
+        " · Google รอ OAuth client A5)"
+    ),
+    "login-ext": "มีแล้ว (FS-8a ส่วนผู้ประเมินภายนอกในหน้า `/login` · รหัส 6 หลักทางอีเมล ใช้ครั้งเดียว 10 นาที)",
+    "dash": "มีแล้ว (FS-7e หน้าแรก `/` · ตัวเลขตามขอบเขตข้อมูล + งานของฉัน)",
     "cur": "บางส่วน (รายการ + ตัวนับสถานะ + เพิ่มหลักสูตร · ข้อมูลหมวด 0–5 ของคู่มือเอง FS-2a)",
     "cur-edit": "มีแล้ว (หมวด 0–5 FS-2b FS-2c · Preview แบบเล่มและ PDF A4 FS-2d)",
     "st-courses": "มีแล้ว (FS-2c FS-3a · เลือกจากฐานรายวิชากลางหรือสร้างใหม่ · รหัส-Version)",
@@ -140,9 +145,14 @@ BUILT: dict[str, str] = {
     "qa-check-detail": "มีแล้ว (FS-6c FS-6d `/qa/[รอบ]/[หลักสูตร]` · ผลตามเกณฑ์จากข้อมูล)",
     "qa-preview": "มีแล้ว (FS-6d `/qa/[รอบ]/preview` · R10 ฉบับร่าง/สมบูรณ์)",
     "qa-result": "มีแล้ว (FS-6d `/qa/result`)",
+    "reports": "มีแล้ว (FS-7a `/rpt` · `/reports` เป็นรายงานผลฯ ของ M2)",
+    "rpt": (
+        "มีแล้ว (FS-7a–d `/rpt/R01`–`/rpt/R14` · .xlsx ทุกรายงาน · PDF ด้วยการพิมพ์"
+        " · R11 สาธารณะที่ `/stats`)"
+    ),
     "import-review": "มีแล้ว",
     "import-done": "มีแล้ว",
-    "users": "มีแล้ว (FS-1c · รหัสผ่านบัวศรีไอดีตั้งทาง server · คนนอก login ใน FS-8)",
+    "users": "มีแล้ว (FS-1c · รหัสผ่านบัวศรีไอดีตั้งทาง server · คนนอกเข้าด้วยรหัสทางอีเมล FS-8a)",
     "roles": "มีแล้ว (FS-1b)",
     "role-edit": "มีแล้ว (FS-1b · สิทธิ์อัตโนมัติจากรายชื่ออาจารย์เก็บค่าไว้ รอ B3)",
     "approval": "มีแล้ว (FS-1d)",
@@ -154,7 +164,7 @@ BUILT_EXTRA = ["`/import/history` ประวัติการนำเข้�
 # own test cases in the last column of docs/brd/06-nfr.md, so they are not listed here.
 TEST_MAP: dict[str, tuple[list[str], list[str]]] = {
     "A": ([], []),
-    "J": (["login", "users", "roles"], ["US-U-01", "US-U-03", "US-U-04"]),
+    "J": (["login", "login-ext", "users", "roles"], ["US-U-01", "US-U-02", "US-U-03", "US-U-04"]),
     "B": (["import"], ["US-M1-11"]),
     "C": (["import-review"], ["US-M1-12", "US-M1-14"]),
     "D": (["import-review"], ["US-M1-12", "US-M1-14"]),
@@ -204,6 +214,7 @@ TEST_MAP: dict[str, tuple[list[str], list[str]]] = {
         ],
         [f"US-M4-{n:02d}" for n in range(1, 9)],
     ),
+    "R": (["reports", "rpt", "dash"], ["US-M5-01", "US-M5-02", "US-M5-03", "US-M5-04", "US-G-01"]),
     "I": ([], []),
     "V": (["import-review"], []),
     "M": (["import"], []),

@@ -72,7 +72,7 @@ export default function UsersPage() {
     },
     {
       key: "pw", label: "เข้าสู่ระบบ",
-      render: (u) => <span className="small">{u.kind === "external" ? "รหัสยืนยันทางอีเมล (เร็ว ๆ นี้)" : u.has_password ? "บัวศรีไอดี · ตั้งรหัสผ่านแล้ว" : <span className="faint">ยังไม่ตั้งรหัสผ่าน</span>}</span>,
+      render: (u) => <span className="small">{u.kind === "external" ? "รหัสยืนยันทางอีเมล" : u.has_password ? "บัวศรีไอดี · ตั้งรหัสผ่านแล้ว" : <span className="faint">ยังไม่ตั้งรหัสผ่าน</span>}</span>,
     },
     { key: "last", label: "เข้าใช้ล่าสุด", sort: (u) => u.last_login_at, render: (u) => <span className="small">{u.last_login_at ? fmtTime(u.last_login_at) : "–"}</span> },
     {

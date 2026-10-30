@@ -727,6 +727,37 @@ MIGRATIONS: list[tuple[str, str]] = [
         """
         + qa_seed_sql(),
     ),
+    (
+        "019_transcript_checks",
+        """
+        -- R09 (FS-7b): each public check of a Skill Transcript, to count per month and the
+        -- distinct checkers (a one-way hash of the visitor's address, never the address)
+        CREATE TABLE IF NOT EXISTS transcript_checks (
+            id  bigserial PRIMARY KEY,
+            no  text NOT NULL,
+            ts  timestamptz NOT NULL DEFAULT now(),
+            who text
+        );
+        CREATE INDEX IF NOT EXISTS transcript_checks_no_idx ON transcript_checks (no);
+        """,
+    ),
+    (
+        "020_login_codes",
+        """
+        -- sign-in of invited outside evaluators by a one-time code sent by e-mail (FS-8a ·
+        -- US-U-02); only a hash of the code is kept
+        CREATE TABLE IF NOT EXISTS login_codes (
+            id         bigserial PRIMARY KEY,
+            email      text NOT NULL,
+            code_hash  text NOT NULL,
+            expires_at timestamptz NOT NULL,
+            attempts   int NOT NULL DEFAULT 0,
+            used_at    timestamptz,
+            created_at timestamptz NOT NULL DEFAULT now()
+        );
+        CREATE INDEX IF NOT EXISTS login_codes_email_idx ON login_codes (lower(email));
+        """,
+    ),
 ]
 
 

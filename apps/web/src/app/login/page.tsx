@@ -28,7 +28,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       </section>
       <section className="login-side">
         <div />
-        <LoginForm google={providersEnabled.google} error={error} callbackUrl={sp.callbackUrl || "/"} />
+        <LoginForm google={providersEnabled.google} error={error} callbackUrl={sp.callbackUrl || "/"} forgot={process.env.FORGOT_PASSWORD_URL || null} />
         <p className="small faint" style={{ textAlign: "center" }}>ปัญหาการเข้าใช้ติดต่อผู้ดูแลส่วนกลาง (ฝ่ายวิชาการ)</p>
       </section>
     </div>

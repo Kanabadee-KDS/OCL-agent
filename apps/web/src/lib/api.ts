@@ -602,3 +602,27 @@ export const qaApi = {
   summary: (rid: number) => qget<QaSummary>(qa(`/rounds/${rid}/summary`)),
   preview: (rid: number, cid?: number) => qget<(QaDetail & { complete: boolean })[]>(qa(`/rounds/${rid}/preview${cid ? `?cid=${cid}` : ""}`)),
 };
+
+// ---------- reports R01–R14 · home dashboard · R11 public (FS-7) ----------
+export type ReportItem = { code: string; title: string; tor: string; users: string; exports: string[]; proposed: boolean; allowed: boolean; public: boolean; remind: boolean };
+export type ReportFilter = { key: string; label: string; value: string; options: [string, string][] };
+export type ReportTable = { title: string; columns: { key: string; label: string; num: boolean }[]; rows: Record<string, string | number | null>[]; note: string | null };
+export type Report = Omit<ReportItem, "allowed" | "public"> & {
+  filters: ReportFilter[]; kpis: { label: string; value: string | number }[]; note: string | null; tables: ReportTable[]; radar?: Record<string, number | null>;
+};
+export type HomeData = {
+  cards: { label: string; value: string | number; sub: string; href: string }[];
+  units: M2Dashboard["units"]; target?: number; skills: Record<string, number | null> | null;
+  tasks: { text: string; status: string; href: string }[];
+};
+const rq = (params: Record<string, string>) => {
+  const q = new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString();
+  return q ? `?${q}` : "";
+};
+export const reportsApi = {
+  catalog: () => fetch(`${API_BASE}/api/reports`, { cache: "no-store" }).then(j<ReportItem[]>),
+  report: (code: string, params: Record<string, string>) => fetch(`${API_BASE}/api/reports/${enc(code)}${rq(params)}`, { cache: "no-store" }).then(j<Report>),
+  xlsxUrl: (code: string, params: Record<string, string>) => `${API_BASE}/api/reports/${enc(code)}.xlsx${rq(params)}`,
+  remind: (code: string, params: Record<string, string>) => fetch(`${API_BASE}/api/reports/${enc(code)}/remind${rq(params)}`, { method: "POST" }).then(j<{ sent: number; late?: number }>),
+  home: () => fetch(`${API_BASE}/api/home`, { cache: "no-store" }).then(j<HomeData>),
+};

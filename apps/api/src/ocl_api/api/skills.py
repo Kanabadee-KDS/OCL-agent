@@ -3,13 +3,14 @@ plus the public check of an issued document (BR-M3-05), which needs no sign-in."
 
 from __future__ import annotations
 
+import hashlib
 import io
 import re
 from typing import Any
 from urllib.parse import quote
 
 import segno
-from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile
 from pydantic import BaseModel
 
 from ocl_api.assess import AssessStore
@@ -521,9 +522,13 @@ def register(st: AssessStore = Depends(get_assess), user: User = Depends(ISSUE))
 
 
 @public.get("/transcripts/{no}")
-def verify(no: str, settings: Settings = Depends(get_settings)) -> dict[str, Any]:
-    """BR-M3-05: anyone may check a document by its number (QR) without signing in."""
-    return _run(AssessStore(*_db(settings)).verify, no)
+def verify(no: str, request: Request, settings: Settings = Depends(get_settings)) -> dict[str, Any]:
+    """BR-M3-05: anyone may check a document by its number (QR) without signing in. The web
+    page passes the visitor's address on; only a hash of it is kept (R09 distinct checkers)."""
+    ip = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip()
+    ip = ip or (request.client.host if request.client else "")
+    who = hashlib.sha256(f"{settings.auth_secret or ''}|{ip}".encode()).hexdigest()[:16]
+    return _run(AssessStore(*_db(settings)).verify, no, who)
 
 
 # ---------- FS-5g แดชบอร์ด ----------

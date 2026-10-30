@@ -87,6 +87,55 @@ def credentials(
     return _public(u, settings)
 
 
+class OtpRequest(BaseModel):
+    email: str
+
+
+class OtpVerify(BaseModel):
+    email: str
+    code: str
+
+
+def _otp(settings: Settings):
+    from ocl_api.otp import OtpStore
+
+    if not settings.database_url or not settings.auth_secret:
+        raise HTTPException(503, "การเข้าสู่ระบบด้วยรหัสต้องการฐานข้อมูลและ AUTH_SECRET")
+    return OtpStore(settings.database_url, settings.database_schema, settings.auth_secret)
+
+
+@router.post("/otp/request")
+def otp_request(
+    body: OtpRequest,
+    _: User = Depends(REQUIRE_SERVICE),
+    settings: Settings = Depends(get_settings),
+) -> dict[str, Any]:
+    """US-U-02: a one-time code by e-mail, for invited outside evaluators only."""
+    from ocl_api.otp import OtpError
+
+    try:
+        return _otp(settings).request(body.email)
+    except OtpError as e:
+        raise HTTPException(e.status, str(e)) from e
+
+
+@router.post("/otp/verify")
+def otp_verify(
+    body: OtpVerify,
+    _: User = Depends(REQUIRE_SERVICE),
+    users: UserStore = Depends(get_users),
+    settings: Settings = Depends(get_settings),
+) -> dict[str, Any]:
+    from ocl_api.otp import OtpError
+
+    try:
+        u = _otp(settings).verify(body.email, body.code)
+    except OtpError as e:
+        raise HTTPException(e.status, str(e)) from e
+    users.touch_login(u["email"])
+    return _public(u, settings)
+
+
 @router.post("/refresh")
 def refresh(
     body: Lookup,

@@ -740,13 +740,18 @@ class AssessStore:
             if r["sid"] in seen
         ]
 
-    def verify(self, no: str) -> dict[str, Any]:
-        """The public check (BR-M3-05): no sign-in; counts each check for R09."""
+    def verify(self, no: str, who: str | None = None) -> dict[str, Any]:
+        """The public check (BR-M3-05): no sign-in; counts each check for R09, and logs it
+        with `who` (a one-way hash of the visitor) for the monthly and distinct counts."""
         with self._conn() as conn:
             r = conn.execute(
                 "UPDATE skill_transcripts SET checks = checks + 1 WHERE no = %s RETURNING *",
                 (no.strip().upper(),),
             ).fetchone()
+            if r is not None:
+                conn.execute(
+                    "INSERT INTO transcript_checks (no, who) VALUES (%s, %s)", (r["no"], who)
+                )
         if r is None:
             raise SkillError("ไม่พบเอกสารเลขที่นี้", 404)
         d = r["data"]
