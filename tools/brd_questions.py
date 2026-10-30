@@ -372,7 +372,10 @@ def build() -> str:
 
 
 def strip_stamp(text: str) -> str:
-    return "\n".join(line for line in text.split("\n") if STAMP not in line)
+    # the date line changes every day: a check on the next day must not call the file stale
+    return "\n".join(
+        line for line in text.split("\n") if STAMP not in line and not line.startswith("ฉบับวันที่ ")
+    )
 
 
 def main() -> int:

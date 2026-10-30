@@ -17,7 +17,7 @@ export type NavModule = { k: string; label: string; icon: string; secs: NavSecti
 export const NAV: NavModule[] = [
   {
     k: "d", label: "แดชบอร์ด", icon: "chart", secs: [
-      { cap: "ติดตามการบันทึกและสถิติ", items: [{ id: "d1", label: "หลักสูตร", route: "dash-cur", href: "/dashboard" }] },
+      { cap: "ติดตามการบันทึกและสถิติ", items: [{ id: "d1", label: "หลักสูตร", route: "dash-cur", href: "/dashboard" }, { id: "d2", label: "การบันทึกแผนการเรียนรู้", route: "dash-plan", href: "/dashboard/plans" }] },
     ],
   },
   {
@@ -39,10 +39,10 @@ export const NAV: NavModule[] = [
   },
   {
     k: "p", label: "แผนการจัดการเรียนรู้รายวิชา/ชุดวิชา", icon: "plan", secs: [
-      { cap: "กำหนดผู้บันทึก", items: [{ id: "p1", label: "กำหนดผู้บันทึกแผนและรายงานผลฯ", route: "plan-assign", phase: "FS-4" }] },
+      { cap: "กำหนดผู้บันทึก", items: [{ id: "p1", label: "กำหนดผู้บันทึกแผนและรายงานผลฯ", route: "plan-assign", href: "/plans/assign" }] },
       { cap: "บันทึกแผน/รายงานการจัดการเรียนรู้", items: [
-        { id: "p2", label: "บันทึกแผนการจัดการเรียนรู้", route: "plan", phase: "FS-4" },
-        { id: "p4", label: "บันทึกรายงานการจัดการการเรียนรู้", route: "rep", phase: "FS-4" },
+        { id: "p2", label: "บันทึกแผนการจัดการเรียนรู้", route: "plan", href: "/plans" },
+        { id: "p4", label: "บันทึกรายงานการจัดการการเรียนรู้", route: "rep", href: "/reports" },
       ] },
     ],
   },
@@ -147,7 +147,11 @@ export function visibleNav(perms: Perms | undefined): NavModule[] {
 
 // built pages below a menu (detail pages highlight their parent menu, like the mock's ROUTE_NAV)
 const PATH_MENU: [string, string][] = [
+  ["/dashboard/plans", "d2"],
   ["/dashboard", "d1"],
+  ["/plans/assign", "p1"],
+  ["/plans", "p2"],
+  ["/reports", "p4"],
   ["/import/history", "c3h"],
   ["/import", "c3"],
   ["/curricula/review", "c1b"],

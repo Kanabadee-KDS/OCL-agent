@@ -361,3 +361,51 @@ export const matchApi = {
     fetch(`${API_BASE}/api/curricula/${id}/match/teachers`, json("POST", { choices })).then(j<MatchData>),
   courses: (id: number | string, choices: { index: number; accept: boolean }[]) => fetch(`${API_BASE}/api/curricula/${id}/match/courses`, json("POST", { choices })).then(j<MatchData>),
 };
+
+// ---------- แผน/รายงานการจัดการเรียนรู้ (FS-4 · M2) ----------
+export type M2Doc = "plan" | "report";
+export type M2Status = "none" | "draft" | "sent" | "returned" | "approved" | "published";
+export type M2Term = { term: string; slug: string; starts_on: string | null; ends_on: string | null; plan_open: string | null; plan_close: string | null; report_open: string | null; report_close: string | null; target_pct: number; set: boolean };
+export type M2Person = { pid: string; name: string };
+export type M2Item = {
+  key: string; kind: "course" | "module"; code: string; name_th: string | null; unit: string | null; courses: string[]; offered: boolean;
+  enrolled: number; sections: number; assign: Record<M2Doc, M2Person[]>; status: Record<M2Doc, M2Status>; mine: Record<M2Doc, boolean>; /** in the account's ขอบเขตข้อมูล, not only assigned */ scoped: boolean;
+};
+export type M2Items = { term: M2Term; items: M2Item[]; synced_at: string | null; statuses: Record<M2Status, string> };
+export type M2Section = { course_code: string; section: string; teachers: string[]; schedule: string | null; room: string | null; enrolled: number; program_code: string | null };
+export type M2Pulled = {
+  item: M2Item; courses: { code_th: string; code_en?: string | null; name_th?: string | null; name_en?: string | null; credit_text?: string | null; unit?: string | null; description_th?: string | null }[];
+  teachers: M2Person[]; sections: M2Section[]; enrolled: number;
+  plos: { curriculum: string | null; draft_id: number; plos: { code: string; text: string }[]; rows: { course_code: string; plos?: string[]; by_column?: Record<string, string[]> }[] }[];
+};
+export type M2DocData = {
+  term: M2Term; doc: M2Doc; doc_th: string; status: M2Status; status_th: string; step: number; steps: FlowStep[]; data: Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  pulled: M2Pulled; missing: string[]; events: { ts: string; by: string; action: string; note: string | null }[]; window: { open: boolean; from: string | null; to: string | null };
+  plan?: { status: M2Status; clos: Record<string, unknown>[] };
+  can_edit: boolean; can_submit: boolean; can_certify: boolean; can_publish: boolean; recorder: boolean;
+};
+export type M2Dashboard = {
+  term: M2Term; synced_at: string | null; offered: number; modules: number; unassigned: number; plan_pct: number; report_pct: number;
+  published: Record<M2Doc, number>; status: Record<M2Doc, Record<M2Status, number>>;
+  units: { unit: string; count: number; plan_pct: number; report_pct: number; below: boolean }[];
+  late: { key: string; code: string; name_th: string | null; unit: string | null; doc: M2Doc; status: M2Status; days: number; recorders: string[] }[]; target_pct: number;
+};
+const m2u = (slug: string, rest = "") => `${API_BASE}/api/m2/terms/${slug}${rest}`;
+const m2i = (slug: string, key: string, rest = "") => m2u(slug, `/items/${enc(key)}${rest}`);
+export const m2Api = {
+  terms: () => fetch(`${API_BASE}/api/m2/terms`, { cache: "no-store" }).then(j<M2Term[]>),
+  saveTerm: (slug: string, body: Partial<M2Term>) => fetch(m2u(slug), json("PUT", body)).then(j<M2Term>),
+  sync: (slug: string) => fetch(m2u(slug, "/sync"), { method: "POST" }).then(j<{ items: number; removed: number }>),
+  items: (slug: string) => fetch(m2u(slug, "/items"), { cache: "no-store" }).then(j<M2Items>),
+  assign: (slug: string, key: string, doc: M2Doc, pids: string[]) => fetch(m2i(slug, key, "/assign"), json("PUT", { doc, pids })).then(j<M2Item>),
+  copyAssign: (slug: string) => fetch(m2u(slug, "/assign/copy"), { method: "POST" }).then(j<{ copied: number; from: string }>),
+  notify: (slug: string) => fetch(m2u(slug, "/assign/notify"), { method: "POST" }).then(j<{ sent: number; recipients: number }>),
+  doc: (slug: string, key: string, doc: M2Doc) => fetch(m2i(slug, key, `/${doc}`), { cache: "no-store" }).then(j<M2DocData>),
+  save: (slug: string, key: string, doc: M2Doc, data: Record<string, unknown>) => fetch(m2i(slug, key, `/${doc}`), json("PUT", { data })).then(j<M2DocData>),
+  copy: (slug: string, key: string, doc: M2Doc) => fetch(m2i(slug, key, `/${doc}/copy`), { method: "POST" }).then(j<M2DocData>),
+  submit: (slug: string, key: string, doc: M2Doc) => fetch(m2i(slug, key, `/${doc}/submit`), { method: "POST" }).then(j<M2DocData>),
+  certify: (slug: string, key: string, doc: M2Doc, ok: boolean, note?: string) => fetch(m2i(slug, key, `/${doc}/certify`), json("POST", { ok, note })).then(j<M2DocData>),
+  publish: (slug: string, key: string, doc: M2Doc, on: boolean) => fetch(m2i(slug, key, `/${doc}/publish?on=${on}`), { method: "POST" }).then(j<M2DocData>),
+  dashboard: (slug: string) => fetch(m2u(slug, "/dashboard"), { cache: "no-store" }).then(j<M2Dashboard>),
+  remind: (slug: string, key?: string, doc?: M2Doc) => fetch(m2u(slug, "/remind"), json("POST", { key, doc })).then(j<{ sent: number; late: number }>),
+};

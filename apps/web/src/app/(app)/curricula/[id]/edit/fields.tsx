@@ -4,7 +4,7 @@
 // (ocl_api.curriculum_form). Values are read and written by the field's `path`.
 import { Fragment, useEffect, useState } from "react";
 import Link from "next/link";
-import { curriculumForm, personsApi, usersApi, type FormField, type PersonPick, type Staff, type TeacherCheck } from "@/lib/api";
+import { curriculumForm, fmtTime, personsApi, usersApi, type FormField, type PersonPick, type Staff, type TeacherCheck } from "@/lib/api";
 import { asInput, columnTotals, fromInput, getPath } from "@/lib/form";
 import { Note, Pill } from "@/components/ui";
 import { Check, Pulled, useToast } from "@/components/kit";
@@ -326,7 +326,7 @@ function BookEditor({ value, ctx }: { value: unknown; ctx: Ctx }) {
         <div className="row" style={{ gap: 8 }}>
           <Pill kind="ok">{book.label ?? "ฉบับอนุมัติ"}</Pill>
           <a href={curriculumForm.bookUrl(ctx.draftId)} target="_blank" rel="noreferrer">{book.name}</a>
-          <span className="small faint">{Math.round((book.size ?? 0) / 1024)} KB · {book.by} · {book.at?.replace("T", " ").slice(0, 16)}</span>
+          <span className="small faint">{Math.round((book.size ?? 0) / 1024)} KB · {book.by} · {fmtTime(book.at)}</span>
         </div>
       ) : <span className="small faint">ยังไม่ได้แนบ</span>}
       {!ctx.readOnly && (

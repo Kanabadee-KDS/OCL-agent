@@ -461,6 +461,76 @@ MIGRATIONS: list[tuple[str, str]] = [
         );
         """,
     ),
+    (
+        "016_learning_plans",
+        """
+        -- แผน/รายงานการจัดการเรียนรู้ (FS-4 · M2): the unit of work is a course or a module
+        -- (ชุดวิชา) offered in a term (BR-M2-01 02), with its recorders and two documents
+        CREATE TABLE IF NOT EXISTS m2_terms (
+            term         text PRIMARY KEY,
+            starts_on    date,
+            ends_on      date,
+            plan_open    date,
+            plan_close   date,
+            report_open  date,
+            report_close date,
+            target_pct   int NOT NULL DEFAULT 70,
+            updated_by   text,
+            updated_at   timestamptz NOT NULL DEFAULT now()
+        );
+        CREATE TABLE IF NOT EXISTS m2_items (
+            term      text NOT NULL,
+            key       text NOT NULL,
+            kind      text NOT NULL,
+            code      text NOT NULL,
+            name_th   text,
+            unit      text,
+            courses   jsonb NOT NULL DEFAULT '[]'::jsonb,
+            sections  jsonb NOT NULL DEFAULT '[]'::jsonb,
+            offered   boolean NOT NULL DEFAULT true,
+            synced_at timestamptz NOT NULL DEFAULT now(),
+            PRIMARY KEY (term, key)
+        );
+        CREATE TABLE IF NOT EXISTS m2_assign (
+            term       text NOT NULL,
+            key        text NOT NULL,
+            doc        text NOT NULL,
+            pids       jsonb NOT NULL DEFAULT '[]'::jsonb,
+            updated_by text,
+            updated_at timestamptz NOT NULL DEFAULT now(),
+            PRIMARY KEY (term, key, doc)
+        );
+        CREATE TABLE IF NOT EXISTS m2_docs (
+            term         text NOT NULL,
+            key          text NOT NULL,
+            doc          text NOT NULL,
+            data         jsonb NOT NULL DEFAULT '{}'::jsonb,
+            status       text NOT NULL DEFAULT 'draft',
+            step         int NOT NULL DEFAULT 0,
+            flow_version int,
+            created_by   text,
+            updated_by   text,
+            updated_at   timestamptz NOT NULL DEFAULT now(),
+            submitted_at timestamptz,
+            approved_at  timestamptz,
+            published_at timestamptz,
+            PRIMARY KEY (term, key, doc)
+        );
+        CREATE TABLE IF NOT EXISTS m2_events (
+            id     bigserial PRIMARY KEY,
+            term   text NOT NULL,
+            key    text NOT NULL,
+            doc    text NOT NULL,
+            ts     timestamptz NOT NULL DEFAULT now(),
+            by     text,
+            action text NOT NULL,
+            note   text
+        );
+        CREATE INDEX IF NOT EXISTS m2_events_doc_idx ON m2_events (term, key, doc);
+        """
+        + "-- แดชบอร์ดการบันทึกแผนการเรียนรู้ (FS-4e): the menu d2\n"
+        + menu_seed_sql("d2"),
+    ),
 ]
 
 

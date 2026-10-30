@@ -8,7 +8,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { personsApi, smoApi, usersApi, type PersonPick, type SmoDetail, type Staff } from "@/lib/api";
+import { fmtTime, personsApi, smoApi, usersApi, type PersonPick, type SmoDetail, type Staff } from "@/lib/api";
 import { SMO_KIND, changes, inScope, type Change, type Teacher } from "@/lib/smo";
 import { Note, PageHead, Pill } from "@/components/ui";
 import { BackLink, Field, Modal, Timeline, useToast, type Step } from "@/components/kit";
@@ -61,7 +61,7 @@ export default function SmoPage() {
     const ev = [...d.events].reverse().find((e) => e.step === i && ["submit", "approve", "return"].includes(e.action));
     return {
       title: `${i + 1}. ${s.position || s.label}${s.position ? ` (${s.label})` : ""}`,
-      detail: ev ? `${ev.action === "return" ? "ส่งคืนแก้ไข" : "ดำเนินการแล้ว"} · ${ev.by} · ${ev.ts.slice(0, 16).replace("T", " ")}${ev.note ? ` · "${ev.note}"` : ""}` : i === d.step && d.status === "pending" ? "รอดำเนินการ" : undefined,
+      detail: ev ? `${ev.action === "return" ? "ส่งคืนแก้ไข" : "ดำเนินการแล้ว"} · ${ev.by} · ${fmtTime(ev.ts)}${ev.note ? ` · "${ev.note}"` : ""}` : i === d.step && d.status === "pending" ? "รอดำเนินการ" : undefined,
       state: done ? "done" : i === d.step && d.status === "returned" ? "rej" : i === d.step && d.status === "pending" ? "cur" : undefined,
     };
   });
