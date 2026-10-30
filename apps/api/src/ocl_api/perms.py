@@ -59,7 +59,8 @@ ACTIONS: dict[str, str] = {
     "print": "พิมพ์",
 }
 MENUS: dict[str, list[str]] = {
-    "d": ["d1", "d2"],  # แดชบอร์ด (mock NAV.unshift): หลักสูตร FS-2f · แผนการเรียนรู้ FS-4e
+    # แดชบอร์ด (mock NAV.unshift): หลักสูตร FS-2f · แผนการเรียนรู้ FS-4e · Skill FS-5g
+    "d": ["d1", "d2", "d3"],
     "c": ["c1", "c1b", "c2", "c3", "c3h", "c5", "c4"],
     "p": ["p1", "p2", "p4"],
     "s": ["s1", "s2", "s2b", "s3", "s4", "s5", "s6"],

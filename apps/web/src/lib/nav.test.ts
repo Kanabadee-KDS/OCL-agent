@@ -36,15 +36,22 @@ test("detail pages belong to their menu", () => {
   assert.equal(menuOfPath("/plans/2-2569/C:x"), "p2");
   assert.equal(menuOfPath("/reports/2-2569/C:x"), "p4");
   assert.equal(menuOfPath("/dashboard/plans"), "d2");
+  assert.equal(menuOfPath("/dashboard/skills"), "d3");
+  assert.equal(menuOfPath("/skills/mapping"), "s3");
+  assert.equal(menuOfPath("/skills"), "s1");
+  assert.equal(menuOfPath("/assess/2-2569/x/1"), "s4");
+  assert.equal(menuOfPath("/portfolio/123/transcript"), "s5");
+  assert.equal(menuOfPath("/me/transcript"), "m2");
+  assert.equal(menuOfPath("/me"), "m1");
 });
 
 test("landing page is the first built page the user may open", () => {
   assert.equal(builtPages(faculty)[0]?.href, "/curricula");
-  assert.deepEqual(builtPages(teacher).map((i) => i.href), ["/plans", "/reports"], "FS-4: a teacher records plans and reports");
+  assert.deepEqual(builtPages(teacher).map((i) => i.href), ["/plans", "/reports", "/assess", "/portfolio"], "FS-4 FS-5: plans, reports, skill scores, portfolio");
 });
 
 test("every menu id is unique", () => {
   const all = NAV.flatMap((m) => m.secs.flatMap((s) => s.items.map((i) => i.id)));
   assert.equal(new Set(all).size, all.length);
-  assert.equal(all.length, 42); // 39 menus of the mock + import history (US-M1-21) + แดชบอร์ดหลักสูตร และแผนการเรียนรู้ (the mock adds them: NAV.unshift)
+  assert.equal(all.length, 43); // 39 menus of the mock + import history (US-M1-21) + the three dashboards the mock adds (NAV.unshift)
 });

@@ -40,7 +40,16 @@ def test_sample_is_fixed_complete_and_made_up() -> None:
     for sec in sup["ext_sections"]:
         fac = programs[sec["program_code"]]["faculty"]
         assert sec["teachers"] and all(by_pid[t]["faculty"] == fac for t in sec["teachers"])
-    assert len({s["sid"] for s in sup["ext_students"]}) == len(sup["ext_students"]) == 272
+    assert len({s["sid"] for s in sup["ext_students"]}) == len(sup["ext_students"]) == 1020
+    # FS-5 Q1 ก: each section's roster is as large as its `enrolled`, from its programme
+    students = {s["sid"]: s for s in sup["ext_students"]}
+    for sec in sup["ext_sections"]:
+        roster = [e["sid"] for e in sup["ext_enrollments"]
+                  if (e["course_code"], e["section"]) == (sec["course_code"], sec["section"])]  # fmt: skip
+        assert len(roster) == sec["enrolled"] > 0
+        assert all(students[x]["program_code"] == sec["program_code"] for x in roster)
+    grads = [s for s in sup["ext_students"] if s["graduated"]]
+    assert grads and all(s["advisor_pid"] in by_pid for s in sup["ext_students"])
     with pytest.raises(ValueError):
         a.fetch("nope")
 

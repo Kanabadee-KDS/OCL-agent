@@ -65,6 +65,7 @@ class User:
     units: list[str] = field(default_factory=list)
     pid: str | None = None
     scopes: list[str] | None = None
+    sid: str | None = None  # รหัสนิสิต of a student account (FS-5 Q2 ก)
 
     def scope_kinds(self) -> set[str]:
         if self.scopes is not None:
@@ -227,6 +228,7 @@ def current_user(request: Request, settings: Settings = Depends(get_settings)) -
         units=list(stored.get("units") or []),
         pid=stored.get("pid"),
         scopes=[scopes.get(r, "self") for r in roles],
+        sid=stored.get("sid"),
     )
 
 

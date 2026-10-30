@@ -31,6 +31,7 @@ def get_users(settings: Settings = Depends(get_settings)) -> UserStore:
 
 class NewUser(BaseModel):
     pid: str | None = None  # a staff record of the HURIS copy; fills name and e-mail
+    sid: str | None = None  # a student of the SUPREME copy (FS-5 Q2 ก); fills the name
     email: str | None = None
     name: str = ""
     roles: list[str] = []
@@ -122,12 +123,18 @@ def add_user(
             raise HTTPException(404, "ไม่พบบุคลากรในข้อมูล HURIS")
         name = name or f"{st['title_short'] or ''}{st['name_th']}"
         email = email or st["email"]
+    if body.sid:
+        with connect(settings.database_url or "", settings.database_schema) as conn:
+            st = conn.execute("SELECT * FROM ext_students WHERE sid = %s", (body.sid,)).fetchone()
+        if st is None:
+            raise HTTPException(404, "ไม่พบรหัสนิสิตในข้อมูล SUPREME")
+        name = name or st["name_th"]
     if not email:
         raise HTTPException(400, "ต้องมีอีเมล หรือเลือกบุคลากรจาก HURIS")
     return _run(
         users.save, email, user.email, create=True, name=name, roles=body.roles,
         units=body.units, expires_at=body.expires_at and body.expires_at.isoformat(),
-        pid=body.pid,
+        pid=body.pid, sid=body.sid,
     )  # fmt: skip
 
 

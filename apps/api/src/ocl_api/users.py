@@ -12,7 +12,7 @@ from ocl_api.db import Jsonb, connect
 # `usable` = may sign in now: not suspended and not past the end date (Thai calendar day).
 # Every sign-in path and the per-request check read `usable`, never `active` alone.
 COLUMNS = (
-    "email, name, buasri_id, roles, active, unit, units, kind, pid, expires_at, created_at, "
+    "email, name, buasri_id, roles, active, unit, units, kind, pid, sid, expires_at, created_at, "
     "last_login_at, updated_by, updated_at, password_hash IS NOT NULL AS has_password, "
     "(active AND (expires_at IS NULL OR "
     "expires_at >= (now() AT TIME ZONE 'Asia/Bangkok')::date)) AS usable"
@@ -95,6 +95,7 @@ class UserStore:
         pid: str | None = None,
         buasri_id: str | None = None,
         clear_expiry: bool = False,
+        sid: str | None = None,
     ) -> dict[str, Any]:
         """Add or edit an account from the users page; passwords are never set here (Q1 ข)."""
         email = email.strip().lower()
@@ -123,15 +124,17 @@ class UserStore:
                     self._keep_an_admin(conn, email)
             if create:
                 conn.execute(
-                    "INSERT INTO users (email, name, buasri_id, roles, units, kind, pid, "
+                    "INSERT INTO users (email, name, buasri_id, roles, units, kind, pid, sid, "
                     "expires_at, updated_by, updated_at) "
-                    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, now())",
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, now())",
                     (
                         email, (name or "").strip(), buasri_id, Jsonb(roles or []),
-                        Jsonb(units or []), kind, pid, expires_at, by,
+                        Jsonb(units or []), kind, pid, sid, expires_at, by,
                     ),
                 )  # fmt: skip
                 detail: dict[str, Any] = {"roles": roles or [], "units": units or [], "kind": kind}
+                if sid:
+                    detail["sid"] = sid
                 action = "invite" if kind == "external" else "create"
             else:
                 detail = {}

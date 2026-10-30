@@ -147,6 +147,7 @@ function UserModal({ mode, opts, me, canEdit, onClose, onSaved }: {
   const [staffSample, setStaffSample] = useState(false);
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
+  const [sid, setSid] = useState("");
   const [roles, setRoles] = useState<string[]>(mode.kind === "invite" ? ["evaluator"] : []);
   const [units, setUnits] = useState<string[]>([]);
   const [expires, setExpires] = useState("");
@@ -180,7 +181,7 @@ function UserModal({ mode, opts, me, canEdit, onClose, onSaved }: {
     setBusy(true);
     try {
       if (mode.kind === "add") {
-        const u = await usersApi.add(picked ? { pid: picked.pid, roles, units, expires_at: expires || null } : { email, name, roles, units, expires_at: expires || null });
+        const u = await usersApi.add(picked ? { pid: picked.pid, roles, units, expires_at: expires || null } : { email, name, roles, units, expires_at: expires || null, ...(sid.trim() ? { sid: sid.trim() } : {}) });
         onSaved(`เพิ่ม ${u.name || u.email} แล้ว · ตั้งรหัสผ่านบัวศรีไอดีที่ server ก่อนเข้าใช้`);
       } else if (mode.kind === "invite") {
         const u = await usersApi.invite({ email, name, roles, units, expires_at: expires });
@@ -236,12 +237,14 @@ function UserModal({ mode, opts, me, canEdit, onClose, onSaved }: {
           <div className="form-grid">
             <Field label={mode.kind === "invite" ? "อีเมลผู้ได้รับเชิญ" : "อีเมล"}>{(id) => <input id={id} className="inp" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={mode.kind === "invite" ? "name@example.com" : "[buasri id]@g.swu.ac.th"} />}</Field>
             <Field label="ชื่อ-นามสกุล">{(id) => <input id={id} className="inp" value={name} onChange={(e) => setName(e.target.value)} />}</Field>
+            {mode.kind === "add" && <Field label="รหัสนิสิต (บัญชีนิสิต)" pulled="SUPREME" hint="ผูกบัญชีกับนิสิตเพื่อดู Skill Portfolio และ Skill Transcript ของตนเอง · ชื่อดึงจาก SUPREME ถ้าเว้นว่าง">{(id) => <input id={id} className="inp num" value={sid} onChange={(e) => { setSid(e.target.value.replace(/\D/g, "")); if (e.target.value && !roles.length) setRoles(["student"]); }} placeholder="เช่น 6600100028" />}</Field>}
           </div>
         )}
         {mode.kind === "edit" && detail && (
           <div className="form-grid">
             <Field label="ชื่อ-นามสกุล">{(id) => <input id={id} className="inp" value={name} disabled={readOnly} onChange={(e) => setName(e.target.value)} />}</Field>
             <Field label="อีเมล">{(id) => <input id={id} className="inp" value={detail.email} disabled />}</Field>
+            {detail.sid && <Field label="รหัสนิสิต">{(id) => <input id={id} className="inp num" value={detail.sid ?? ""} disabled />}</Field>}
           </div>
         )}
         {mode.kind === "edit" && !detail ? <span className="small faint">กำลังโหลด…</span> : (

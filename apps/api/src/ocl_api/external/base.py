@@ -11,7 +11,13 @@ SYSTEMS: dict[str, dict[str, Any]] = {
     "huris": {"label": "HURIS (บุคลากร)", "tables": ["ext_staff"]},
     "supreme": {
         "label": "SUPREME (ทะเบียนหลักสูตร · ตารางสอน · ทะเบียนนิสิต · ผู้ลงนาม)",
-        "tables": ["ext_programs", "ext_sections", "ext_students", "ext_signers"],
+        "tables": [
+            "ext_programs",
+            "ext_sections",
+            "ext_students",
+            "ext_signers",
+            "ext_enrollments",
+        ],
     },
 }
 
@@ -42,7 +48,17 @@ COLUMNS: dict[str, list[str]] = {
         "room",
         "enrolled",
     ],
-    "ext_students": ["sid", "name_th", "program_code", "entry_year", "status", "graduated"],
+    "ext_students": [
+        "sid",
+        "name_th",
+        "program_code",
+        "entry_year",
+        "status",
+        "graduated",
+        "advisor_pid",
+    ],
+    # who sits in each section (FS-5 Q1 ก: the sample supplies it until SUPREME's feed, A4)
+    "ext_enrollments": ["term", "course_code", "section", "sid"],
     "ext_signers": ["id", "name_th", "position", "scope"],
 }
 JSONB = {"education", "works", "teachers"}

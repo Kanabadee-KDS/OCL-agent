@@ -9,12 +9,12 @@
 | หน้าใน mock ที่มี user story รองรับ | 51 / 51 |
 | user story ที่มี AC | 56 / 56 |
 | user story ที่ยังมีคำถามหรือข้อสมมติค้าง | 16 |
-| user story ที่มีกรณีทดสอบ | 26 / 56 |
+| user story ที่มีกรณีทดสอบ | 36 / 56 |
 | requirement ที่ไม่ใช่ฟังก์ชัน (`06-nfr.md`) | 25 ข้อ |
 | NFR ที่มีกรณีทดสอบ | 22 / 25 |
 | NFR ที่เกณฑ์ยังเป็นข้อเสนอ รอลูกค้ายืนยัน | 11 |
-| กรณีทดสอบที่ผูกกับ user story หรือ NFR | 173 / 177 (ที่เหลือดูข้อ 6) |
-| หน้าที่มีในระบบแล้ว (ทั้งหมดหรือบางส่วน) | 27 / 51 |
+| กรณีทดสอบที่ผูกกับ user story หรือ NFR | 181 / 185 (ที่เหลือดูข้อ 6) |
+| หน้าที่มีในระบบแล้ว (ทั้งหมดหรือบางส่วน) | 40 / 51 |
 
 ## 2. หน้า mock → user story → AC → กรณีทดสอบ
 
@@ -44,17 +44,17 @@
 | M2 แผนการจัดการเรียนรู้ | แบบบันทึกแผนรายวิชา/ชุดวิชา (`plan-edit`) | US-M2-03?, US-M2-04?, US-M2-05? | 3 / 3 | P-01–P-07 | มีแล้ว (FS-4b FS-4c `/plans/[ภาค]/[รายการ]` 6 หมวด · หมวด 2–6 [สมมติ: รอ มคอ.3]) |
 | M2 แผนการจัดการเรียนรู้ | บันทึกรายงานการจัดการการเรียนรู้ (`rep`) | US-M2-06? | 1 / 1 | P-01–P-07 | มีแล้ว (FS-4d `/reports`) |
 | M2 แผนการจัดการเรียนรู้ | แบบบันทึกรายงานผลรายวิชา/ชุดวิชา (`rep-edit`) | US-M2-06? | 1 / 1 | P-01–P-07 | มีแล้ว (FS-4d `/reports/[ภาค]/[รายการ]` 4 หมวด · เกรดกรอกเอง [สมมติ: รอ มคอ.5]) |
-| M3 Skill Transcript | แดชบอร์ด Skill (`dash-skill`) | US-M3-10? | 1 / 1 | – | ยังไม่มี |
-| M3 Skill Transcript | บริหารฐานข้อมูล Skill (`skill-db`) | US-M3-01 | 1 / 1 | – | ยังไม่มี |
-| M3 Skill Transcript | กำหนดผู้บันทึกแผนการประเมิน Skill (`skill-assign`) | US-M3-02 | 1 / 1 | – | ยังไม่มี |
-| M3 Skill Transcript | กำหนด Skill ตามหลักสูตร (`skill-cur`) | US-M3-03 | 1 / 1 | – | ยังไม่มี |
-| M3 Skill Transcript | กำหนดรายวิชาประเมิน Skill (`skill-map`) | US-M3-04 | 1 / 1 | – | ยังไม่มี |
-| M3 Skill Transcript | บันทึกประเมิน Skill (`assess`) | US-M3-05, US-M3-06 | 2 / 2 | – | ยังไม่มี |
-| M3 Skill Transcript | แบบบันทึกผลประเมิน Skill รายวิชา (`assess-form`) | US-M3-05, US-M3-06 | 2 / 2 | – | ยังไม่มี |
-| M3 Skill Transcript | Skill Portfolio (`portfolio`) | US-M3-07 | 1 / 1 | – | ยังไม่มี |
-| M3 Skill Transcript | Skill Portfolio รายบุคคล (`portfolio-detail`) | US-M3-07 | 1 / 1 | – | ยังไม่มี |
-| M3 Skill Transcript | ออกเอกสาร Skill Transcript (`issue`) | US-M3-08 | 1 / 1 | – | ยังไม่มี |
-| M3 Skill Transcript | เอกสาร Skill Transcript (`transcript`) | US-M3-08 | 1 / 1 | – | ยังไม่มี |
+| M3 Skill Transcript | แดชบอร์ด Skill (`dash-skill`) | US-M3-10? | 1 / 1 | T-01–T-08 | มีแล้ว (FS-5g `/dashboard/skills` · เมนู d3) |
+| M3 Skill Transcript | บริหารฐานข้อมูล Skill (`skill-db`) | US-M3-01 | 1 / 1 | T-01–T-08 | มีแล้ว (FS-5a `/skills` · ฐาน Skill ตัวอย่างรอ A7 · นำเข้า .xlsx) |
+| M3 Skill Transcript | กำหนดผู้บันทึกแผนการประเมิน Skill (`skill-assign`) | US-M3-02 | 1 / 1 | T-01–T-08 | มีแล้ว (FS-5b `/skills/assign` · สิทธิ์เพิ่ม Skill ในฐานข้อมูล) |
+| M3 Skill Transcript | กำหนด Skill ตามหลักสูตร (`skill-cur`) | US-M3-03 | 1 / 1 | T-01–T-08 | มีแล้ว (FS-5b `/skills/curricula` · flow skill_set) |
+| M3 Skill Transcript | กำหนดรายวิชาประเมิน Skill (`skill-map`) | US-M3-04 | 1 / 1 | T-01–T-08 | มีแล้ว (FS-5c `/skills/mapping` · flow skill_mapping) |
+| M3 Skill Transcript | บันทึกประเมิน Skill (`assess`) | US-M3-05, US-M3-06 | 2 / 2 | T-01–T-08 | มีแล้ว (FS-5d `/assess` · รายชื่อนิสิตตัวอย่างรอ A4) |
+| M3 Skill Transcript | แบบบันทึกผลประเมิน Skill รายวิชา (`assess-form`) | US-M3-05, US-M3-06 | 2 / 2 | T-01–T-08 | มีแล้ว (FS-5d `/assess/[ภาค]/[วิชา]/[กลุ่ม]` · แบบฟอร์ม .xlsx) |
+| M3 Skill Transcript | Skill Portfolio (`portfolio`) | US-M3-07 | 1 / 1 | T-01–T-08 | มีแล้ว (FS-5e `/portfolio`) |
+| M3 Skill Transcript | Skill Portfolio รายบุคคล (`portfolio-detail`) | US-M3-07 | 1 / 1 | T-01–T-08 | มีแล้ว (FS-5e `/portfolio/[รหัสนิสิต]`) |
+| M3 Skill Transcript | ออกเอกสาร Skill Transcript (`issue`) | US-M3-08 | 1 / 1 | T-01–T-08 | มีแล้ว (FS-5f `/transcripts` · ลงนามด้วยบริการตัวอย่าง) |
+| M3 Skill Transcript | เอกสาร Skill Transcript (`transcript`) | US-M3-08 | 1 / 1 | T-01–T-08 | มีแล้ว (FS-5f `/portfolio/[รหัสนิสิต]/transcript` · QR ตรวจที่ `/verify/[เลขที่]`) |
 | M4 ประเมินผลหลักสูตร | รอบการประเมิน (`qa-rounds`) | US-M4-01? | 1 / 1 | – | ยังไม่มี |
 | M4 ประเมินผลหลักสูตร | เกณฑ์และข้อคำถาม (`qa-criteria`) | US-M4-02? | 1 / 1 | – | ยังไม่มี |
 | M4 ประเมินผลหลักสูตร | กำหนดผู้บันทึกและผู้ยืนยันข้อมูล (`qa-assign`) | US-M4-03 | 1 / 1 | – | ยังไม่มี |
@@ -69,8 +69,8 @@
 | บริหารจัดการสิทธิ์ | กำหนดการตั้งค่าการอนุมัติ (`approval`) | US-U-05? | 1 / 1 | – | มีแล้ว (FS-1d) |
 | บริหารจัดการสิทธิ์ | ขั้นตอนอนุมัติของงาน (`flow-edit`) | US-U-05? | 1 / 1 | – | มีแล้ว (FS-1d · คู่มือหลักสูตรใช้งานจริง งานอื่นใช้เมื่อเปิดโมดูลนั้น) |
 | บริหารจัดการสิทธิ์ | กำหนดผู้ใช้งาน (`users`) | US-U-03 | 1 / 1 | J-01–J-16 | มีแล้ว (FS-1c · รหัสผ่านบัวศรีไอดีตั้งทาง server · คนนอก login ใน FS-8) |
-| สำหรับนิสิต | Skill Portfolio ของฉัน (`me`) | US-M3-09 | 1 / 1 | – | ยังไม่มี |
-| สำหรับนิสิต | Skill Transcript ของฉัน (`my-transcript`) | US-M3-09 | 1 / 1 | – | ยังไม่มี |
+| สำหรับนิสิต | Skill Portfolio ของฉัน (`me`) | US-M3-09 | 1 / 1 | T-01–T-08 | มีแล้ว (FS-5e `/me` · บัญชีนิสิตผูกรหัสนิสิต) |
+| สำหรับนิสิต | Skill Transcript ของฉัน (`my-transcript`) | US-M3-09 | 1 / 1 | T-01–T-08 | มีแล้ว (FS-5f `/me/transcript`) |
 
 `?` = user story ที่ยังมีคำถามหรือข้อสมมติค้าง (ดู `99-open-questions.md`) · AC x / y = user story ที่มี AC x เรื่องจาก y เรื่องของหน้านั้น
 
@@ -95,7 +95,7 @@
 | `02-m2-learning-plan.md` | US-M2-04 |  | ? | P-01–P-07 |
 | `02-m2-learning-plan.md` | US-M2-05 |  | ? | P-01–P-07 |
 | `02-m2-learning-plan.md` | US-M2-06 |  | ? | P-01–P-07 |
-| `03-m3-skill-transcript.md` | US-M3-10 |  | ? | – |
+| `03-m3-skill-transcript.md` | US-M3-10 |  | ? | T-01–T-08 |
 | `04-m4-qa.md` | US-M4-01 |  | ? | – |
 | `04-m4-qa.md` | US-M4-02 |  | ? | – |
 | `05-m5-reports.md` | US-M5-03 |  | ? | – |

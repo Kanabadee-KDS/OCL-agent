@@ -46,7 +46,8 @@ TITLES = [  # (full, short, academic position)
 WORK_TYPES = ["งานวิจัย", "บทความวิชาการ", "ตำรา"]
 DAYS = ["จ.", "อ.", "พ.", "พฤ.", "ศ."]
 STAFF_PER_FACULTY = 6
-STUDENTS_PER_PROGRAM = 8
+STUDENTS_PER_PROGRAM = 30
+GRADUATES_PER_PROGRAM = 3
 TERM = "2/2569"
 
 
@@ -117,22 +118,48 @@ def _sections(programs: list[dict[str, Any]], staff: list[dict[str, Any]]) -> li
     return rows
 
 
-def _students(programs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _students(programs: list[dict[str, Any]], staff: list[dict[str, Any]]) -> list[dict]:
     rows = []
     n = 0
     for pi, p in enumerate(programs):
         if p["level"] != "ปริญญาตรี":
             continue
+        advisors = [s["pid"] for s in staff if s["faculty"] == p["faculty"]]
         for k in range(STUDENTS_PER_PROGRAM):
             n += 1
-            graduated = k >= STUDENTS_PER_PROGRAM - 2  # two per program have finished
-            entry = 2565 if graduated else 2567
+            # the last ones finish this term, so their Skill Transcript can be issued (FS-5f)
+            graduated = k >= STUDENTS_PER_PROGRAM - GRADUATES_PER_PROGRAM
+            entry = 2566 if graduated else 2567 + k % 3
             rows.append({
                 "sid": f"{entry % 100}{pi + 1:03d}{k + 1:05d}", "name_th": f"[นิสิต {n}]",
                 "program_code": p["code"], "entry_year": entry,
                 "status": "สำเร็จการศึกษา" if graduated else "กำลังศึกษา",
-                "graduated": "1/2569" if graduated else None,
+                "graduated": TERM if graduated else None,
+                "advisor_pid": advisors[k % len(advisors)],
             })  # fmt: skip
+    return rows
+
+
+def _enrollments(sections: list[dict[str, Any]], students: list[dict[str, Any]]) -> list[dict]:
+    """Who sits in each section: students of the course's programme, the graduating ones
+    always in section 1; `enrolled` of the section becomes the size of its roster."""
+    rng = random.Random(25691)
+    rows = []
+    by_course: dict[str, list[dict[str, Any]]] = {}
+    for sec in sections:
+        by_course.setdefault(sec["course_code"], []).append(sec)
+    for code, secs in by_course.items():
+        pool = [st for st in students if st["program_code"] == secs[0]["program_code"]]
+        first = [st["sid"] for st in pool if st["graduated"]]
+        rest = [st["sid"] for st in pool if not st["graduated"]]
+        rng.shuffle(rest)
+        for i, sec in enumerate(sorted(secs, key=lambda x: x["section"])):
+            want = min(sec["enrolled"], len(pool) // len(secs))
+            roster = (first if i == 0 else []) + rest
+            roster, rest = roster[:want], [x for x in rest if x not in roster[:want]]
+            sec["enrolled"] = len(roster)
+            rows += [{"term": TERM, "course_code": code, "section": sec["section"], "sid": sid}
+                     for sid in sorted(roster)]  # fmt: skip
     return rows
 
 
@@ -158,12 +185,16 @@ class SampleAdapter:
             return Snapshot({"ext_staff": staff}, as_of)
         if system == "supreme":
             programs = _programs()
+            sections = _sections(programs, staff)
+            students = _students(programs, staff)
+            enrollments = _enrollments(sections, students)  # sets `enrolled` of each section
             return Snapshot(
                 {
                     "ext_programs": programs,
-                    "ext_sections": _sections(programs, staff),
-                    "ext_students": _students(programs),
+                    "ext_sections": sections,
+                    "ext_students": students,
                     "ext_signers": SIGNERS,
+                    "ext_enrollments": enrollments,
                 },
                 as_of,
             )

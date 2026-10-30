@@ -17,7 +17,7 @@ export type NavModule = { k: string; label: string; icon: string; secs: NavSecti
 export const NAV: NavModule[] = [
   {
     k: "d", label: "แดชบอร์ด", icon: "chart", secs: [
-      { cap: "ติดตามการบันทึกและสถิติ", items: [{ id: "d1", label: "หลักสูตร", route: "dash-cur", href: "/dashboard" }, { id: "d2", label: "การบันทึกแผนการเรียนรู้", route: "dash-plan", href: "/dashboard/plans" }] },
+      { cap: "ติดตามการบันทึกและสถิติ", items: [{ id: "d1", label: "หลักสูตร", route: "dash-cur", href: "/dashboard" }, { id: "d2", label: "การบันทึกแผนการเรียนรู้", route: "dash-plan", href: "/dashboard/plans" }, { id: "d3", label: "การประเมิน Skill Transcript", route: "dash-skill", href: "/dashboard/skills" }] },
     ],
   },
   {
@@ -48,16 +48,16 @@ export const NAV: NavModule[] = [
   },
   {
     k: "s", label: "Skill Transcript", icon: "skill", secs: [
-      { cap: "ตั้งค่าฐานข้อมูลพื้นฐาน", items: [{ id: "s1", label: "บริหารฐานข้อมูล Skill", route: "skill-db", phase: "FS-5" }] },
+      { cap: "ตั้งค่าฐานข้อมูลพื้นฐาน", items: [{ id: "s1", label: "บริหารฐานข้อมูล Skill", route: "skill-db", href: "/skills" }] },
       { cap: "ตั้งค่าการบันทึกข้อมูล", items: [
-        { id: "s2", label: "กำหนดผู้บันทึกแผนการประเมิน Skill", route: "skill-assign", phase: "FS-5" },
-        { id: "s2b", label: "กำหนด Skill ตามหลักสูตร", route: "skill-cur", tag: "ใหม่", phase: "FS-5" },
-        { id: "s3", label: "กำหนดรายวิชาประเมิน Skill", route: "skill-map", phase: "FS-5" },
+        { id: "s2", label: "กำหนดผู้บันทึกแผนการประเมิน Skill", route: "skill-assign", href: "/skills/assign" },
+        { id: "s2b", label: "กำหนด Skill ตามหลักสูตร", route: "skill-cur", tag: "ใหม่", href: "/skills/curricula" },
+        { id: "s3", label: "กำหนดรายวิชาประเมิน Skill", route: "skill-map", href: "/skills/mapping" },
       ] },
-      { cap: "บันทึกการประเมิน Skill", items: [{ id: "s4", label: "บันทึกประเมิน Skill", route: "assess", phase: "FS-5" }] },
+      { cap: "บันทึกการประเมิน Skill", items: [{ id: "s4", label: "บันทึกประเมิน Skill", route: "assess", href: "/assess" }] },
       { cap: "ติดตามการประเมิน Skill", items: [
-        { id: "s5", label: "Skill Portfolio", route: "portfolio", phase: "FS-5" },
-        { id: "s6", label: "ออกเอกสาร Skill Transcript", route: "issue", tag: "เสนอเพิ่ม", phase: "FS-5" },
+        { id: "s5", label: "Skill Portfolio", route: "portfolio", href: "/portfolio" },
+        { id: "s6", label: "ออกเอกสาร Skill Transcript", route: "issue", tag: "เสนอเพิ่ม", href: "/transcripts" },
       ] },
     ],
   },
@@ -111,8 +111,8 @@ export const NAV: NavModule[] = [
   {
     k: "m", label: "สำหรับนิสิต", icon: "user", secs: [
       { cap: "ผลทักษะของฉัน", items: [
-        { id: "m1", label: "Skill Portfolio ของฉัน", route: "me", phase: "FS-5" },
-        { id: "m2", label: "Skill Transcript ของฉัน", route: "my-transcript", phase: "FS-5" },
+        { id: "m1", label: "Skill Portfolio ของฉัน", route: "me", href: "/me" },
+        { id: "m2", label: "Skill Transcript ของฉัน", route: "my-transcript", href: "/me/transcript" },
       ] },
     ],
   },
@@ -148,6 +148,7 @@ export function visibleNav(perms: Perms | undefined): NavModule[] {
 // built pages below a menu (detail pages highlight their parent menu, like the mock's ROUTE_NAV)
 const PATH_MENU: [string, string][] = [
   ["/dashboard/plans", "d2"],
+  ["/dashboard/skills", "d3"],
   ["/dashboard", "d1"],
   ["/plans/assign", "p1"],
   ["/plans", "p2"],
@@ -162,6 +163,15 @@ const PATH_MENU: [string, string][] = [
   ["/roles", "u1"],
   ["/users", "u3"],
   ["/approval", "u2"],
+  ["/skills/assign", "s2"],
+  ["/skills/curricula", "s2b"],
+  ["/skills/mapping", "s3"],
+  ["/skills", "s1"],
+  ["/assess", "s4"],
+  ["/portfolio", "s5"],
+  ["/transcripts", "s6"],
+  ["/me/transcript", "m2"],
+  ["/me", "m1"],
 ];
 
 /** The menu a path belongs to, for highlighting and for the per-page permission check. */

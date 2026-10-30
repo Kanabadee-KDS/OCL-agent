@@ -51,6 +51,13 @@ DEFAULT_FLOWS: list[dict[str, Any]] = [
         ],
     },
     {
+        "id": "skill_set", "name": "อนุมัติชุด Skill ของหลักสูตร", "fixed": None,
+        "steps": [
+            _step(["curator"], "ส่ง", "submit", 3, "ผู้กำหนด Skill ของหลักสูตร"),
+            _step(["faculty"], "อนุมัติ", "approve", 7),
+        ],
+    },
+    {
         "id": "skill_mapping", "name": "อนุมัติ Skill Mapping", "fixed": None,
         "steps": [
             _step(["curator"], "ส่ง", "submit", 3, "ผู้กำหนด Skill ของหลักสูตร"),

@@ -61,7 +61,7 @@ def test_seeded_flows_and_rules(client: TestClient) -> None:
     c = client
     items = c.get("/api/flows", headers=CENTRAL).json()["items"]
     assert [f["id"] for f in items] == [
-        "curriculum", "smo08", "skill_mapping", "learning_plan", "skill_transcript",
+        "curriculum", "smo08", "skill_set", "skill_mapping", "learning_plan", "skill_transcript",
     ]  # fmt: skip
     cur = items[0]
     assert [s["roles"] for s in cur["steps"]] == [["curator", "central"], ["faculty"], ["central"]]

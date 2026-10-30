@@ -208,7 +208,7 @@ export const roles = {
 // ---------- ผู้ใช้งาน (ocl_api.api.users · menu u3) ----------
 export type UserRow = {
   email: string; name: string; buasri_id: string | null; roles: string[]; active: boolean; usable: boolean;
-  units: string[]; kind: "internal" | "external"; pid: string | null; expires_at: string | null;
+  units: string[]; kind: "internal" | "external"; pid: string | null; sid?: string | null; expires_at: string | null;
   has_password: boolean; last_login_at: string | null; updated_by: string | null; updated_at: string | null;
 };
 export type UserDetail = UserRow & { events: RoleEvent[] };
@@ -218,7 +218,7 @@ export const usersApi = {
   options: () => fetch(`${API_BASE}/api/users/options`, { cache: "no-store" }).then(j<UserOptions>),
   list: () => fetch(`${API_BASE}/api/users`, { cache: "no-store" }).then(j<{ items: UserRow[] }>),
   get: (email: string) => fetch(`${API_BASE}/api/users/${enc(email)}`, { cache: "no-store" }).then(j<UserDetail>),
-  add: (body: { pid?: string; email?: string; name?: string; roles: string[]; units: string[]; expires_at?: string | null }) =>
+  add: (body: { pid?: string; sid?: string; email?: string; name?: string; roles: string[]; units: string[]; expires_at?: string | null }) =>
     fetch(`${API_BASE}/api/users`, json("POST", body)).then(j<UserRow>),
   invite: (body: { email: string; name: string; roles: string[]; units: string[]; expires_at: string }) =>
     fetch(`${API_BASE}/api/users/invite`, json("POST", body)).then(j<UserRow>),
@@ -408,4 +408,132 @@ export const m2Api = {
   publish: (slug: string, key: string, doc: M2Doc, on: boolean) => fetch(m2i(slug, key, `/${doc}/publish?on=${on}`), { method: "POST" }).then(j<M2DocData>),
   dashboard: (slug: string) => fetch(m2u(slug, "/dashboard"), { cache: "no-store" }).then(j<M2Dashboard>),
   remind: (slug: string, key?: string, doc?: M2Doc) => fetch(m2u(slug, "/remind"), json("POST", { key, doc })).then(j<{ sent: number; late: number }>),
+};
+
+// ---------- Skill Transcript (FS-5 · M3) ----------
+export type SkillCat = "GS" | "SS" | "E" | "C";
+export type SkillRow = { code: string; cat: SkillCat; name_th: string; name_en: string | null; definition: string | null; scope: "central" | "program"; curriculum_id: number | null; curriculum: string | null; tools: string[]; sources: string[]; rubric: string[]; active: boolean; used_in: number; updated_at: string };
+export type SkillLevel = { level: number; min: number; max: number; en: string; th: string };
+export type SkillFramework = { level: string; cohorts: string; frame: string; status: string };
+export type SkillSettings = { levels: SkillLevel[]; ethics_pass: number; frameworks: SkillFramework[] };
+export type SkillsResp = { items: SkillRow[]; settings: SkillSettings; rights: { cats: SkillCat[]; central: boolean } };
+export type SkillBody = Pick<SkillRow, "code" | "cat" | "name_th" | "scope" | "tools" | "sources" | "rubric"> & { name_en?: string | null; definition?: string | null };
+export type SkillDbPerm = { id: number; who: string; kind: "role" | "pid"; label: string; cats: SkillCat[]; unit_scope: "all" | "faculty" | "program" };
+export type SkillAssign = { pid: string; name?: string; role: string; perms: string[]; scope: "all" | "courses"; courses: string[] };
+export type SkillAssignOverview = {
+  items: { id: number; name_th: string; faculty: string | null; level: string | null; assign: SkillAssign[]; status: "ok" | "none"; courses: string[] }[];
+  kpi: { total: number; assigned: number; none: number; people: number };
+  roles: Record<string, { label: string; perms: string[]; scope: "all" | "courses" }>;
+  perms: Record<string, string>;
+};
+export type SkillCurriculum = { id: number; name_th: string; level: string | null; program_code: string | null; faculty: string | null; book_courses: string[] };
+export type SkillStatus = "none" | "draft" | "sent" | "returned" | "approved";
+export type SkillSetsOverview = {
+  items: { id: number; name_th: string; faculty: string | null; status: SkillStatus; version: number | null; cohort_from: number | null; counts: Record<SkillCat, number>; own: number; only_core: boolean }[];
+  statuses: Record<SkillStatus, string>;
+  kpi: { approved: number; pending: number; none: number; only_core: number };
+};
+export type SkillRights = { staff: boolean; assigned: boolean; add: boolean; map: boolean; send: boolean; appr: boolean; faculty: boolean; courses: string[] | null };
+export type SkillEvent = { ts: string; by: string; action: string; note: string | null };
+export type SkillFlowStep = { roles: string[]; position: string | null; label: string; action: string; days: number };
+export type SkillSetData = {
+  curriculum: SkillCurriculum;
+  set: { version: number; status: SkillStatus; status_th: string; skills: string[]; cohort_from: number | null; step: number };
+  versions: { version: number; status: SkillStatus; cohort_from: number | null; skills: number; approved_at: string | null }[];
+  core: string[]; pool: SkillRow[]; steps: SkillFlowStep[]; events: SkillEvent[]; rights: SkillRights;
+  can_edit: boolean; can_submit: boolean; can_certify: boolean; can_revise: boolean;
+};
+export type SkillMapCourse = { code: string; name_th: string; module: string | null; offered: boolean; skills: string[] };
+export type SkillMapping = {
+  term: string; curriculum: SkillCurriculum; set: { version: number; cohort_from: number | null; skills: string[] } | null; skills: SkillRow[];
+  courses: SkillMapCourse[]; status: SkillStatus; status_th: string; steps: SkillFlowStep[]; events: SkillEvent[];
+  kpi: { courses: number; mapped: number; points: number; gaps: string[] }; rights: SkillRights;
+  can_edit: boolean; can_submit: boolean; can_certify: boolean; copied_from?: string; skipped?: string[];
+};
+export type AssessStatus = "todo" | "doing" | "wait" | "ok";
+export type AssessRow = { course_code: string; section: string; name_th: string | null; program: string | null; faculty: string | null; curricula: { id: number; name_th: string }[]; skills: string[]; n: number; done: number; teachers: { pid: string; name: string }[]; mine: boolean; status: AssessStatus; deadline: string | null };
+export type AssessList = { term: string; items: AssessRow[]; statuses: Record<AssessStatus, string>; deadline: string | null };
+export type AssessForm = AssessRow & {
+  term: string; students: { sid: string; name_th: string | null }[]; scores: Record<string, Record<string, number>>; skill_rows: SkillRow[];
+  levels: SkillLevel[]; confirmed_by: string | null; confirmed_at: string | null; events: SkillEvent[]; can_edit: boolean; can_reopen: boolean; imported?: number;
+};
+export type CatScores = Record<SkillCat, number | null>;
+export type PortfolioItem = { sid: string; name_th: string; program: string | null; program_code: string | null; faculty: string | null; entry_year: number | null; status: string | null; cats: CatScores; overall: number | null; level: string | null };
+export type PortfolioSkill = { code: string; cat: SkillCat; name_th: string; name_en: string | null; definition: string | null; avg: number | null; level: string | null; n: number; in_set: boolean; su: "S" | "U" | null; sources: { term: string; course_code: string; course_name: string | null; section: string; score: number }[] };
+export type Portfolio = {
+  student: { sid: string; name_th: string; program: string | null; program_name: string | null; faculty: string | null; entry_year: number | null; status: string | null; graduated: string | null; advisor: string | null };
+  curriculum: { id: number; name_th: string } | null; set: { version: number; cohort_from: number | null; skills: string[] } | null;
+  skills: PortfolioSkill[]; cats: CatScores; overall: number | null; level: string | null; by_term: { term: string; label: string; cats: CatScores }[];
+  levels: SkillLevel[]; ethics_pass: number; placement: string | null;
+  readiness: { graduated: boolean; has_set: boolean; missing: string[]; ethics_u: string[]; ready: boolean };
+  transcript: { no: string; status: string; issued_at: string | null } | null;
+};
+export type TranscriptData = {
+  student: { sid: string; name_th: string; program: string | null; program_name: string | null; faculty: string | null; entry_year: number | null; graduated: string | null };
+  curriculum: { id: number; name_th: string } | null; set_version: number | null;
+  skills: { code: string; cat: SkillCat; name_th: string; name_en: string | null; definition: string | null; avg: number | null; level: string | null; su: "S" | "U" | null }[];
+  cats: CatScores; overall: number | null; level: string | null; placement: string | null;
+  signer: { id: string; name_th: string; position: string | null } | null; no?: string; issued_on?: string;
+};
+export type TranscriptDoc = { draft: boolean; no: string | null; data: TranscriptData; signer?: { name_th: string; position: string | null; method: string; sample?: boolean; signed_at?: string }; issued_at?: string | null; checks?: number; levels: SkillLevel[]; readiness: Portfolio["readiness"] };
+export type GraduateGroup = "ready" | "incomplete" | "ethics" | "issued";
+export type Graduate = { sid: string; name_th: string; program: string | null; faculty: string | null; graduated: string | null; curriculum: { id: number; name_th: string } | null; set_size: number; missing: string[]; has_set: boolean; ethics_u: string[]; group: GraduateGroup; transcript: { no: string; status: string } | null };
+export type Graduates = { items: Graduate[]; groups: Record<GraduateGroup, number>; ethics_pass: number };
+export type RegisterRow = { no: string; sid: string; name_th: string; program: string | null; status: string; checks: number; issued_at: string | null; by: string | null };
+export type SkillDashboard = {
+  term: string; sections: number; students: number; assessed_pct: number; status: Record<AssessStatus, number>; transcripts: Record<GraduateGroup, number>; graduates: number;
+  units: { faculty: string; sections: number; status: Record<AssessStatus, number>; confirmed_pct: number; assessed_pct: number; below: boolean }[];
+  target_pct: number; deadline: string | null; late_days: number;
+  late: { course_code: string; section: string; name_th: string | null; faculty: string | null; status: AssessStatus; n: number; done: number; teachers: { pid: string; name: string }[] }[];
+};
+export type TranscriptCheck = { no: string; name_th: string; sid: string; program: string | null; faculty: string | null; curriculum: string | null; issued_at: string | null; signer: { name_th: string | null; position: string | null }; signature: { method: string | null; sample: boolean; valid: boolean }; checks: number };
+
+const sk = (rest = "") => `${API_BASE}/api/skills${rest}`;
+const get = <T,>(u: string) => fetch(u, { cache: "no-store" }).then(j<T>);
+const upload = <T,>(u: string, file: File) => { const f = new FormData(); f.append("file", file); return fetch(u, { method: "POST", body: f }).then(j<T>); };
+export const skillsApi = {
+  list: () => get<SkillsResp>(sk()),
+  add: (b: SkillBody) => fetch(sk(), json("POST", b)).then(j<SkillRow>),
+  save: (b: SkillBody) => fetch(sk(`/${enc(b.code)}`), json("PUT", b)).then(j<SkillRow>),
+  active: (code: string, on: boolean) => fetch(sk(`/${enc(code)}/active?on=${on}`), { method: "POST" }).then(j<SkillRow>),
+  templateUrl: () => sk("/template.xlsx"),
+  importXlsx: (file: File) => upload<{ added: number; updated: number; errors: { row: number; error: string }[] }>(sk("/import"), file),
+  saveSetting: (key: "levels" | "ethics_pass" | "frameworks", data: unknown) => fetch(sk(`/settings/${key}`), json("PUT", { data })).then(j<SkillSettings>),
+  dbPerms: () => get<{ items: SkillDbPerm[]; groups: Record<string, string> }>(sk("/db-perms")),
+  addDbPerm: (b: Pick<SkillDbPerm, "who" | "cats" | "unit_scope">) => fetch(sk("/db-perms"), json("POST", b)).then(j<SkillDbPerm[]>),
+  delDbPerm: (id: number) => fetch(sk(`/db-perms/${id}`), { method: "DELETE" }).then(j<SkillDbPerm[]>),
+  assign: () => get<SkillAssignOverview>(sk("/assign")),
+  setAssign: (cid: number, rows: SkillAssign[]) => fetch(sk(`/assign/${cid}`), json("PUT", rows)).then(j<SkillAssign[]>),
+  sets: () => get<SkillSetsOverview>(sk("/sets")),
+  set: (cid: number) => get<SkillSetData>(sk(`/sets/${cid}`)),
+  saveSet: (cid: number, skills: string[], cohort_from: number | null) => fetch(sk(`/sets/${cid}`), json("PUT", { skills, cohort_from })).then(j<SkillSetData>),
+  addOwn: (cid: number, b: SkillBody) => fetch(sk(`/sets/${cid}/own`), json("POST", b)).then(j<SkillSetData>),
+  submitSet: (cid: number) => fetch(sk(`/sets/${cid}/submit`), { method: "POST" }).then(j<SkillSetData>),
+  certifySet: (cid: number, ok: boolean, note: string) => fetch(sk(`/sets/${cid}/certify`), json("POST", { ok, note })).then(j<SkillSetData>),
+  reviseSet: (cid: number, cohort_from: number | null) => fetch(sk(`/sets/${cid}/revise`), json("POST", { cohort_from })).then(j<SkillSetData>),
+  terms: () => get<string[]>(sk("/terms")),
+  mapCurricula: (slug: string) => get<{ id: number; name_th: string; faculty: string | null }[]>(sk(`/map/${slug}`)),
+  mapping: (slug: string, cid: number) => get<SkillMapping>(sk(`/map/${slug}/${cid}`)),
+  saveMapping: (slug: string, cid: number, cells: Record<string, string[]>) => fetch(sk(`/map/${slug}/${cid}`), json("PUT", { cells })).then(j<SkillMapping>),
+  copyMapping: (slug: string, cid: number) => fetch(sk(`/map/${slug}/${cid}/copy`), { method: "POST" }).then(j<SkillMapping>),
+  submitMapping: (slug: string, cid: number) => fetch(sk(`/map/${slug}/${cid}/submit`), { method: "POST" }).then(j<SkillMapping>),
+  certifyMapping: (slug: string, cid: number, ok: boolean, note: string) => fetch(sk(`/map/${slug}/${cid}/certify`), json("POST", { ok, note })).then(j<SkillMapping>),
+  sections: (slug: string) => get<AssessList>(sk(`/assess/${slug}`)),
+  section: (slug: string, code: string, sec: string) => get<AssessForm>(sk(`/assess/${slug}/${enc(code)}/${enc(sec)}`)),
+  saveScores: (slug: string, code: string, sec: string, scores: Record<string, Record<string, number | null>>) => fetch(sk(`/assess/${slug}/${enc(code)}/${enc(sec)}`), json("PUT", { scores })).then(j<AssessForm>),
+  confirm: (slug: string, code: string, sec: string) => fetch(sk(`/assess/${slug}/${enc(code)}/${enc(sec)}/confirm`), { method: "POST" }).then(j<AssessForm>),
+  reopen: (slug: string, code: string, sec: string, note: string) => fetch(sk(`/assess/${slug}/${enc(code)}/${enc(sec)}/reopen`), json("POST", { note })).then(j<AssessForm>),
+  formUrl: (slug: string, code: string, sec: string) => sk(`/assess/${slug}/${enc(code)}/${enc(sec)}/form.xlsx`),
+  importScores: (slug: string, code: string, sec: string, file: File) => upload<AssessForm>(sk(`/assess/${slug}/${enc(code)}/${enc(sec)}/import`), file),
+  portfolios: () => get<{ items: PortfolioItem[]; levels: SkillLevel[] }>(sk("/portfolio")),
+  portfolio: (sid: string) => get<Portfolio>(sk(`/portfolio/${enc(sid)}`)),
+  transcript: (sid: string) => get<TranscriptDoc>(sk(`/portfolio/${enc(sid)}/transcript`)),
+  me: () => get<Portfolio>(sk("/me")),
+  myTranscript: () => get<TranscriptDoc>(sk("/me/transcript")),
+  qrUrl: (no: string, origin: string) => sk(`/transcripts/${enc(no)}/qr.svg?origin=${enc(origin)}`),
+  graduates: () => get<Graduates>(sk("/issue")),
+  issue: (sids: string[]) => fetch(sk("/issue"), json("POST", { sids })).then(j<{ issued: string[] }>),
+  register: () => get<RegisterRow[]>(sk("/register")),
+  dashboard: (slug: string) => get<SkillDashboard>(sk(`/dashboard/${slug}`)),
+  remind: (slug: string, course_code?: string, section?: string) => fetch(sk(`/dashboard/${slug}/remind`), json("POST", { course_code, section })).then(j<{ sent: number; late: number }>),
 };

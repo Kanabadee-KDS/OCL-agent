@@ -18,6 +18,7 @@ from psycopg.types.json import Jsonb
 
 from ocl_api.flow_defaults import seed_sql as flow_seed_sql
 from ocl_api.perms import menu_seed_sql, scope_kind_sql, seed_sql
+from ocl_api.skill_defaults import seed_sql as skill_seed_sql
 
 MIGRATIONS: list[tuple[str, str]] = [
     (
@@ -530,6 +531,141 @@ MIGRATIONS: list[tuple[str, str]] = [
         """
         + "-- แดชบอร์ดการบันทึกแผนการเรียนรู้ (FS-4e): the menu d2\n"
         + menu_seed_sql("d2"),
+    ),
+    (
+        "017_skills",
+        """
+        -- Skill Transcript (FS-5 · M3): the skill database, who sets the skills of each
+        -- curriculum, its skill sets per cohort, the course × skill mapping of a term, the
+        -- scores of each course section, and the documents issued
+        CREATE TABLE IF NOT EXISTS ext_enrollments (
+            term        text NOT NULL,
+            course_code text NOT NULL,
+            section     text NOT NULL,
+            sid         text NOT NULL,
+            PRIMARY KEY (term, course_code, section, sid)
+        );
+        ALTER TABLE ext_students ADD COLUMN IF NOT EXISTS advisor_pid text;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS sid text;
+        CREATE TABLE IF NOT EXISTS skill_settings (
+            key        text PRIMARY KEY,
+            data       jsonb NOT NULL,
+            updated_by text,
+            updated_at timestamptz NOT NULL DEFAULT now()
+        );
+        CREATE TABLE IF NOT EXISTS skills (
+            code          text PRIMARY KEY,
+            cat           text NOT NULL,
+            name_th       text NOT NULL,
+            name_en       text,
+            definition    text,
+            scope         text NOT NULL DEFAULT 'program',
+            curriculum_id bigint,
+            tools         jsonb NOT NULL DEFAULT '[]'::jsonb,
+            sources       jsonb NOT NULL DEFAULT '[]'::jsonb,
+            rubric        jsonb NOT NULL DEFAULT '[]'::jsonb,
+            active        boolean NOT NULL DEFAULT true,
+            created_by    text,
+            updated_by    text,
+            updated_at    timestamptz NOT NULL DEFAULT now()
+        );
+        CREATE TABLE IF NOT EXISTS skill_db_perms (
+            id         bigserial PRIMARY KEY,
+            who        text NOT NULL,
+            cats       jsonb NOT NULL DEFAULT '[]'::jsonb,
+            unit_scope text NOT NULL DEFAULT 'program',
+            updated_by text,
+            updated_at timestamptz NOT NULL DEFAULT now()
+        );
+        CREATE TABLE IF NOT EXISTS skill_assign (
+            curriculum_id bigint NOT NULL,
+            pid           text NOT NULL,
+            role          text NOT NULL,
+            perms         jsonb NOT NULL DEFAULT '{}'::jsonb,
+            scope         text NOT NULL DEFAULT 'all',
+            courses       jsonb NOT NULL DEFAULT '[]'::jsonb,
+            updated_by    text,
+            updated_at    timestamptz NOT NULL DEFAULT now(),
+            PRIMARY KEY (curriculum_id, pid)
+        );
+        CREATE TABLE IF NOT EXISTS skill_sets (
+            id            bigserial PRIMARY KEY,
+            curriculum_id bigint NOT NULL,
+            version       int NOT NULL,
+            cohort_from   int,
+            skills        jsonb NOT NULL DEFAULT '[]'::jsonb,
+            status        text NOT NULL DEFAULT 'draft',
+            step          int NOT NULL DEFAULT 0,
+            flow_version  int,
+            updated_by    text,
+            updated_at    timestamptz NOT NULL DEFAULT now(),
+            approved_at   timestamptz,
+            UNIQUE (curriculum_id, version)
+        );
+        CREATE TABLE IF NOT EXISTS skill_maps (
+            term          text NOT NULL,
+            curriculum_id bigint NOT NULL,
+            cells         jsonb NOT NULL DEFAULT '{}'::jsonb,
+            status        text NOT NULL DEFAULT 'draft',
+            step          int NOT NULL DEFAULT 0,
+            flow_version  int,
+            updated_by    text,
+            updated_at    timestamptz NOT NULL DEFAULT now(),
+            approved_at   timestamptz,
+            PRIMARY KEY (term, curriculum_id)
+        );
+        CREATE TABLE IF NOT EXISTS skill_sections (
+            term         text NOT NULL,
+            course_code  text NOT NULL,
+            section      text NOT NULL,
+            status       text NOT NULL DEFAULT 'draft',
+            updated_by   text,
+            updated_at   timestamptz NOT NULL DEFAULT now(),
+            confirmed_by text,
+            confirmed_at timestamptz,
+            PRIMARY KEY (term, course_code, section)
+        );
+        CREATE TABLE IF NOT EXISTS skill_scores (
+            term        text NOT NULL,
+            course_code text NOT NULL,
+            section     text NOT NULL,
+            sid         text NOT NULL,
+            skill       text NOT NULL,
+            score       numeric(3, 2) NOT NULL,
+            PRIMARY KEY (term, course_code, section, sid, skill)
+        );
+        CREATE INDEX IF NOT EXISTS skill_scores_sid_idx ON skill_scores (sid);
+        CREATE TABLE IF NOT EXISTS skill_transcripts (
+            no            text PRIMARY KEY,
+            sid           text NOT NULL,
+            curriculum_id bigint,
+            data          jsonb NOT NULL,
+            sha256        text,
+            signer        jsonb,
+            status        text NOT NULL DEFAULT 'review',
+            step          int NOT NULL DEFAULT 0,
+            checks        int NOT NULL DEFAULT 0,
+            created_by    text,
+            created_at    timestamptz NOT NULL DEFAULT now(),
+            issued_at     timestamptz
+        );
+        CREATE INDEX IF NOT EXISTS skill_transcripts_sid_idx ON skill_transcripts (sid);
+        CREATE TABLE IF NOT EXISTS skill_events (
+            id     bigserial PRIMARY KEY,
+            kind   text NOT NULL,
+            ref    text NOT NULL,
+            ts     timestamptz NOT NULL DEFAULT now(),
+            by     text,
+            action text NOT NULL,
+            note   text
+        );
+        CREATE INDEX IF NOT EXISTS skill_events_ref_idx ON skill_events (kind, ref);
+        """
+        + skill_seed_sql()
+        + "\n-- the flow skill_set (FS-5 Q3 ก); the older flows are already there\n"
+        + flow_seed_sql()
+        + "\n-- แดชบอร์ดการประเมิน Skill Transcript (FS-5g): the menu d3\n"
+        + menu_seed_sql("d3"),
     ),
 ]
 
