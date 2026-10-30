@@ -6,7 +6,8 @@
 // "สิทธิ์เพิ่ม Skill ในฐานข้อมูล" names the groups or people who may add skills of each side.
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
-import { skillsApi, usersApi, type SkillAssign, type SkillAssignOverview, type SkillDbPerm, type Staff } from "@/lib/api";
+import { skillsApi, type SkillAssign, type SkillAssignOverview, type SkillDbPerm } from "@/lib/api";
+import { StaffSearch } from "@/components/staffsearch";
 import { canMenu } from "@/lib/nav";
 import { CATS } from "@/lib/skills";
 import { Note, PageHead, Pill } from "@/components/ui";
@@ -60,26 +61,6 @@ export default function SkillAssignPage() {
       {tab === "db" && <DbPerms canEdit={canEdit} />}
       {edit && d && <AssignModal item={edit} d={d} readOnly={!canEdit} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); load(); toast("บันทึกการกำหนดผู้รับผิดชอบแล้ว"); }} />}
     </>
-  );
-}
-
-function StaffSearch({ onPick, exclude }: { onPick: (s: Staff) => void; exclude: string[] }) {
-  const [q, setQ] = useState("");
-  const [found, setFound] = useState<Staff[]>([]);
-  useEffect(() => {
-    if (q.trim().length < 2) return;
-    const t = setTimeout(() => { usersApi.staff(q).then((r) => setFound(r.items)).catch(() => setFound([])); }, 250);
-    return () => clearTimeout(t);
-  }, [q]);
-  return (
-    <div className="stack" style={{ gap: 4 }}>
-      <input className="inp" aria-label="ค้นบุคลากร" placeholder="พิมพ์ชื่อหรือรหัสบุคลากร (ระบบบุคลากร) เพื่อเพิ่ม" value={q} onChange={(e) => setQ(e.target.value)} />
-      {q.trim().length >= 2 && found.filter((s) => !exclude.includes(s.pid)).map((s) => (
-        <button key={s.pid} type="button" className="card" style={{ padding: "6px 10px", textAlign: "left", cursor: "pointer" }} onClick={() => { onPick(s); setQ(""); }}>
-          <b>{s.title_short}{s.name_th}</b> <span className="small faint">{s.pid} · {s.faculty}</span>
-        </button>
-      ))}
-    </div>
   );
 }
 

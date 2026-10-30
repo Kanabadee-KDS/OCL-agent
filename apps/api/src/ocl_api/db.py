@@ -18,6 +18,7 @@ from psycopg.types.json import Jsonb
 
 from ocl_api.flow_defaults import seed_sql as flow_seed_sql
 from ocl_api.perms import menu_seed_sql, scope_kind_sql, seed_sql
+from ocl_api.qa_defaults import seed_sql as qa_seed_sql
 from ocl_api.skill_defaults import seed_sql as skill_seed_sql
 
 MIGRATIONS: list[tuple[str, str]] = [
@@ -666,6 +667,65 @@ MIGRATIONS: list[tuple[str, str]] = [
         + flow_seed_sql()
         + "\n-- แดชบอร์ดการประเมิน Skill Transcript (FS-5g): the menu d3\n"
         + menu_seed_sql("d3"),
+    ),
+    (
+        "018_qa",
+        """
+        -- ประเมินผลหลักสูตรตามเกณฑ์มาตรฐาน (FS-6 · M4): the criteria of each set of the
+        -- announcement, the rounds, and per curriculum in a round its recorders, confirmer,
+        -- evaluators, notes, the evaluator's result of each item and the history
+        CREATE TABLE IF NOT EXISTS qa_criteria (
+            id         bigserial PRIMARY KEY,
+            set_year   int NOT NULL,
+            no         int NOT NULL,
+            title      text NOT NULL,
+            detail     text,
+            sources    jsonb NOT NULL DEFAULT '[]'::jsonb,
+            level      text NOT NULL DEFAULT 'all',
+            rule       text NOT NULL DEFAULT 'none',
+            active     boolean NOT NULL DEFAULT true,
+            updated_by text,
+            updated_at timestamptz NOT NULL DEFAULT now(),
+            UNIQUE (set_year, no)
+        );
+        CREATE TABLE IF NOT EXISTS qa_rounds (
+            id         bigserial PRIMARY KEY,
+            year       int NOT NULL,
+            name       text NOT NULL,
+            starts_on  date,
+            ends_on    date,
+            status     text NOT NULL DEFAULT 'draft',
+            criteria   jsonb,
+            created_by text,
+            created_at timestamptz NOT NULL DEFAULT now(),
+            closed_at  timestamptz
+        );
+        CREATE TABLE IF NOT EXISTS qa_programs (
+            round_id      bigint NOT NULL REFERENCES qa_rounds (id) ON DELETE CASCADE,
+            curriculum_id bigint NOT NULL,
+            set_year      int NOT NULL,
+            evaluators    jsonb NOT NULL DEFAULT '[]'::jsonb,
+            recorders     jsonb NOT NULL DEFAULT '[]'::jsonb,
+            confirmer     text,
+            status        text NOT NULL DEFAULT 'none',
+            notes         jsonb NOT NULL DEFAULT '{}'::jsonb,
+            results       jsonb NOT NULL DEFAULT '{}'::jsonb,
+            updated_by    text,
+            updated_at    timestamptz NOT NULL DEFAULT now(),
+            PRIMARY KEY (round_id, curriculum_id)
+        );
+        CREATE TABLE IF NOT EXISTS qa_events (
+            id            bigserial PRIMARY KEY,
+            round_id      bigint NOT NULL,
+            curriculum_id bigint,
+            ts            timestamptz NOT NULL DEFAULT now(),
+            by            text,
+            action        text NOT NULL,
+            note          text
+        );
+        CREATE INDEX IF NOT EXISTS qa_events_idx ON qa_events (round_id, curriculum_id);
+        """
+        + qa_seed_sql(),
     ),
 ]
 

@@ -14,6 +14,7 @@ from ocl_api.api.flows import router as flows_router
 from ocl_api.api.imports import router as imports_router
 from ocl_api.api.m2 import router as m2_router
 from ocl_api.api.persons import router as persons_router
+from ocl_api.api.qa import router as qa_router
 from ocl_api.api.roles import router as roles_router
 from ocl_api.api.skills import public as public_router
 from ocl_api.api.skills import router as skills_router
@@ -41,6 +42,7 @@ def create_app() -> FastAPI:
     app.include_router(m2_router)
     app.include_router(skills_router)
     app.include_router(public_router)
+    app.include_router(qa_router)
     app.include_router(external_router)
     app.include_router(roles_router)
     app.include_router(users_router)

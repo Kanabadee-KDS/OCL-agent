@@ -43,6 +43,9 @@ test("detail pages belong to their menu", () => {
   assert.equal(menuOfPath("/portfolio/123/transcript"), "s5");
   assert.equal(menuOfPath("/me/transcript"), "m2");
   assert.equal(menuOfPath("/me"), "m1");
+  assert.equal(menuOfPath("/qa/rounds"), "q1");
+  assert.equal(menuOfPath("/qa/3/7"), "q3");
+  assert.equal(menuOfPath("/qa/result"), "q4");
 });
 
 test("landing page is the first built page the user may open", () => {

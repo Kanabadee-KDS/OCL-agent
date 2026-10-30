@@ -64,13 +64,13 @@ export const NAV: NavModule[] = [
   {
     k: "q", label: "ประเมินผลหลักสูตรตามเกณฑ์มาตรฐาน", icon: "qa", secs: [
       { cap: "ตั้งค่าการประเมิน", items: [
-        { id: "q1", label: "รอบการประเมิน", route: "qa-rounds", phase: "FS-6" },
-        { id: "q2", label: "เกณฑ์และข้อคำถาม", route: "qa-criteria", phase: "FS-6" },
-        { id: "q1b", label: "กำหนดผู้บันทึกและผู้ยืนยันข้อมูล", route: "qa-assign", tag: "ใหม่", phase: "FS-6" },
+        { id: "q1", label: "รอบการประเมิน", route: "qa-rounds", href: "/qa/rounds" },
+        { id: "q2", label: "เกณฑ์และข้อคำถาม", route: "qa-criteria", href: "/qa/criteria" },
+        { id: "q1b", label: "กำหนดผู้บันทึกและผู้ยืนยันข้อมูล", route: "qa-assign", tag: "ใหม่", href: "/qa/assign" },
       ] },
       { cap: "ตรวจสอบและประเมิน", items: [
-        { id: "q3", label: "ตรวจสอบข้อมูลองค์ประกอบที่ 1", route: "qa-check", phase: "FS-6" },
-        { id: "q4", label: "สรุปผลการประเมิน", route: "qa-result", phase: "FS-6" },
+        { id: "q3", label: "ตรวจสอบข้อมูลองค์ประกอบที่ 1", route: "qa-check", href: "/qa" },
+        { id: "q4", label: "สรุปผลการประเมิน", route: "qa-result", href: "/qa/result" },
       ] },
     ],
   },
@@ -172,6 +172,11 @@ const PATH_MENU: [string, string][] = [
   ["/transcripts", "s6"],
   ["/me/transcript", "m2"],
   ["/me", "m1"],
+  ["/qa/rounds", "q1"],
+  ["/qa/criteria", "q2"],
+  ["/qa/assign", "q1b"],
+  ["/qa/result", "q4"],
+  ["/qa", "q3"],
 ];
 
 /** The menu a path belongs to, for highlighting and for the per-page permission check. */

@@ -39,6 +39,8 @@ extend-immutable-calls = ["fastapi.Depends", "fastapi.File", "fastapi.Form", "fa
 "apps/api/src/ocl_api/extract/golden.py" = ["E501"]
 # field table with Thai labels and options
 "apps/api/src/ocl_api/extract/info.py" = ["E501"]
+# the criteria of the announcement, quoted whole
+"apps/api/src/ocl_api/qa_defaults.py" = ["E501"]
 # bench/report scripts: Thai table rows and f-strings read better unwrapped
 "tools/bench.py" = ["E501"]
 # fixtures quote whole lines of the books

@@ -537,3 +537,68 @@ export const skillsApi = {
   dashboard: (slug: string) => get<SkillDashboard>(sk(`/dashboard/${slug}`)),
   remind: (slug: string, course_code?: string, section?: string) => fetch(sk(`/dashboard/${slug}/remind`), json("POST", { course_code, section })).then(j<{ sent: number; late: number }>),
 };
+
+// ---------- ประเมินผลหลักสูตร (FS-6 · M4) ----------
+export type QaCriterion = { id: number; set_year: number; no: number; title: string; detail: string | null; sources: string[]; level: "all" | "grad"; rule: string; active: boolean; updated_at: string };
+export type QaCriteria = { items: QaCriterion[]; sets: number[]; levels: Record<string, string>; rules: Record<string, string> };
+export type QaRoundStatus = "draft" | "open" | "closed";
+export type QaRound = { id: number; year: number; name: string; starts_on: string | null; ends_on: string | null; status: QaRoundStatus; status_th: string; closed_at: string | null; programs: number; sets: number[]; confirmed: number };
+export type QaDataStatus = "none" | "doing" | "sent" | "confirmed";
+export type QaResult = "pass" | "fail" | "pending";
+export type QaPerson = { pid: string; name: string };
+export type QaRoundItem = { curriculum_id: number; name_th: string | null; level: string | null; faculty: string | null; set_year: number; status: QaDataStatus; evaluators: { email: string; name: string }[] };
+export type QaRoundDetail = QaRound & { items: QaRoundItem[] };
+export type QaCandidate = { id: number; name_th: string; level: string | null; faculty: string | null; standard: string | null; set_year: number };
+export type QaEvaluator = { email: string; name: string; kind: string };
+export type QaAssign = Omit<QaRoundDetail, "items"> & {
+  items: (QaRoundItem & { recorders: QaPerson[]; confirmer: QaPerson | null; complete: boolean })[];
+  kpi: { complete: number; incomplete: number; confirmed: number }; statuses: Record<QaDataStatus, string>;
+};
+export type QaProgramRow = QaRoundItem & { roles: string[]; status_th: string; results: Record<string, QaResult | "na" | "none">; final: QaResult; complete: boolean };
+export type QaPrograms = { id: number; year: number; name: string; status: QaRoundStatus; status_th: string; items: QaProgramRow[]; statuses: Record<QaDataStatus, string>; results: Record<QaResult, string> };
+export type QaEvidenceRow = { name: string | null; pid: string | null; degree: string; rank: string; works: number | null; result: QaResult };
+export type QaItem = Omit<QaCriterion, "id" | "set_year" | "active" | "updated_at"> & {
+  applies: boolean; evidence: { result: QaResult | "na"; text: string; rows?: QaEvidenceRow[] }; note: string;
+  result: { result: QaResult; note: string; by: string; at: string } | null;
+};
+export type QaDetail = {
+  round: { id: number; name: string; status: QaRoundStatus; status_th: string }; curriculum: { id: number; name_th: string; level: string | null; faculty: string | null; grad: boolean };
+  set_year: number; items: QaItem[]; dates: { curriculum: string; huris: string | null; supreme: string | null };
+  status: QaDataStatus; status_th: string; final: QaResult; recorders: QaPerson[]; confirmer: QaPerson | null; evaluators: { email: string; name: string }[];
+  roles: string[]; events: { ts: string; by: string; action: string; note: string | null }[];
+  can_note: boolean; can_confirm: boolean; can_evaluate: boolean; complete: boolean; results: Record<QaResult, string>;
+};
+export type QaSummary = {
+  id: number; year: number; name: string; status: QaRoundStatus; status_th: string;
+  items: { curriculum_id: number; name_th: string | null; level: string | null; faculty: string | null; set_year: number; status: QaDataStatus; final: QaResult; passed: number; total: number; complete: boolean }[];
+  kpi: { programs: number; pass: number; fail: number; pending: number };
+};
+
+const qa = (rest = "") => `${API_BASE}/api/qa${rest}`;
+const qget = <T,>(u: string) => fetch(u, { cache: "no-store" }).then(j<T>);
+export const qaApi = {
+  criteria: () => qget<QaCriteria>(qa("/criteria")),
+  saveCriterion: (id: number | null, b: Omit<QaCriterion, "id" | "updated_at">) => fetch(qa(id ? `/criteria/${id}` : "/criteria"), json(id ? "PUT" : "POST", b)).then(j<QaCriteria>),
+  evaluators: () => qget<QaEvaluator[]>(qa("/evaluators")),
+  rounds: () => qget<QaRound[]>(qa("/rounds")),
+  candidates: () => qget<QaCandidate[]>(qa("/candidates")),
+  round: (rid: number) => qget<QaRoundDetail>(qa(`/rounds/${rid}`)),
+  saveRound: (rid: number | null, b: { year: number; name?: string; starts_on?: string | null; ends_on?: string | null; programs: { curriculum_id: number; set_year: number; evaluators: string[] }[] }) =>
+    fetch(qa(rid ? `/rounds/${rid}` : "/rounds"), json(rid ? "PUT" : "POST", b)).then(j<QaRoundDetail>),
+  copyRound: (rid: number) => fetch(qa(`/rounds/${rid}/copy`), { method: "POST" }).then(j<QaRoundDetail>),
+  openRound: (rid: number) => fetch(qa(`/rounds/${rid}/open`), { method: "POST" }).then(j<QaRoundDetail>),
+  closeRound: (rid: number, note?: string) => fetch(qa(`/rounds/${rid}/close`), json("POST", { note })).then(j<QaRoundDetail>),
+  assign: (rid: number) => qget<QaAssign>(qa(`/rounds/${rid}/assign`)),
+  setAssign: (rid: number, cid: number, recorders: string[], confirmer: string | null) => fetch(qa(`/rounds/${rid}/assign/${cid}`), json("PUT", { recorders, confirmer })).then(j<QaAssign>),
+  copyAssign: (rid: number) => fetch(qa(`/rounds/${rid}/assign/copy`), { method: "POST" }).then(j<QaAssign & { copied: number }>),
+  notify: (rid: number) => fetch(qa(`/rounds/${rid}/assign/notify`), { method: "POST" }).then(j<{ sent: number; recipients: number }>),
+  programs: (rid: number) => qget<QaPrograms>(qa(`/rounds/${rid}/programs`)),
+  detail: (rid: number, cid: number) => qget<QaDetail>(qa(`/rounds/${rid}/programs/${cid}`)),
+  saveNotes: (rid: number, cid: number, notes: Record<string, string>) => fetch(qa(`/rounds/${rid}/programs/${cid}/notes`), json("PUT", { notes })).then(j<QaDetail>),
+  send: (rid: number, cid: number) => fetch(qa(`/rounds/${rid}/programs/${cid}/send`), { method: "POST" }).then(j<QaDetail>),
+  confirm: (rid: number, cid: number, ok: boolean, note: string) => fetch(qa(`/rounds/${rid}/programs/${cid}/confirm`), json("POST", { ok, note })).then(j<QaDetail>),
+  evaluate: (rid: number, cid: number, results: Record<string, { result: QaResult; note: string }>) => fetch(qa(`/rounds/${rid}/programs/${cid}/evaluate`), json("POST", { results })).then(j<QaDetail>),
+  giveBack: (rid: number, cid: number, note: string) => fetch(qa(`/rounds/${rid}/programs/${cid}/return`), json("POST", { note })).then(j<QaDetail>),
+  summary: (rid: number) => qget<QaSummary>(qa(`/rounds/${rid}/summary`)),
+  preview: (rid: number, cid?: number) => qget<(QaDetail & { complete: boolean })[]>(qa(`/rounds/${rid}/preview${cid ? `?cid=${cid}` : ""}`)),
+};
