@@ -1,0 +1,53 @@
+{
+ "note": "Typhoon OCR runs on the scanned sample (14 pages) after OCR-0, recorded from the server's output and the import jobs (OCR-1, OCR-2). Numbers only; rules-only extraction (no LLM).",
+ "runs": [
+  {
+   "id": "ocr1-cli",
+   "date": "2026-10-30",
+   "where": "server · ocl ingest in the worker image · commit 2dd2f56 (OCR-1)",
+   "seconds": 185.94,
+   "tables": 7,
+   "typhoon_pages": 14,
+   "fallback_pages": 0,
+   "info_fields_same_as_text_layer": "5/5",
+   "teachers": 6,
+   "responsible": 5,
+   "teacher_flags_same_as_text_layer": "6/6",
+   "misread_names": ["ศรีวิกรณ์ → ศรีวิภรณ์ (หน้า 9)"],
+   "flags": null,
+   "hard_pages": null
+  },
+  {
+   "id": "9b803053ea1a",
+   "date": "2026-10-30",
+   "where": "production web import · commit 2dd2f56 (OCR-1)",
+   "seconds": 186.3,
+   "tables": 7,
+   "typhoon_pages": 14,
+   "fallback_pages": 0,
+   "info_fields_same_as_text_layer": "3/3 checked",
+   "teachers": 6,
+   "responsible": 5,
+   "teacher_flags_same_as_text_layer": null,
+   "misread_names": ["ศรีวิกรณ์ → ศรีวิภรณ์ (หน้า 9)"],
+   "flags": null,
+   "hard_pages": null
+  },
+  {
+   "id": "a03a198a0c45",
+   "date": "2026-10-31",
+   "where": "production web import · commit 3a21ec9 (OCR-2a cross-check on)",
+   "seconds": 202.29,
+   "tables": 7,
+   "typhoon_pages": 14,
+   "fallback_pages": 0,
+   "info_fields_same_as_text_layer": null,
+   "teachers": 6,
+   "responsible": 5,
+   "teacher_flags_same_as_text_layer": null,
+   "misread_names": [],
+   "flags": 163,
+   "hard_pages": [2, 3, 4, 14]
+  }
+ ]
+}

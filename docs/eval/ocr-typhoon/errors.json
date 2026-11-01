@@ -1,0 +1,12 @@
+{
+ "note": "Typhoon misreads found by comparing its output with the page images (300 dpi crops) and the text layer of the source PDF, and which OCR-2a check catches each. ① word not seen by Tesseract on the same page · ② page where the two engines agree under 80% (hard to read) · ③ the same teacher spelled two ways in the book, or 1-2 letters off HURIS. Checked by replaying the server's Typhoon answers through the reader with a real Tesseract (30 Oct).",
+ "errors": [
+  {"page": 9, "on_page": "พิสุทธิ", "typhoon": "พิสุทธิ์", "kind": "แก้ตัวสะกดเอง (เติม ์)", "run": "OCR-0", "caught_by": ["③"]},
+  {"page": 9, "on_page": "ศรีวิกรณ์", "typhoon": "ศรีวิภรณ์", "kind": "เปลี่ยนพยัญชนะในชื่อ", "run": "OCR-1, 9b803053ea1a", "caught_by": ["①", "③"]},
+  {"page": 14, "on_page": "เกษตรแปรรูปมูลค่าสูง", "typhoon": "เกณฑ์การประมูลค่าสูง", "kind": "อ่านตัวอักษรเล็กเป็นคำอื่นที่อ่านลื่น", "run": "OCR-0, OCR-1", "caught_by": ["①", "②"]},
+  {"page": 14, "on_page": "(อว.)", "typhoon": "(วอ.)", "kind": "สลับตัวอักษรย่อ", "run": "OCR-0, OCR-1", "caught_by": ["①", "②"]},
+  {"page": 14, "on_page": "ทันสมัย", "typhoon": "พ้นสมัย", "kind": "ความหมายกลับ", "run": "OCR-0, OCR-1", "caught_by": ["②"]},
+  {"page": 14, "on_page": "Future Food และ Health", "typhoon": "Future Food and Health", "kind": "แปลคำไทยเป็นอังกฤษ", "run": "OCR-0, OCR-1", "caught_by": ["①", "②"]}
+ ],
+ "flags_replay": {"total": 161, "on_hard_pages": 136, "hard_pages": [2, 3, 4, 14], "normal_pages": 10, "on_normal_pages": 25}
+}
