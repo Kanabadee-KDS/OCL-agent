@@ -11,6 +11,7 @@ so testers compare the screen with this build, not with numbers copied from an o
 
   uv run python tools/expected_values.py            # rewrite both files
   uv run python tools/expected_values.py --check    # exit 1 if a file is stale (run before deploy)
+then `uv run python tools/test_round.py` so the next round's script carries the new answers.
 
 Books come from samples/curriculum (not in git). Each is ingested and extracted once into
 <work>/<slug>/ (default data/expected) and reused unless --force.

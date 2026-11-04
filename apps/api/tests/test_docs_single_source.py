@@ -34,13 +34,13 @@ def test_manual_states_the_current_number_of_test_cases():
     assert {k: int(v) for k, v in table.items()} == dict(per)
 
 
-def test_fs_round_names_every_case_of_its_categories():
-    """fs-round_ocl.md lists its cases as ranges; a case added to the CSV, or a range naming a
-    case that does not exist, fails here instead of drifting."""
+def test_fs_round_names_exactly_the_cases_of_its_script():
+    """fs-round_ocl.md (round R2) lists its cases as ranges and states how many; both must match
+    r2-test-script_ocl.csv, which tools/test_round.py builds, instead of drifting."""
     import csv
     import re
 
-    with (DOCS / "testing/test-script_ocl.csv").open(encoding="utf-8-sig", newline="") as f:
+    with (DOCS / "testing/r2-test-script_ocl.csv").open(encoding="utf-8-sig", newline="") as f:
         ids = {r[0] for r in list(csv.reader(f))[1:] if r and r[0] != "EX-00"}
     doc = (DOCS / "testing/fs-round_ocl.md").read_text(encoding="utf-8")
     line = re.search(r"^\*\*กรณีในรอบนี้:\*\* (.+)$", doc, re.M)
@@ -48,6 +48,19 @@ def test_fs_round_names_every_case_of_its_categories():
     listed: set[str] = set()
     for cat, a, b in re.findall(r"([A-Z])-(\d{2})(?:–[A-Z]-(\d{2}))?", line.group(1)):
         listed |= {f"{cat}-{n:02d}" for n in range(int(a), int(b or a) + 1)}
-    assert listed <= ids, f"not in the CSV: {sorted(listed - ids)}"
-    whole = {i for i in ids if i[0] in "JKLPTQR"}
-    assert whole <= listed, f"missing from the round: {sorted(whole - listed)}"
+    assert listed == ids, f"extra: {sorted(listed - ids)} · missing: {sorted(ids - listed)}"
+    m = re.search(r"สคริปต์รอบนี้ (\d+) กรณี", doc)
+    assert m and int(m.group(1)) == len(ids)
+    groups = re.search(r"^\| กลุ่ม \| กรณี \| จำนวน \|\n\|---\|---\|---\|\n((?:\|.*\n)+)", doc, re.M)
+    assert groups, "the round counts its groups"
+    assert sum(int(r.rsplit("|", 2)[1]) for r in groups.group(1).splitlines()) == len(ids)
+    # the day plan places every case of the round once
+    order = doc.split("## 3. ลำดับ", 1)[1].split("\n## 4.", 1)[0]
+    days = [r.split("|")[2] for r in order.splitlines() if re.match(r"\| (\d|PM) ", r)]
+    placed: list[str] = []
+    for cat, a, b in re.findall(r"([A-Z])-(\d{2})(?:–[A-Z]-(\d{2}))?", " · ".join(days)):
+        placed += [f"{cat}-{n:02d}" for n in range(int(a), int(b or a) + 1)]
+    assert sorted(placed) == sorted(ids), (
+        f"twice: {sorted({p for p in placed if placed.count(p) > 1})} · "
+        f"missing: {sorted(ids - set(placed))} · extra: {sorted(set(placed) - ids)}"
+    )
