@@ -40,9 +40,11 @@ export default function SmoPage() {
     return changes(before.filter((t) => inScope(t, form.scope)), mine);
   }, [before, form]);
 
-  async function run(fn: () => Promise<SmoDetail>, msg: string) {
+  // keepForm: the reply only refreshes the request (an attachment), so what is typed but not
+  // saved yet stays in the form instead of being replaced by the saved copy (R2 L-03)
+  async function run(fn: () => Promise<SmoDetail>, msg: string, keepForm = false) {
     setBusy(true);
-    try { fill(await fn()); toast(msg); } catch (e) { toast((e as Error).message, "err"); } finally { setBusy(false); }
+    try { const x = await fn(); if (keepForm) setD(x); else fill(x); toast(msg); } catch (e) { toast((e as Error).message, "err"); } finally { setBusy(false); }
   }
   const save = () => run(() => smoApi.save(id, form!), "บันทึกร่าง สมอ.08 แล้ว");
   const submit = () => run(async () => { await smoApi.save(id, form!); return smoApi.act(id, "submit"); }, "ส่งคำขอเข้าสู่ขั้นตอนอนุมัติแล้ว");
@@ -157,7 +159,7 @@ export default function SmoPage() {
             {edit && (
               <label className="btn sm" style={{ alignSelf: "flex-start" }}>
                 แนบไฟล์ (มติสภาฯ, สมอ.08 ฉบับลงนาม · PDF/Word/รูป ≤ 20 MB)
-                <input type="file" hidden accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onChange={(e) => { const f = e.target.files?.[0]; if (f) run(() => smoApi.upload(d.id, f), `แนบไฟล์ ${f.name} แล้ว`); e.target.value = ""; }} />
+                <input type="file" hidden accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onChange={(e) => { const f = e.target.files?.[0]; if (f) run(() => smoApi.upload(d.id, f), `แนบไฟล์ ${f.name} แล้ว`, true); e.target.value = ""; }} />
               </label>
             )}
           </section>

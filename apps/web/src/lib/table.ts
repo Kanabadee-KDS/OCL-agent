@@ -77,3 +77,16 @@ export function toCsv(head: readonly string[], rows: readonly (readonly unknown[
   const cell = (v: unknown) => `"${(v == null ? "" : String(v)).replace(/"/g, '""')}"`;
   return "﻿" + [head, ...rows].map((r) => r.map(cell).join(",")).join("\r\n") + "\r\n";
 }
+
+/** Save rows as a CSV file. The link goes into the page and its URL lives a minute: a detached
+ * link, or a URL revoked as soon as click() returns, can leave the browser nothing to save
+ * (R2 P-02: "รายงานการกำหนดสิทธิ์" seemed to do nothing). */
+export function downloadCsv(name: string, head: readonly string[], rows: readonly (readonly unknown[])[]): void {
+  const url = URL.createObjectURL(new Blob([toCsv(head, rows)], { type: "text/csv;charset=utf-8" }));
+  const a = Object.assign(document.createElement("a"), { href: url, download: name });
+  a.style.display = "none";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}

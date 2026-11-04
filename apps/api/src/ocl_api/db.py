@@ -758,6 +758,14 @@ MIGRATIONS: list[tuple[str, str]] = [
         CREATE INDEX IF NOT EXISTS login_codes_email_idx ON login_codes (lower(email));
         """,
     ),
+    (
+        "021_faculty_no_add_curriculum",
+        """
+        -- the faculty reviewer may not open a new curriculum (round R2 K-12): central does; the
+        -- default of 006 gave the faculty group 'add' on คู่มือหลักสูตร (c1)
+        DELETE FROM role_perms WHERE role_id = 'faculty' AND menu = 'c1' AND action = 'add';
+        """,
+    ),
 ]
 
 

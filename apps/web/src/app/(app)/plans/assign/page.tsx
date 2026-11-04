@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { fmtTime, m2Api, type M2Doc, type M2Item, type M2Items, type M2Term } from "@/lib/api";
 import { canMenu } from "@/lib/nav";
-import { toCsv } from "@/lib/table";
+import { downloadCsv } from "@/lib/table";
 import { Note, PageHead, Pill } from "@/components/ui";
 import { DataTable, Field, Filters, Kpi, KpiRow, Modal, SearchBox, SelectFilter, useToast, type Column } from "@/components/kit";
 import { StaffPicker, TermSelect, useTerm } from "@/components/m2";
@@ -50,9 +50,7 @@ export default function AssignPage() {
   function exportCsv() {
     const head = ["รหัส", "ประเภท", "ชื่อ", "หน่วยงานเจ้าของวิชา", "ผู้บันทึกแผน", "ผู้บันทึกรายงานผล"];
     const body = items.map((i) => [i.code, i.kind === "module" ? "ชุดวิชา" : "รายวิชา", i.name_th, i.unit, i.assign.plan.map((p) => `${p.name} (${p.pid})`).join("; "), i.assign.report.map((p) => `${p.name} (${p.pid})`).join("; ")]);
-    const url = URL.createObjectURL(new Blob([toCsv(head, body)], { type: "text/csv;charset=utf-8" }));
-    Object.assign(document.createElement("a"), { href: url, download: `assign-${slug}.csv` }).click();
-    URL.revokeObjectURL(url);
+    downloadCsv(`assign-${slug}.csv`, head, body);
   }
   const t = d?.term;
   return (

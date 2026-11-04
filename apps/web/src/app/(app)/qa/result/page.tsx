@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { qaApi, type QaSummary } from "@/lib/api";
 import { DATA_KIND } from "@/lib/qa";
-import { toCsv } from "@/lib/table";
+import { downloadCsv } from "@/lib/table";
 import { Note, PageHead, Pill } from "@/components/ui";
 import { DataTable, Kpi, KpiRow, type Column } from "@/components/kit";
 import { ResultPill, RoundSelect, useRound } from "@/components/qa";
@@ -32,9 +32,7 @@ export default function QaResultPage() {
   ];
   function exportCsv() {
     if (!d) return;
-    const url = URL.createObjectURL(new Blob([toCsv(["หลักสูตร", "ระดับ", "คณะ", "เกณฑ์", "ผ่าน", "ทั้งหมด", "ผลสุดท้าย"], d.items.map((i) => [i.name_th ?? "", i.level ?? "", i.faculty ?? "", i.set_year, i.passed, i.total, RES_TH[i.final]]))], { type: "text/csv;charset=utf-8" }));
-    Object.assign(document.createElement("a"), { href: url, download: `qa-result-${d.year}.csv` }).click();
-    URL.revokeObjectURL(url);
+    downloadCsv(`qa-result-${d.year}.csv`, ["หลักสูตร", "ระดับ", "คณะ", "เกณฑ์", "ผ่าน", "ทั้งหมด", "ผลสุดท้าย"], d.items.map((i) => [i.name_th ?? "", i.level ?? "", i.faculty ?? "", i.set_year, i.passed, i.total, RES_TH[i.final]]));
   }
   return (
     <>

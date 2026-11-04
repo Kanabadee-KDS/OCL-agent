@@ -150,7 +150,9 @@ class CourseStore:
         return out
 
     def catalog(self, q: str = "", exclude: list[str] | None = None) -> list[dict[str, Any]]:
-        """What หมวด 4 may pick: courses in use (not drafts or retired), latest Version, max 50."""
+        """What หมวด 4 may pick: courses in use (not drafts or retired), latest Version, max 50,
+        each with the curricula that already teach it (R2 K-14: the faculty alone did not tell
+        where a course comes from)."""
         words = [w for w in re.split(r"\s+", q.strip()) if w]
         with self._conn() as conn:
             rows = conn.execute(
@@ -160,6 +162,7 @@ class CourseStore:
                 "FROM courses c JOIN course_versions v ON v.code_th = c.code_th "
                 "AND v.version = c.latest WHERE c.status = 'ใช้งาน' ORDER BY c.code_th"
             ).fetchall()
+            used = self.usage(conn)
         skip = set(exclude or [])
         out = []
         for r in rows:
@@ -168,7 +171,7 @@ class CourseStore:
             )
             if r["code_th"] in skip or not all(w in hay for w in words):
                 continue
-            out.append(dict(r))
+            out.append({**r, "used_in": [u["name_th"] for u in used.get(r["code_th"], [])]})
             if len(out) == 50:
                 break
         return out

@@ -127,6 +127,23 @@ def test_parse_courses_header_en_description_prereq() -> None:
     assert d["meta"]["source"]["page"] == 26
 
 
+def test_parse_courses_footnote_under_a_table_is_no_description() -> None:
+    """ปร.ด. (R2 V-28): the course-list table ends with ศฐน712*, a footnote explains the mark,
+    and the description comes later; the footnote must not lead that description."""
+    courses = parse_courses([
+        Table(rows=[["ศฐน711*", "เศรษฐศาสตร์จุลภาคขั้นสูง", "ไม่นับหน่วยกิต"],
+                    ["ศฐน712*", "เศรษฐศาสตร์มหภาคขั้นสูง", "ไม่นับหน่วยกิต"]], page=20),
+        P("หมายเหตุ * รายวิชาสำหรับนิสิตที่คณะกรรมการบริหารหลักสูตรพิจารณาแล้ว", 20),
+        Table(rows=[["ศฐน712", "เศรษฐศาสตร์มหภาคขั้นสูง", "ไม่นับหน่วยกิต"],
+                    ["วิเคราะห์ปรากฏการณ์ทางเศรษฐกิจมหภาค"]], page=28),
+        P("ศท111 ศิลปะการใช้ชีวิต 3(3-0-6)", 29),
+        P("พัฒนาผู้เรียน", 29),
+        P("*หมายเหตุ: เลือกเรียนชุดวิชา 3.2.3.1 หรือ 3.2.3.2", 29),
+    ])  # fmt: skip
+    assert courses["ศฐน712"]["description_th"] == "วิเคราะห์ปรากฏการณ์ทางเศรษฐกิจมหภาค"
+    assert courses["ศท111"]["description_th"] == "พัฒนาผู้เรียน"
+
+
 def test_merge_llm_fills_and_flags() -> None:
     doc = sample_doc()
     ch4 = chapter(doc, "4")
@@ -674,6 +691,23 @@ def test_info_fields_from_chapter_1() -> None:
     )
     assert r.data["missing_required"] == []
     assert r.data["meta"]["name_th"]["source"]["page"] == 5
+
+
+def test_degree_names_when_the_language_label_has_a_colon() -> None:
+    """R2 H-03: the scanned book through Typhoon OCR wrote 'ภาษาอังกฤษ :' before the English
+    pair, and the Thai abbreviation came out as 'วท.บ. (…) ภาษาอังกฤษ'."""
+    from ocl_api.extract.info import parse_item2
+
+    th = "ภาษาไทย ชื่อเต็ม: วิทยาศาสตรบัณฑิต (อาหาร) ชื่อย่อ: วท.บ. (อาหาร)"
+    en = "ชื่อเต็ม: Bachelor of Science (Food) ชื่อย่อ: B.Sc. (Food)"
+    for label in ("ภาษาอังกฤษ", "ภาษาอังกฤษ :", "ภาษาอังกฤษ:", "**ภาษาอังกฤษ**"):
+        got = {k: v[0] for k, v in parse_item2([P(th, 5), P(label, 5), P(en, 5)]).items()}
+        assert got == {
+            "degree_full_th": "วิทยาศาสตรบัณฑิต (อาหาร)",
+            "degree_abbr_th": "วท.บ. (อาหาร)",
+            "degree_full_en": "Bachelor of Science (Food)",
+            "degree_abbr_en": "B.Sc. (Food)",
+        }, label
 
 
 def test_info_llm_fills_only_literal_values() -> None:

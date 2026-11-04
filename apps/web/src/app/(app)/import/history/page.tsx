@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api, fmtTime, hasSummary, JOB_STATUS_TH as STATUS_TH, providerLabel, type Job } from "@/lib/api";
 import { Ic, Note, PageHead, Pill } from "@/components/ui";
+import { llmSummary } from "@/lib/llm";
 import { BackLink, DataTable, Filters, Kpi, KpiRow, SearchBox, SelectFilter, type Column } from "@/components/kit";
 
 // KPI cards group the three "running" states into one
@@ -37,7 +38,7 @@ const COLUMNS: Column<Job>[] = [
     key: "time", label: "เวลา", align: "right", sort: (j) => j.timings?.total ?? null,
     render: (j) => <span className="small num">{j.timings?.total != null ? `${j.timings.total} s` : "–"}</span>,
   },
-  { key: "llm", label: "LLM", render: (j) => <span className="small">{j.llm ? `${j.llm.calls} คำขอ · ${j.llm.prompt_tokens}/${j.llm.completion_tokens} tok` : "–"}</span> },
+  { key: "llm", label: "LLM", render: (j) => <span className="small">{llmSummary(j.provider, j.llm).short}</span> },
   {
     key: "act", label: "",
     render: (j) => (

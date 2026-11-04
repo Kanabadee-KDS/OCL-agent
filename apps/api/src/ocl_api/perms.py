@@ -100,6 +100,8 @@ _ACTIONS_OF: dict[str, set[str]] = {
 _OVERRIDES: dict[tuple[str, str], set[str]] = {
     # BRD 00 §3: the faculty reviewer reads imports but does not import (J-04)
     ("faculty", "c3"): {"view", "print"},
+    # a new curriculum is central's to open; the faculty reviews and edits it (K-12, R2)
+    ("faculty", "c1"): set(ACTIONS) - {"delete", "add"},
 }
 
 Table = dict[str, dict[str, set[str]]]  # role -> menu -> actions

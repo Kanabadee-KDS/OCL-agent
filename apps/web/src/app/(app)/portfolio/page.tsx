@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { skillsApi, type PortfolioItem } from "@/lib/api";
 import { CATS, CAT_COLOR, fmt2 } from "@/lib/skills";
-import { toCsv } from "@/lib/table";
+import { downloadCsv } from "@/lib/table";
 import { Note, PageHead, Pill } from "@/components/ui";
 import { Bar, DataTable, Filters, SearchBox, SelectFilter, type Column } from "@/components/kit";
 
@@ -30,9 +30,7 @@ export default function PortfolioListPage() {
     { key: "lv", label: "ระดับรวม", sort: (i) => i.overall ?? -1, render: (i) => (i.level ? <Pill kind="red">{i.level}</Pill> : <span className="faint">ยังไม่มีผล</span>) },
   ];
   function exportCsv() {
-    const url = URL.createObjectURL(new Blob([toCsv(["รหัส", "ชื่อ", "หลักสูตร", "ปีเข้า", ...CATS, "ระดับรวม"], rows.map((i) => [i.sid, i.name_th, i.program ?? "", i.entry_year ?? "", ...CATS.map((c) => i.cats[c] ?? ""), i.level ?? ""]))], { type: "text/csv;charset=utf-8" }));
-    Object.assign(document.createElement("a"), { href: url, download: "skill-portfolio.csv" }).click();
-    URL.revokeObjectURL(url);
+    downloadCsv("skill-portfolio.csv", ["รหัส", "ชื่อ", "หลักสูตร", "ปีเข้า", ...CATS, "ระดับรวม"], rows.map((i) => [i.sid, i.name_th, i.program ?? "", i.entry_year ?? "", ...CATS.map((c) => i.cats[c] ?? ""), i.level ?? ""]));
   }
   return (
     <>

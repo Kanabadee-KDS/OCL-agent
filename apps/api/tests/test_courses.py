@@ -135,6 +135,14 @@ def test_curriculum_picks_and_creates_courses_in_the_central_database(env) -> No
     got = c.get(f"/api/curricula/courses/catalog?exclude={did}", headers=DEAN).json()
     assert [x["code_th"] for x in got] == ["ทวพ211"], "in use only, not the ones it already has"
     assert got[0]["version"] == 1 and got[0]["credits"] == 3
+    assert got[0]["used_in"] == []
+    # R2 K-14: the picker tells which curricula already teach a course
+    other = new("หลักสูตร จ", [{"code_th": "ทวพ211", "name_th": "x", "version": 1}])
+    got = c.get(f"/api/curricula/courses/catalog?exclude={did}", headers=DEAN).json()
+    assert got[0]["used_in"] == ["หลักสูตร จ"]
+    assert c.get(f"/api/curricula/courses/catalog?exclude={other}", headers=DEAN).json()[0][
+        "used_in"
+    ] == ["หลักสูตร ง"]
     assert c.get(f"/api/curricula/courses/catalog?q=PMT&exclude={did}", headers=DEAN).json()
     assert c.get(f"/api/curricula/courses/catalog?q=zzz&exclude={did}", headers=DEAN).json() == []
 

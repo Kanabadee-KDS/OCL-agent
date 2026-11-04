@@ -8,7 +8,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { coursesApi, type CourseDetail, type CourseFields, type CourseList, type CourseRow } from "@/lib/api";
 import { canMenu } from "@/lib/nav";
-import { toCsv } from "@/lib/table";
+import { downloadCsv } from "@/lib/table";
 import { Note, PageHead, Pill } from "@/components/ui";
 import { DataTable, Field, Filters, Kpi, KpiRow, Modal, SearchBox, SelectFilter, useToast, type Column } from "@/components/kit";
 
@@ -47,9 +47,7 @@ export default function CoursesPage() {
   function exportCsv() {
     const head = ["รหัสวิชา", "รหัสวิชา (อังกฤษ)", "Version", "ชื่อวิชา (ไทย)", "ชื่อวิชา (อังกฤษ)", "หน่วยกิต", "ประเภท", "ชุดวิชา", "หน่วยงานเจ้าของวิชา", "สถานะ", "ใช้ในหลักสูตร"];
     const body = rows.map((c) => [c.code_th, c.code_en, c.latest, c.name_th, c.name_en, c.credit_text, c.course_type, c.module, c.unit, c.status, c.used_in.length]);
-    const url = URL.createObjectURL(new Blob([toCsv(head, body)], { type: "text/csv;charset=utf-8" }));
-    Object.assign(document.createElement("a"), { href: url, download: "courses.csv" }).click();
-    URL.revokeObjectURL(url);
+    downloadCsv("courses.csv", head, body);
   }
 
   return (

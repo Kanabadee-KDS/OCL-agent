@@ -7,7 +7,7 @@ import { curricula, fmtTime, PART_LABELS, STATUS_KIND, type CurriculumDetail } f
 import { Ic, Note, PageHead, Pill } from "@/components/ui";
 
 const STEPS: [string, string][] = [["import", "ร่างนำเข้าหลักสูตร"], ["review", "คณะตรวจสอบ"], ["verified", "ตรวจสอบสำเร็จ"], ["published", "เผยแพร่แล้ว"]];
-const ACTION_TH: Record<string, string> = { create: "เพิ่มหลักสูตร", edit: "แก้ไขข้อมูล", submit: "ส่งให้คณะตรวจสอบ", return: "ส่งคืนเป็นร่าง", check: "ติ๊กตรวจสอบหมวด", verify: "ตรวจสอบสำเร็จ", publish: "เปิดเผยแพร่", unpublish: "ปิดการเผยแพร่" };
+const ACTION_TH: Record<string, string> = { create: "เพิ่มหลักสูตร", edit: "แก้ไขข้อมูล", submit: "ส่งให้คณะตรวจสอบ", return: "ส่งคืนเป็นร่าง", check: "ติ๊กตรวจสอบหมวด", verify: "ตรวจสอบสำเร็จ", publish: "เปิดเผยแพร่", unpublish: "ปิดการเผยแพร่", smo08: "ปรับรายชื่ออาจารย์ตาม สมอ.08" };
 
 export function CurriculumClient() {
   const { id } = useParams<{ id: string }>();

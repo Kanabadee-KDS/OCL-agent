@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { api, curricula, fmtTime, JOB_STATUS_TH as STATUS_TH, PART_LABELS, type Job } from "@/lib/api";
 import { Ic, Note, Pill, Steps } from "@/components/ui";
+import { llmSummary } from "@/lib/llm";
 
 export default function DoneClient() {
   const { id } = useParams<{ id: string }>();
@@ -16,6 +17,7 @@ export default function DoneClient() {
   const parts = job.counts.parts ?? {};
   // also reachable for jobs still in review (history "สรุป" button): never claim they were saved
   const saved = job.status === "done";
+  const llm = llmSummary(job.provider, job.llm);
   return (
     <>
       <Link href="/import/history" className="link-btn small" style={{ color: "var(--red-ink)" }}><Ic name="back" size={14} /> ประวัติการนำเข้าทั้งหมด</Link>
@@ -40,7 +42,7 @@ export default function DoneClient() {
       </section>
       <div className="grid" style={{ gridTemplateColumns: "repeat(3, minmax(0,1fr))" }}>
         <div className="card kpi"><span className="l">เวลาที่ AI ใช้ทั้งหมด</span><span className="v num">{job.timings.total ?? "–"} s</span><span className="small faint">แปลงไฟล์ {job.timings.ingest ?? "–"} s · สกัดรายวิชา {job.timings.courses ?? "–"} s</span></div>
-        <div className="card kpi"><span className="l">LLM</span><span className="v num">{job.llm ? `${job.llm.calls} คำขอ` : "ไม่ใช้"}</span><span className="small faint">{job.llm ? `${job.llm.model} · ${job.llm.prompt_tokens}/${job.llm.completion_tokens} tokens · ${job.llm.seconds} s` : "อ่านด้วยกฎอย่างเดียว"}</span></div>
+        <div className="card kpi"><span className="l">LLM</span><span className="v num">{llm.value}</span><span className="small faint">{llm.detail}</span></div>
         <div className="card kpi"><span className="l">เล่ม</span><span className="v num">{job.counts.ingest?.pages ?? "–"} หน้า</span><span className="small faint">ตาราง {job.counts.ingest?.tables} · รูป {job.counts.ingest?.images} · หมวด {job.counts.ingest?.chapters.join(",")}{(job.counts.ingest?.scanned_pages ?? 0) > 0 ? ` · หน้าสแกน ${job.counts.ingest?.scanned_pages} (OCR ${job.counts.ingest?.ocr_pages ?? 0})` : ""}{job.counts.ingest?.ocr_flags ? ` · คำ OCR ที่ต้องตรวจ ${job.counts.ingest.ocr_flags}` : ""}{job.counts.ingest?.ocr_hard_pages?.length ? ` · หน้าอ่านยาก ${job.counts.ingest.ocr_hard_pages.join(", ")}` : ""}</span></div>
       </div>
       <section className="card pad stack">

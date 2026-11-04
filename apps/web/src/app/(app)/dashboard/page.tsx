@@ -8,7 +8,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { curricula, type Dashboard, type DashItem } from "@/lib/api";
 import { canMenu } from "@/lib/nav";
-import { toCsv } from "@/lib/table";
+import { downloadCsv } from "@/lib/table";
 import { Note, PageHead, Pill } from "@/components/ui";
 import { Bar, Filters, Kpi, KpiRow, Legend, SelectFilter, Tabs, useToast } from "@/components/kit";
 
@@ -47,10 +47,7 @@ export default function CurriculumDashboard() {
     if (!d) return;
     const head = ["รหัส", "หลักสูตร", "คณะ", "ระดับ", "ปีที่เริ่มใช้", "สถานะ", "ค้าง (วัน)", "หมวดที่ยังไม่ครบ", "หน่วยกิต", "PLO", "รายวิชา", "ใหม่/ปรับปรุง"];
     const rows = d.items.map((i) => [i.id, i.name_th, i.faculty, i.level, i.start_year, i.status_th, i.days ?? "", i.missing.map((n) => `หมวด ${n}`).join(" "), i.total_credits ?? "", i.plo_count, i.course_count, i.revision_type ?? ""]);
-    const url = URL.createObjectURL(new Blob([toCsv(head, rows)], { type: "text/csv;charset=utf-8" }));
-    const a = Object.assign(document.createElement("a"), { href: url, download: `dashboard-curricula-${d.today}.csv` });
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadCsv(`dashboard-curricula-${d.today}.csv`, head, rows);
   }
 
   async function remind(i: DashItem) {

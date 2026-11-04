@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { fmtTime, m2Api, usersApi, type M2Doc, type M2Item, type M2Items, type M2Person, type M2Term, type Staff } from "@/lib/api";
 import { STATUS_KIND, sentPct } from "@/lib/m2";
-import { toCsv } from "@/lib/table";
+import { downloadCsv } from "@/lib/table";
 import { Note, PageHead, Pill } from "@/components/ui";
 import { DataTable, Filters, Kpi, KpiRow, Modal, SearchBox, SelectFilter, useToast, type Column } from "@/components/kit";
 
@@ -95,9 +95,7 @@ export function ItemsPage({ doc }: { doc: M2Doc }) {
   function exportCsv() {
     const head = ["หน่วยงาน", "รายวิชาที่เปิดสอน", ...Object.values(d?.statuses ?? {}), "ร้อยละความคืบหน้า"];
     const body = units.map(([u, xs]) => [u, xs.length, ...Object.keys(d?.statuses ?? {}).map((s) => xs.filter((x) => x.status[doc] === s).length), sentPct(xs.map((x) => x.status[doc]))]);
-    const url = URL.createObjectURL(new Blob([toCsv(head, body)], { type: "text/csv;charset=utf-8" }));
-    Object.assign(document.createElement("a"), { href: url, download: `${doc}-${slug}.csv` }).click();
-    URL.revokeObjectURL(url);
+    downloadCsv(`${doc}-${slug}.csv`, head, body);
   }
   return (
     <>

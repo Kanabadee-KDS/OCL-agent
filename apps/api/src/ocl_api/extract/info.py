@@ -40,8 +40,11 @@ SUB5_BY_TITLE = [
     ("ให้ปริญญา", "6"),
 ]
 RE_SUB5_INLINE = re.compile(r"\s5\.(\d)\s")
+# the language label between pairs may carry its own colon ("ภาษาอังกฤษ : ชื่อเต็ม : …", as
+# Typhoon OCR writes the scanned book): without [:：]? it ended the Thai abbreviation (R2 H-03)
 RE_NAME_PAIR = re.compile(
-    r"(ชื่อเต็ม|ชื่อย่อ)\s*[:：]\s*(.+?)(?=\s*(?:ภาษาไทย|ภาษาอังกฤษ)?\s*(?:ชื่อเต็ม|ชื่อย่อ)\s*[:：]|$)"
+    r"(ชื่อเต็ม|ชื่อย่อ)\s*[:：]\s*(.+?)"
+    r"(?=\s*(?:(?:ภาษาไทย|ภาษาอังกฤษ)\s*[:：]?)?\s*(?:ชื่อเต็ม|ชื่อย่อ)\s*[:：]|$)"
 )
 RE_TOTAL = re.compile(r"(ไม่น้อยกว่า|รวม|จำนวน)?\s*([\d,๐-๙]+)\s*หน่วยกิต")
 RE_EDITION = re.compile(r"\(\s*หลักสูตร\s*(ใหม่|ปรับปรุง)\s*พ\.?ศ\.?\s*(\d{4})\s*\)")
@@ -287,7 +290,8 @@ def parse_item2(ps: list[Paragraph]) -> dict[str, tuple[Any, int | None, str]]:
     text = _joined(ps)
     for m in RE_NAME_PAIR.finditer(text):
         kind = "full" if m.group(1) == "ชื่อเต็ม" else "abbr"
-        value = _clean(m.group(2))
+        # a language label left at the end (the next pair's label on a line of its own)
+        value = _clean(re.sub(r"\s*\**(?:ภาษาไทย|ภาษาอังกฤษ)\**\s*[:：]?\s*$", "", m.group(2)))
         lang = "th" if THAI.search(value) else "en"
         key = f"degree_{kind}_{lang}"
         if key not in out:

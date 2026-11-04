@@ -63,7 +63,7 @@ def test_copy_edit_and_take_effect(env, pg_url: str, schema: str) -> None:
     assert r.status_code == 201
     g = r.json()
     gid = g["id"]
-    assert not g["builtin"] and g["perms"]["c1"] == ["view", "add", "edit", "approve", "print"]
+    assert not g["builtin"] and g["perms"]["c1"] == ["view", "edit", "approve", "print"]
     assert g["scope_kind"] == "faculty" and g["events"][0]["action"] == "create"
     assert c.post("/api/roles", json={"name": "ผู้ช่วยงานวิชาการคณะ"}, headers=ADMIN).status_code == 409
 
@@ -134,6 +134,26 @@ def test_guards(env) -> None:
     # the faculty reviewer has no u1 at all
     assert c.post("/api/roles", json={"name": "x"}, headers=DEAN).status_code == 403
     assert c.put("/api/roles/teacher", json={"perms": {}}, headers=DEAN).status_code == 403
+
+
+def test_faculty_does_not_open_a_curriculum(env, pg_url: str, schema: str) -> None:
+    """R2 K-12: only central adds a curriculum; 021 takes 'add' from databases seeded before."""
+    from ocl_api.auth import clear_user_cache
+    from ocl_api.db import MIGRATIONS, connect
+
+    c, _ = env
+    new = {"name_th": "หลักสูตรทดสอบ", "level": "ปริญญาตรี", "faculty": "คณะทดสอบ"}
+    assert "add" not in c.get("/api/auth/me", headers=DEAN).json()["perms"]["c1"]
+    assert c.post("/api/curricula", json=new, headers=DEAN).status_code == 403
+    assert c.post("/api/curricula", json=new, headers=CENTRAL).status_code == 201
+    with connect(pg_url, schema) as conn:
+        conn.execute("INSERT INTO role_perms VALUES ('faculty', 'c1', 'add')")
+        conn.execute(dict(MIGRATIONS)["021_faculty_no_add_curriculum"])
+        left = conn.execute(
+            "SELECT action FROM role_perms WHERE role_id = 'faculty' AND menu = 'c1'"
+        )
+        assert {r["action"] for r in left} == {"view", "edit", "approve", "print"}
+    clear_user_cache()
 
 
 def test_role_switch_narrows_the_menus(env) -> None:

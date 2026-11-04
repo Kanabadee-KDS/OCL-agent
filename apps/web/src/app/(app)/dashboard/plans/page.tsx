@@ -9,7 +9,7 @@ import { useSession } from "next-auth/react";
 import { fmtTime, m2Api, type M2Dashboard, type M2Status } from "@/lib/api";
 import { canMenu } from "@/lib/nav";
 import { STATUS_KIND } from "@/lib/m2";
-import { toCsv } from "@/lib/table";
+import { downloadCsv } from "@/lib/table";
 import { Note, PageHead, Pill } from "@/components/ui";
 import { Bar, Kpi, KpiRow, useToast } from "@/components/kit";
 import { TermSelect, useTerm } from "@/components/m2";
@@ -32,9 +32,7 @@ export default function PlanDashboard() {
     if (!d) return;
     const head = ["หน่วยงาน", "รายวิชา/ชุดวิชาที่เปิดสอน", "แผนส่งแล้ว (%)", "รายงานส่งแล้ว (%)", "ต่ำกว่าเป้า"];
     const body = d.units.map((u) => [u.unit, u.count, u.plan_pct, u.report_pct, u.below ? "ใช่" : ""]);
-    const url = URL.createObjectURL(new Blob([toCsv(head, body)], { type: "text/csv;charset=utf-8" }));
-    Object.assign(document.createElement("a"), { href: url, download: `dashboard-plans-${slug}.csv` }).click();
-    URL.revokeObjectURL(url);
+    downloadCsv(`dashboard-plans-${slug}.csv`, head, body);
   }
   return (
     <>

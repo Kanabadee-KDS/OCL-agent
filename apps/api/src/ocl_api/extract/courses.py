@@ -34,6 +34,9 @@ RE_MODULE = re.compile(r"^(?:\d+(?:\.\d+)*\s+)?(ชุดวิชา\S.*)$")
 RE_PREREQ = re.compile(r"(?:บุรพวิชา|วิชาบังคับก่อน|Prerequisite)\s*[:：]?\s*(.+)$", re.I)
 RE_CREDIT_WORDS = re.compile(r"(\d+)\s*หน่วยกิต")  # thesis / independent study: "12 หน่วยกิต"
 RE_NO_CREDIT = re.compile(r"ไม่นับหน่วยกิต")
+# "หมายเหตุ * รายวิชาสำหรับนิสิต…" under a course table explains a mark in it; it is nobody's
+# description (R2 V-28: it led ศฐน712's description, the last row of the table above it)
+RE_NOTE = re.compile(r"^\*?\s*หมายเหตุ")
 
 
 def credit_from(text: str) -> tuple[str, int | None, dict[str, int] | None, int] | None:
@@ -168,7 +171,7 @@ def parse_courses(blocks: list) -> dict[str, dict[str, Any]]:
         for text, page in lines_of(b):
             if not text:
                 continue
-            if isinstance(b, Paragraph) and b.level:
+            if (isinstance(b, Paragraph) and b.level) or RE_NOTE.match(text):
                 cur, expect_en, pending = None, False, None
                 continue
             cr = credit_from(text)

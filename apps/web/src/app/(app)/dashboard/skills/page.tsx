@@ -10,7 +10,7 @@ import { useSession } from "next-auth/react";
 import { skillsApi, type AssessStatus, type SkillDashboard } from "@/lib/api";
 import { canMenu } from "@/lib/nav";
 import { ASSESS_KIND } from "@/lib/skills";
-import { toCsv } from "@/lib/table";
+import { downloadCsv } from "@/lib/table";
 import { Note, PageHead, Pill } from "@/components/ui";
 import { Bar, Kpi, KpiRow, useToast } from "@/components/kit";
 import { SkillTermSelect, useSkillTerm } from "@/components/skills";
@@ -30,9 +30,7 @@ export default function SkillDashboardPage() {
   }
   function exportCsv() {
     if (!d) return;
-    const url = URL.createObjectURL(new Blob([toCsv(["คณะ", "รายวิชา-กลุ่ม", "ยืนยันแล้ว (%)", "นิสิตประเมินแล้ว (%)", "ต่ำกว่าเป้า"], d.units.map((u) => [u.faculty, u.sections, u.confirmed_pct, u.assessed_pct, u.below ? "ใช่" : ""]))], { type: "text/csv;charset=utf-8" }));
-    Object.assign(document.createElement("a"), { href: url, download: `dashboard-skills-${slug}.csv` }).click();
-    URL.revokeObjectURL(url);
+    downloadCsv(`dashboard-skills-${slug}.csv`, ["คณะ", "รายวิชา-กลุ่ม", "ยืนยันแล้ว (%)", "นิสิตประเมินแล้ว (%)", "ต่ำกว่าเป้า"], d.units.map((u) => [u.faculty, u.sections, u.confirmed_pct, u.assessed_pct, u.below ? "ใช่" : ""]));
   }
   return (
     <>

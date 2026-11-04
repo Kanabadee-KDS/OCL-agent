@@ -110,7 +110,7 @@ function PickCourse({ draftId, have, onClose, onPick }: { draftId: string; have:
         <SearchBox value={q} onChange={setQ} placeholder="ค้นรหัสหรือชื่อรายวิชา" />
         {shown.map((c) => (
           <button key={c.code_th} type="button" className="card" style={{ padding: "8px 12px", textAlign: "left", cursor: "pointer" }} onClick={() => onPick({ code_th: c.code_th, code_en: c.code_en, name_th: c.name_th ?? undefined, name_en: c.name_en, credits: c.credits, credit_text: c.credit_text, description_th: c.description_th, description_en: c.description_en, version: c.version })}>
-            <b>{c.code_th}-{c.version}</b> {c.name_th} <span className="small faint">{c.credit_text ?? c.credits} · {c.course_type ?? "ไม่ระบุประเภท"} · {c.unit ?? "ไม่ระบุหน่วยงาน"}</span>
+            <b>{c.code_th}-{c.version}</b> {c.name_th} <span className="small faint">{c.credit_text ?? c.credits} · {c.course_type ?? "ไม่ระบุประเภท"} · {c.unit ?? "ไม่ระบุหน่วยงาน"} · {c.used_in?.length ? `ใช้ใน ${c.used_in.join(", ")}` : "ยังไม่มีหลักสูตรใช้"}</span>
           </button>
         ))}
         {!items && <span className="small faint" role="status">กำลังค้น…</span>}

@@ -275,6 +275,7 @@ export const curriculumForm = {
 export type CatalogCourse = {
   code_th: string; code_en: string | null; name_th: string | null; name_en: string | null; credits: number | null; credit_text: string | null;
   description_th: string | null; description_en: string | null; unit: string | null; course_type: string | null; module: string | null; version: number;
+  used_in?: string[]; // the curricula whose หมวด 4 already has it
 };
 export const courseCatalog = (q: string, exclude: number | string) =>
   fetch(`${API_BASE}/api/curricula/courses/catalog?q=${encodeURIComponent(q)}&exclude=${exclude}`, { cache: "no-store" }).then(j<CatalogCourse[]>);
